@@ -1,0 +1,820 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>JLA: Bairro em Jogo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: full-screen pixel map with a HUD on top, a place card and tabs at the bottom, sheets for menus and minigames. Single dark-navy game look in both themes. */
+:root{
+  --navy:#0A2240; --navy2:#13325a; --navy3:#1d4677; --orange:#F57E20; --orange2:#ff9a45;
+  --azure:#008CE3; --green:#319B27; --cream:#F4F1E9; --muted:#b9c6d8; --red:#e2483d;
+  --ink:#0A2240; --bg:#0A2240;
+  --display:"Pixelify Sans","Courier New",monospace;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--cream);font-family:var(--body);overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:50;background:var(--navy)}
+#app{position:fixed;inset:0;}
+canvas#map{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;touch-action:none;display:block}
+button{font-family:var(--body);cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--orange2);outline-offset:2px}
+
+/* HUD */
+#hud{position:absolute;top:0;left:0;right:0;padding:calc(8px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 8px max(12px,env(safe-area-inset-left,0px));display:flex;gap:10px;align-items:center;flex-wrap:wrap;pointer-events:none;background:linear-gradient(#0A2240ee,#0A224000)}
+.chip{pointer-events:auto;display:flex;align-items:center;gap:8px;background:var(--navy);border:2px solid var(--navy3);border-radius:4px;padding:6px 10px;box-shadow:0 3px 0 #04101f;min-width:0}
+.chip b{font-family:var(--display);font-size:16px;letter-spacing:.5px}
+#who .nick{font-family:var(--display);font-size:15px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#who .lvl{font-size:11px;color:var(--muted)}
+.hearts{display:flex;gap:3px}
+.heart{width:14px;height:12px;background:var(--red);clip-path:polygon(0 25%,25% 0,50% 20%,75% 0,100% 25%,100% 50%,50% 100%,0 50%)}
+.heart.off{background:#3a4a63}
+#where{flex:1 1 220px;max-width:100%;justify-content:flex-start;font-size:13px;font-weight:700}
+#where small{color:var(--muted);font-weight:600}
+.pin{width:10px;height:14px;background:var(--orange);clip-path:polygon(50% 100%,0 40%,0 15%,20% 0,80% 0,100% 15%,100% 40%);flex:none}
+#zoom{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(150px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px}
+.sq{width:42px;height:42px;background:var(--navy);color:var(--cream);border:2px solid var(--navy3);border-radius:4px;font-family:var(--display);font-size:20px;box-shadow:0 3px 0 #04101f}
+.sq:active{transform:translateY(2px);box-shadow:0 1px 0 #04101f}
+
+/* d-pad */
+#pad{position:absolute;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);gap:2px;opacity:.92}
+#pad button{background:var(--navy);border:2px solid var(--navy3);color:var(--cream);border-radius:4px;font-size:16px;touch-action:none}
+#pad .c{visibility:hidden}
+
+/* place card */
+#place{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom,0px));width:min(560px,calc(100% - 24px));background:var(--cream);color:var(--ink);border:3px solid var(--navy);border-radius:6px;box-shadow:0 5px 0 #04101f;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#place .t{flex:1 1 200px;min-width:0}
+#place h3{font-family:var(--display);font-size:18px;margin:0 0 2px;line-height:1.15}
+#place p{margin:0;font-size:13px;color:#3b4c66}
+#place .acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--orange);color:#fff;border:0;border-radius:4px;padding:10px 14px;font-weight:800;font-size:14px;box-shadow:0 3px 0 #a84f0c;min-height:42px}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #a84f0c}
+.btn.blue{background:var(--azure);box-shadow:0 3px 0 #005b94}
+.btn.green{background:var(--green);box-shadow:0 3px 0 #1d6316}
+.btn.ghost{background:transparent;color:inherit;border:2px solid currentColor;box-shadow:none}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* tabs */
+#tabs{position:absolute;left:0;right:0;bottom:0;display:flex;background:var(--navy);border-top:3px solid var(--orange);padding:0 max(4px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(4px,env(safe-area-inset-left,0px))}
+#tabs button{flex:1;background:none;border:0;color:var(--muted);padding:8px 2px 10px;font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+#tabs button .ic{width:22px;height:22px;image-rendering:pixelated}
+#tabs button.on{color:var(--orange2)}
+
+/* toast */
+#toast{position:absolute;left:50%;top:calc(76px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--green);color:#fff;font-weight:800;padding:10px 16px;border-radius:4px;box-shadow:0 3px 0 #1d6316;max-width:calc(100% - 32px);text-align:center;font-size:14px;z-index:40}
+
+/* sheet */
+#sheet{position:absolute;inset:0;background:#04101fb3;display:flex;align-items:flex-end;justify-content:center;z-index:30}
+#sheet .box{background:var(--cream);color:var(--ink);width:min(620px,100%);max-height:calc(100% - 40px - env(safe-area-inset-top,0px));overflow:auto;border-radius:10px 10px 0 0;border-top:4px solid var(--orange);padding:18px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:700px){#sheet{align-items:center}#sheet .box{border-radius:10px;border:4px solid var(--orange);max-height:calc(100% - 60px)}}
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sh h2{font-family:var(--display);font-size:24px;margin:0;flex:1;line-height:1.1;text-wrap:balance}
+.x{background:var(--navy);color:var(--cream);border:0;border-radius:4px;width:40px;height:40px;font-family:var(--display);font-size:18px}
+.box p{line-height:1.5;margin:0 0 10px}
+.muted{color:#55667f;font-size:13px}
+.list{display:grid;gap:8px}
+.row{display:flex;gap:12px;align-items:center;background:#fff;border:2px solid #d9d2c0;border-radius:6px;padding:10px 12px}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-size:15px}
+.row .t span{font-size:13px;color:#55667f}
+.tag{font-size:11px;font-weight:800;padding:3px 7px;border-radius:3px;background:#e8eef7;color:var(--navy);white-space:nowrap}
+.tag.real{background:#ffe7d3;color:#8a3f05}
+.tag.done{background:#dcf2d8;color:#1d6316}
+.pts{font-family:var(--display);font-size:16px;color:var(--orange);white-space:nowrap}
+label.f{display:block;font-weight:800;font-size:13px;margin:12px 0 6px}
+.inp{width:100%;font:600 16px var(--body);padding:11px 12px;border:2px solid var(--navy);border-radius:4px;background:#fff;color:var(--ink)}
+.avs{display:flex;gap:8px;flex-wrap:wrap}
+.av{width:56px;height:64px;border:3px solid #d9d2c0;border-radius:6px;background:#fff;padding:4px}
+.av.on{border-color:var(--orange);background:#fff3e8}
+.av canvas{width:100%;height:100%;image-rendering:pixelated}
+.check{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:14px}
+.check input{width:20px;height:20px;margin-top:2px;flex:none}
+.err{color:var(--red);font-weight:700;font-size:13px;min-height:18px;margin:6px 0}
+
+/* minigames */
+.game{background:var(--navy);color:var(--cream);border-radius:8px;padding:14px;margin:6px 0 12px}
+.bar{position:relative;height:34px;background:#1d2f4a;border:3px solid var(--cream);border-radius:3px;overflow:hidden;margin:14px 0}
+.bar .zone{position:absolute;top:0;bottom:0;background:var(--green)}
+.bar .cur{position:absolute;top:-2px;bottom:-2px;width:6px;background:var(--orange2);box-shadow:0 0 0 2px #fff}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.opt{background:#fff;color:var(--ink);border:3px solid var(--navy);border-radius:5px;padding:12px 10px;font-weight:800;font-size:14px;min-height:48px;text-align:left}
+.opt.ok{background:#dcf2d8;border-color:var(--green)}
+.opt.bad{background:#fde0dd;border-color:var(--red)}
+.seq{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.seq span{background:var(--orange);color:#fff;font-weight:800;padding:6px 10px;border-radius:4px}
+.field{position:relative;height:240px;background:#3fa34d;border:3px solid #f4f1e6;border-radius:4px;overflow:hidden;touch-action:manipulation}
+.field::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:3px solid #f4f1e6}
+.field::after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;border:3px solid #f4f1e6;border-radius:50%;transform:translate(-50%,-50%)}
+.trash{position:absolute;width:30px;height:30px;border:0;border-radius:3px;z-index:2;box-shadow:0 3px 0 #0005}
+.big{font-family:var(--display);font-size:22px;margin:4px 0}
+.prog{height:12px;background:#1d2f4a;border-radius:2px;overflow:hidden;margin:8px 0}
+.prog i{display:block;height:100%;background:var(--orange)}
+.code{font-family:var(--display);font-size:28px;letter-spacing:2px;background:var(--navy);color:var(--orange2);padding:10px 14px;border-radius:5px;display:inline-block;user-select:all}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}
+.stat div{background:#fff;border:2px solid #d9d2c0;border-radius:6px;padding:10px}
+.stat b{font-family:var(--display);font-size:24px;display:block;color:var(--navy)}
+.stat span{font-size:12px;color:#55667f}
+
+/* start screen */
+#start{position:absolute;inset:0;z-index:60;overflow:auto;background:var(--navy);padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#start .wrap{max-width:560px;margin:0 auto}
+#start .logo{font-family:var(--display);font-size:clamp(34px,9vw,54px);line-height:1;margin:6px 0 4px;color:var(--cream);text-shadow:4px 4px 0 var(--orange)}
+#start .sub{color:var(--muted);margin:10px 0 18px;line-height:1.5}
+#start .card{background:var(--cream);color:var(--ink);border-radius:8px;padding:18px;box-shadow:0 6px 0 #04101f}
+#preview{width:100%;height:150px;border-radius:6px;image-rendering:pixelated;display:block;margin-bottom:14px;border:3px solid var(--navy3)}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:20px;z-index:70;background:var(--navy)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app">
+  <canvas id="map" aria-label="Mapa do bairro em pixel art"></canvas>
+  <div id="hud">
+    <div class="chip" id="who"><canvas id="hudav" width="9" height="12" style="width:18px;height:24px;image-rendering:pixelated"></canvas><div><div class="nick" id="hudnick">-</div><div class="lvl" id="hudlvl">-</div></div></div>
+    <div class="chip"><span class="hearts" id="hudhearts"></span></div>
+    <div class="chip"><b id="hudpts">0</b><span style="font-size:11px;color:var(--muted)">pts</span></div>
+    <div class="chip" id="where"><span class="pin"></span><span id="hudwhere">-</span></div>
+  </div>
+  <div id="zoom"><button class="sq" id="zin" aria-label="Aproximar">+</button><button class="sq" id="zout" aria-label="Afastar">-</button><button class="sq" id="zhome" aria-label="Ir para minha casa" style="font-size:12px">casa</button></div>
+  <div id="pad" aria-label="Controles de movimento">
+    <span class="c"></span><button data-d="0,-1" aria-label="Cima">&#9650;</button><span class="c"></span>
+    <button data-d="-1,0" aria-label="Esquerda">&#9664;</button><span class="c"></span><button data-d="1,0" aria-label="Direita">&#9654;</button>
+    <span class="c"></span><button data-d="0,1" aria-label="Baixo">&#9660;</button><span class="c"></span>
+  </div>
+  <div id="place" hidden></div>
+  <nav id="tabs">
+    <button data-tab="missoes" class="on"><canvas class="ic" data-icon="star" width="11" height="11"></canvas>Missões</button>
+    <button data-tab="lugares"><canvas class="ic" data-icon="pin" width="11" height="11"></canvas>Lugares</button>
+    <button data-tab="ranking"><canvas class="ic" data-icon="cup" width="11" height="11"></canvas>Ranking</button>
+    <button data-tab="convidar"><canvas class="ic" data-icon="add" width="11" height="11"></canvas>Convidar</button>
+    <button data-tab="assoc"><canvas class="ic" data-icon="house" width="11" height="11"></canvas>Associação</button>
+  </nav>
+  <div id="toast" hidden></div>
+  <div id="sheet" hidden><div class="box" id="sheetbox" role="dialog" aria-modal="true"></div></div>
+</div>
+
+<div id="start" hidden>
+  <div class="wrap">
+    <div style="font-size:12px;letter-spacing:3px;color:var(--orange2);font-weight:800">ASSOCIAÇÃO DE MORADORES</div>
+    <div class="logo">JLA: Bairro<br>em Jogo</div>
+    <p class="sub">Ande pelas ruas de verdade do Jardim Los Angeles, Califórnia I e II e Hortência. Cumpra missões, trabalhe nas empresas do bairro, ganhe pontos e chame seus vizinhos.</p>
+    <div class="card">
+      <canvas id="preview" width="300" height="150"></canvas>
+      <div id="invitedBy" class="tag real" hidden style="display:inline-block;margin-bottom:8px"></div>
+      <label class="f" for="fnick">Seu apelido no jogo</label>
+      <input class="inp" id="fnick" maxlength="16" placeholder="Ex.: Maria do JLA" autocomplete="off">
+      <label class="f" for="fbairro">Seu bairro</label>
+      <select class="inp" id="fbairro"></select>
+      <label class="f" for="frua">Sua rua</label>
+      <select class="inp" id="frua"></select>
+      <label class="f">Seu personagem</label>
+      <div class="avs" id="favs"></div>
+      <label class="check"><input type="checkbox" id="fage"> <span>Tenho 12 anos ou mais, ou estou jogando junto com um adulto da minha família.</span></label>
+      <p class="muted" style="margin:0 0 6px">O jogo não pede seu número de casa e não usa a localização do celular. Os outros jogadores só veem seu apelido.</p>
+      <div class="err" id="ferr"></div>
+      <button class="btn" id="fgo" style="width:100%;font-size:16px">Entrar no bairro</button>
+    </div>
+    <p class="muted" style="color:var(--muted);margin-top:14px;font-size:12px">Mapa: dados © colaboradores do OpenStreetMap (licença ODbL), desenhados em pixel art. Protótipo de teste da Associação de Moradores do Jardim Los Angeles.</p>
+  </div>
+</div>
+<div id="loading">Montando o bairro...</div>
+
+<script>
+"use strict";
+/* ============ MAP DATA (OpenStreetMap, metros a partir de -25.052, -50.200; x = leste, y = sul) ============ */
+const ROADS = `R|Rua André de Geus|2186_1816 2470_1287
+R|Rua Doutor Eugênio José Bocchi|1659_2678 1814_2358 1943_2103 2117_1779
+R|Rua Urbano Pianaro|2038_1587 1977_1704
+R|Rua Sabáudia|3143_2017 3088_1985 2986_1934 2877_1874 2778_1829 2677_1778 2583_1723 2454_1653 2123_1478
+L|Rua João Baptista França e Silva|1881_1667 1906_1636 1918_1629 1959_1615 1983_1597
+R|Rua Rio Claro|80_2593 96_2574 111_2387 127_1983 148_1650
+R|Rua Rio Capanema|139_1783 -9_1749 -17_1749 -21_1753
+R|Rua Rio Santana|62_2051 124_2059
+R|Rua Rio da Várzea|37_1979 127_1983
+R|Rua Rio dos Papagaios|-4_1824 136_1831
+R|Rua Salvador Bueno de Cristo|749_426 1066_200
+R|Rua Alfredo Gomes|915_309 1364_944
+R|Rua João Dabul Sobrinho|1245_1031 1429_899
+R|Rua Carlos Lacerda|1597_1487 1454_981 1417_864 1400_827 1243_555 1206_485 1181_408 1144_258 1138_247
+R|Rua Comendador Wallace Pina|1164_418 700_746
+R|Rua Florival Fanucchi|745_810 1206_485
+R|Rua Elias Miguel Maia|792_874 1243_555
+R|Rua Padre Rafael Romão|1282_623 835_936
+R|Rua João Jordão Chaves|881_1001 1108_837 1323_690
+R|Rua Professor José Pessolano Brandes|1362_759 1274_817 925_1065
+R|Rua Aracy Maciel Iurk|969_1127 1400_827
+R|Rua João Dabul Sobrinho|1024_1204 1146_1125
+R|Rua João Dabul Sobrinho|1134_1106 1252_1056 1274_1055
+R|Rua João Dabul Sobrinho|1274_1055 1454_981
+R|Rua Alziro Zarur|1464_1016 1412_1033 1373_1057 1071_1270
+R|Rua Prefeito José Hoffmann|1117_1334 1480_1079
+R|Rua João Maria Cruz|1162_1395 1504_1159
+R|Rua Alfredo Hoffman|1526_1234 1327_1377 1207_1459
+R|Rua Vicente Barbur|1251_1523 1373_1441 1549_1315
+R|Rua João Martins Neves|1297_1588 1532_1421 1570_1391
+R|Rua Antônio Sabedotti|1341_1651 1570_1489
+R|Rua José de Bortoli|1384_1711 1506_1629
+R|Rua Teresa Alves|1435_1778 1661_1616
+R|Rua Francisco Traleski|1484_1839 1704_1681
+R|Rua Exp Eloy Schmidt|1561_1879 1749_1743
+R|Rua Maria José de França|1119_353 832_558
+R|Rua Maria José de França|801_576 656_681
+K|Avenida Senador Flávio Carvalho Guimarães|1878_1656 1737_1947
+K|Avenida Senador Flávio Carvalho Guimarães|1344_2768 1634_2167 1722_1994 1908_1609
+K|Avenida Senador Flávio Carvalho Guimarães|1908_1609 1928_1569
+K|Avenida Senador Flávio Carvalho Guimarães|1737_1947 1733_1954
+K|Avenida Senador Flávio Carvalho Guimarães|1733_1954 1595_2230 1558_2313 1335_2770
+K|Avenida Senador Flávio Carvalho Guimarães|2060_1256 2041_1309 1983_1442 1878_1656
+M|Avenida Senador Flávio Carvalho Guimarães|2400_-150 2378_-109 2337_74 2320_154 2227_585 2187_768 2156_913 2112_1094 2093_1161 2060_1256
+M|Avenida Senador Flávio Carvalho Guimarães|1928_1569 2009_1404 2050_1312 2104_1165 2125_1096 2170_915 2187_826 2202_771 2247_561 2290_363 2319_222 2360_38 2390_-97 2420_-150
+R|Rua Dair Daher|2111_1623 2220_1409
+R|Rua Dair Daher|2045_1739 2111_1623
+R|Rua Marialva|2210_1401 2220_1409 2575_1597
+D|Rua João Baptista França e Silva|1983_1597 2067_1527
+D|Rua João Baptista França e Silva|2067_1527 2210_1401 2288_1319 2355_1236
+R|Rua Agenor Machado Béje|1138_247 824_469
+R|Rua Agenor Machado Béje|788_494 612_619
+R|Rua Hans Mol|2098_1235 2141_1118 2168_1014 2183_940
+R|Rua Stefano Kozar|2183_940 2201_944 2464_1118
+R|Rua Nelson Pereira Jorge|2218_785 2232_719 2244_701 2251_665
+R|Rua Centenário do Sul|2326_1890 1977_1704
+R|Rua Centenário do Sul|1977_1704 1927_1679
+R||1927_1679 1871_1650
+R|Rua Pedro Mezzomo|796_392 840_459 1614_1549 1704_1681 1776_1778 1783_1784 1800_1787
+R|Rua Dona Margarida Zagonel Slaviero|567_557 715_767
+R|Rua Dona Margarida Zagonel Slaviero|715_767 1044_1231
+R|Rua Dona Margarida Zagonel Slaviero|1044_1231 1384_1711 1470_1825 1484_1839 1672_1935 1687_1939 1700_1938 1720_1931
+R|Rua Arlindo Teodoro Costa|1197_462 1026_229
+R|Rua Simone Kapp|148_1650 158_1467 194_1366
+R|Rua Simone Kapp|194_1366 202_1343 244_1232
+R|Rua Francisca Muller|55_1179 237_1250
+R|Rua Rio Ivaí|56_2164 120_2165
+R|Rua Rio Pitanga|-21_1753 -23_1761 20_1901
+R|Rua Rio Romoso|37_1979 57_2044 62_2051
+R|Rua Rio Encantado|20_1901 132_1907
+R|Rua Rio Imbituva|20_1901 27_1923 37_1979
+R|Rua Marcelo Augusto Dias Bolzani|148_1650 -80_1640
+R|Rua João Maria Malaquias|-26_1506 167_1441
+R|Rua João Maria Malaquias|-26_1529 158_1467
+R|Rua Irmã Martins de Oliveira|70_1140 -24_1390 -28_1417 -26_1506
+R|Rua Renato Miranda|-28_1417 97_1465
+R|Rua Gilberto Giraldi|146_1216 104_1332 56_1448
+R|Rua Bela Vista do Paraíso|-150_1660 -139_1687 -113_1764 -24_2045 11_2224 17_2273 44_2413 45_2436 0_2620
+R|Rua Sofia de Lara|907_315 412_-150
+R|Rua João Hermann de Geus|850_355 709_170 356_-150
+R|Rua Fábio Antônio Manoel|791_395 311_-150
+R|Rua Valdivino Ávila de Castilho|766_128 653_211
+R|Rua José Moreira Lopes|628_-57 476_57
+R|Rua Luiz Otávio Viana de Holleben|257_107 314_68
+R|Rua Luiz Otávio Viana de Holleben|493_322 314_68
+R|Rua N Conj. Habit. Califórnia|435_362 548_286
+R|Rua Hermínio Pereira de Araújo|515_308 550_354
+R|Rua Francisco Wiechnieski|2232_299 1887_231 1872_235 1863_241 1855_253 1839_319
+R|Rua Ivone Hilgemberg Guimarães|1872_166 1878_149 1884_145 2262_227
+R|Rua Orlando Pereira Vaz|2281_147 2039_95
+R|Rua Simone Araujo de Melo Sa|2061_20 2071_19 2298_67
+R|Rua Avelino Rosa Neto|2201_-34 2149_201
+R|Rua I|2005_254 2055_27 2061_20
+R||2098_1235 2279_1328
+R|Rua Hamilton Sotoski|676_7 771_-64
+R|Rua Zenir de Andrade Sotoski|714_57 810_-13
+R|Rua Ewaldo Macedo Kossatz Neto|753_109 850_38
+R|Rua Carlos Richard Endler|791_161 886_91
+R|Rua Roque Uliana|828_210 925_142
+R|Rua Christiano Justus Júnior|2265_2006 2140_2240 2099_2311 2062_2398 1975_2567
+R|Rua Bandeirantes|2265_2006 2195_1967
+D|Rua Jaguapitã|2478_1820 2251_1696 2038_1587
+D|Rua Jaguapitã|2014_1572 2038_1587
+R|Rua Urbano Pianaro|2038_1587 2067_1527
+R|Rua Antônio Agenor Gonçalves|458_347 593_537
+R|Rua Padre Amadeu Fracaro|435_362 257_107
+R|Rua Felipe Schwab|671_402 706_455
+R|Rua Augusto Gayer|624_458 650_495
+R|Rua Verônica Hyczy de Oliveira|867_263 963_194
+R|Rua José Sezinando Bueno|33_1239 215_1306
+R|Rua Ernesto Hilgemberg|10_1298 194_1366
+R|Rua Alvina Balzer Hilgemberg|-12_1357 173_1424
+R|Rua Alfredo Alvarez|-28_1577 152_1586
+R|Rua Professor Fábio Fanucchi|677_476 945_860 1364_1447 1587_1765 1698_1919 1733_1954
+R|Rua Professor Fábio Fanucchi|1737_1947 1720_1931 1595_1759 1506_1629 684_471
+R|Rua Pedro Mezzomo|1805_1774 1785_1770 1778_1765 1532_1421 804_386
+R|Avenida João Ferigotti|2349_1350 2241_1542 2117_1779
+R|Rua Carlos Lacerda|1609_1530 1597_1487 1585_1496
+R|Rua Salvador Bueno de Cristo|567_557 749_426
+R||1194_1280 1239_1342
+R||1162_1302 1207_1364
+R||2195_1967 2165_1951 2156_1953 2074_1900 2079_1890 2063_1882
+V|Marginal PRC-373|2188_638 2162_802 2140_882
+V|Marginal PRC-373|2140_882 2093_1098 2061_1194
+V|Marginal PRC-373|2061_1194 2006_1343 2005_1352
+L||2175_817 2168_830 2151_841
+L||2140_882 2156_913
+L||2060_1256 2005_1352 1959_1459 1888_1595 1866_1647
+L||1866_1647 1805_1774 1800_1787 1774_1846 1763_1892
+L||1983_1597 1955_1608 1938_1602 1928_1583 1928_1569
+L|Rua Hans Mol|2062_1280 2098_1235
+L|Rua Stefano Kozar|2183_940 2172_933 2170_915
+T||202_1343 227_1326 395_1326 510_1345 570_1344 740_1370 807_1369 934_1267 1044_1231
+T||454_1335 563_1257 615_1234 612_1169 663_1059 706_932 710_912 708_841 691_785
+T||594_1244 570_1279 432_1548 441_1573 512_1616 548_1654 574_1709 577_1783 607_1847 614_1894 607_1943 587_2007 655_2099 708_2161 767_2197 763_2216 756_2229 753_2264 762_2353 773_2373 799_2380 939_2387 990_2394 1009_2406 1018_2501 1015_2545
+T||691_785 647_808 565_868 492_887 470_884
+P||1166_1402 1157_1409 1151_1409 1123_1402 1096_1389 948_1389 932_1387 910_1379 807_1369`;
+
+const AREAS = `farmland||208_271 300_296 350_248 830_939 976_1128 1388_1710 1336_1771 1211_1813 1173_1761 1100_1752 992_1510 976_1517 1050_1733 1001_1781 949_1769 926_1815 866_1794 776_1796 708_1777 662_1788 606_1745 593_1767 633_1866 660_1966 741_2010 787_1970 830_1984 823_2056 879_2037 877_1954 834_1932 876_1886 1032_1993 1117_1994 1153_1962 1278_1951 1332_1886 1468_1825 1490_1839 1428_1944 1406_2008 1313_2176 1269_2174 1255_2217 1286_2243 1248_2307 1194_2304 1016_2638 978_2648 992_2554 1009_2536 1000_2401 742_2379 733_2225 765_2200 694_2159 660_2125 504_2096 472_2049 211_2048 126_2063 159_1465 250_1232 24_1100 26_1064 47_1038 46_970 111_936 523_1094 547_1223 594_1244 643_1287 672_1292 727_1339 780_1369 807_1369 693_1272 692_1249 683_1244 669_1259 615_1234 613_1187 675_1173 835_1246 903_1258 903_1234 756_1192 670_1144 617_1154 562_1042 478_1014 381_1005 328_934 62_864 101_849 254_837 377_806 392_771 327_747 214_783 171_784 138_760 118_792 51_789 26_731 46_525 177_360 208_271
+farmland||743_2397 750_2621 709_2612 655_2653 581_2560 471_2608 420_2610 369_2585 328_2527 291_2539 237_2524 108_2419 121_2164 222_2090 324_2085 557_2136 566_2176 631_2193 631_2210 694_2195 733_2225 743_2397
+grass||1067_196 1056_79 1007_12 1075_-3 830_-150 871_-150 1253_191 1304_163 1358_241 1309_273 1453_515 1416_536 1303_329 1234_288 1210_249 1149_265 1144_246 1067_196
+grassland||1770_519 1820_619 1869_752 1841_794 1803_890 1797_934 1818_986 1776_1032 1721_1325 1744_1445 1604_1092 1498_1133 1420_863 1770_519
+grassland||1850_1085 1963_1135 1815_1560 1791_1473 1799_1441 1784_1377 1792_1322 1771_1197 1789_1147 1850_1085
+grassland||1987_908 2040_919 2012_1055 2088_1092 2084_1118 1891_1038 1920_1005 1965_989 1966_935 1987_908
+grassland||1923_587 1912_769 1900_704 1816_536 1833_550 1877_558 1923_587
+grassland||22_2068 25_2094 111_2094 117_2070 15_2057 22_2068
+grassland||126_2063 121_2164 222_2090 262_2047 126_2063
+grassland||-65_1752 1_1753 142_1787 143_1755 -47_1721 -65_1752
+scrub||514_271 547_258 576_295 549_318 621_432 692_375 733_433 785_394 647_211 626_227 471_60 176_-27 234_-124 267_-150 236_-150 161_-26 204_6 344_22 394_52 468_68 446_92 371_113 416_182 441_174 514_271
+scrub||196_44 200_73 235_121 252_106 308_67 271_45 196_44
+scrub||593_1767 606_1745 662_1788 708_1777 776_1796 866_1794 926_1815 949_1769 1001_1781 1020_1835 1109_1900 1198_1865 1211_1813 1336_1771 1388_1710 1437_1785 1468_1825 1332_1886 1278_1951 1153_1962 1117_1994 1032_1993 876_1886 834_1932 877_1954 879_2037 823_2056 830_1984 787_1970 741_2010 660_1966 633_1866 593_1767
+scrub||752_436 791_479 806_522 811_627 824_643 835_619 820_497 799_448 767_416 752_436
+scrub||118_792 138_760 171_784 214_783 327_747 392_771 377_806 254_837 101_849 62_864 44_847 51_789 118_792
+scrub||13_887 55_934 111_936 46_970 47_1038 26_1064 21_954 5_929 13_887
+scrub||381_1005 478_1014 562_1042 617_1154 670_1144 756_1192 903_1234 903_1258 835_1246 675_1173 613_1187 615_1234 669_1259 683_1244 692_1249 693_1272 807_1369 780_1369 727_1339 672_1292 643_1287 594_1244 547_1223 523_1094 357_1030 381_1005
+farmyard||599_833 528_833 450_808 414_901 493_924 599_833
+wood||1001_1781 1020_1835 1109_1900 1198_1865 1211_1813 1173_1761 1100_1752 992_1510 976_1517 1050_1733 1001_1781
+wood||1097_1646 1103_1705 1142_1704 1171_1668 1144_1622 1142_1589 1120_1589 1119_1626 1097_1646
+wood||1056_1555 1085_1570 1116_1555 1122_1525 1112_1501 1082_1484 1031_1403 1012_1419 1054_1487 1056_1555
+wood||1533_252 1499_259 1501_272 1458_283 1442_302 1460_310 1500_305 1533_266 1533_252
+wood||472_2049 504_2096 660_2125 694_2159 765_2200 733_2225 694_2195 631_2210 631_2193 566_2176 557_2136 324_2085 222_2090 262_2047 472_2049
+wood||1762_2162 1697_2174 1653_2168 1668_2196 1720_2221 1858_2262 1943_2312 1968_2307 2063_2372 2129_2391 2138_2370 2074_2356 1988_2295 1925_2286 1873_2249 1757_2207 1762_2162
+wood||111_2094 114_2117 31_2119 66_2250 72_2352 85_2407 133_2468 176_2505 332_2572 404_2640 380_2631 328_2588 168_2517 117_2474 81_2484 45_2569 41_2594 76_2678 164_2807 242_2886 301_2918 307_2952 214_2889 156_2833 105_2771 33_2642 -83_2855 -107_2881 -106_2859 -64_2768 -8_2676 24_2598 69_2436 6_2106 -120_1666 -138_1644 -87_1636 -79_1689 144_1719 143_1755 -47_1721 -65_1752 -4_1901 -8_1981 25_2094 111_2094
+wood||1809_480 1858_539 1898_521 1963_552 2065_580 2092_559 2193_575 2188_631 2157_613 1966_608 1877_558 1833_550 1816_536 1900_704 1913_800 1888_821 1954_843 1987_908 1966_935 1965_989 1920_1005 1789_1147 1771_1197 1792_1322 1784_1377 1799_1441 1791_1473 1819_1593 1802_1599 1783_1567 1744_1445 1721_1325 1776_1032 1818_986 1797_934 1803_890 1841_794 1869_752 1820_619 1770_519 1750_406 1670_354 1639_323 1608_232 1579_235 1563_221 1601_164 1591_128 1561_92 1524_82 1482_44 1462_-6 1414_-23 1371_-78 1374_-144 1306_-150 1378_-150 1404_-150 1446_-148 1482_-145 1502_-124 1520_-100 1527_-8 1622_-14 1665_-3 1627_15 1641_45 1673_74 1711_143 1782_135 1884_93 1835_140 1825_170 1845_224 1810_316 1778_321 1783_391 1809_480
+res|Jardim Los Angeles II|699_753 562_555 802_384 1067_196 1144_246 1185_407 699_753
+res|Jardim Los Angeles I|1185_407 1197_461 1404_821 1420_863 1460_980 1607_1525 1571_1492 1525_1428 1418_1503 1600_1758 1704_1684 1779_1794 1798_1816 1735_1946 1695_1940 1468_1825 974_1125 923_1068 699_753 1185_407
+res|Jardim Califórnia I|562_555 252_106 308_67 337_60 416_182 441_174 514_271 547_258 576_295 549_318 621_432 692_375 733_433 562_555
+res|Jardim Califórnia II|282_-150 351_-150 412_-150 768_125 908_311 785_394 647_211 626_227 471_60 176_-27 282_-150
+res|Residencial Hortência|1010_237 567_-150 530_-150 412_-150 638_-51 908_311 1010_237
+res|Jardim Eldorado|1845_224 1825_170 1835_140 1884_93 2371_-150 2372_-150 2345_-133 2330_-89 2245_297 2236_305 1845_224
+res|Vila Monte Carlo|2292_448 2750_552 2785_656 2595_885 2519_1021 2465_1118 2190_941 2292_448
+res|Jardim dos Manacás|-87_1636 -79_1689 144_1719 159_1465 241_1257 250_1232 24_1099 -20_1244 -39_1447 -62_1487 -87_1636
+res|Jardim Três Rios|108_2419 85_2407 72_2352 66_2250 31_2119 114_2117 117_2070 15_2057 -8_1981 -4_1901 -65_1752 1_1753 142_1787 108_2419
+res|Vila Isabel|2903_1030 2939_1098 3032_1134 3133_1367 3059_1309 3000_1202 2967_1190 3002_1255 2934_1264 2884_1284 2861_1324 2724_1422 2713_1460 2665_1518 2569_1700 2524_1741 2509_1779 2477_1819 2428_1843 2402_1887 2389_1920 1903_1668 1937_1657 2014_1573 2127_1481 2291_1319 2465_1118 2588_898 2796_1005 2861_881 2903_1030
+res|Vila Isabel|2119_1779 2389_1920 2372_1970 2344_1991 2295_2064 2293_2171 2283_2207 2231_2271 2189_2302 2138_2370 2074_2356 1988_2295 1925_2286 1873_2249 2119_1779
+res|Senador Flávio Carvalho Guimarães|1442_2758 1530_2566 1571_2587 1642_2446 1575_2413 1643_2273 1668_2196 1720_2221 1858_2262 1943_2312 1968_2307 2063_2372 2129_2391 2077_2499 2042_2539 2015_2561 1928_2587 1904_2622 1857_2647 1442_2758
+retail||2188_631 2088_1092 2012_1055 2040_919 1987_908 1954_843 1888_821 1913_800 1923_587 1966_608 2157_613 2188_631
+retail||1850_1085 1891_1038 2084_1118 1974_1413 1850_1648 1802_1599 1819_1593 1815_1560 1963_1135 1850_1085
+retail||1903_1668 2046_1374 2110_1213 2190_941 2393_1069 2465_1118 2217_1398 1903_1668
+retail||1490_1839 1695_1940 1735_1946 1684_1997 1551_2275 1555_2312 1455_2516 1443_2542 1204_2429 1248_2307 1286_2243 1255_2217 1269_2174 1313_2176 1406_2008 1428_1944 1490_1839
+retail||1824_1838 1929_1883 1842_2047 1948_2106 1873_2249 1757_2207 1762_2162 1816_2064 1814_2042 1737_1997 1824_1838
+retail||1442_2758 1347_2768 1635_2168 1653_2168 1668_2196 1643_2273 1575_2413 1642_2446 1571_2587 1530_2566 1442_2758
+ind|Água Sistemas de Armazenagem|2245_314 2193_575 2092_559 2065_580 1963_552 1898_521 1858_539 1809_480 1783_391 1778_321 1810_316 1845_224 2236_305 2245_314
+ind|Hübner Fundição|1498_1133 1604_1092 1765_1497 1783_1567 1850_1648 1779_1794 1750_1752 1662_1625 1607_1525 1498_1133
+ind|Hübner Fundição|1903_1668 1824_1838 1929_1883 1842_2047 1948_2106 2037_1935 2119_1779 1903_1668
+ind|Scheffer Logística e Automação|1571_1492 1463_1567 1556_1697 1662_1625 1571_1492
+ind|Metalúrgica Balena|1556_1697 1600_1758 1704_1684 1662_1625 1556_1697
+yard|Comércio de Ferro Velho Roda Viva|1525_1428 1571_1492 1463_1567 1418_1503 1525_1428
+yard||1463_1567 1347_1650 1388_1710 1505_1628 1463_1567
+paved|Posto Florense|1704_2081 1693_2104 1742_2127 1753_2105 1704_2081
+paved|Churrascaria Estrela de Prata|1749_2008 1740_2026 1771_2041 1780_2024 1749_2008
+pitch|Campo de futebol|1348_1383 1377_1426 1404_1408 1375_1366 1348_1383`;
+
+const WATER = `|375_788 309_793 273_816 195_800 148_804 121_823 52_820 19_795
+|606_1172 587_1172 548_1143 550_1093 514_1063 359_1021 263_959 166_918 70_921 30_889 19_795 -5_777 -28_729
+|557_164 527_142 506_102 450_69 425_82 361_60
+|490_2101 383_2062 245_2059 129_2107 114_2104 14_2105
+|1668_2177 1737_2223 1856_2254
+|2275_629 2177_604 2120_573 1996_596 1924_554 1837_543 1804_503 1748_381 1664_275 1673_149 1650_101 1611_63 1525_34 1424_-96 1382_-150
+|50_2529 75_2398 56_2351 10_2081 -57_1868 -66_1787 -117_1650
+|-80_1389 -79_1368 -49_1340 -52_1276 -21_1203 -11_1120 -19_1082 0_1024 -41_768 0_616 -31_540 41_425 74_410 118_366 166_290 188_225 197_181 190_102 123_-46 147_-61 220_-150
+Rio Los Angeles|824_629 811_495 794_460 763_434 742_407 690_334 668_279 586_226 534_157 461_154 430_139 379_77 321_32 151_12
+|-150_363 -146_363 -53_341 -7_376 51_376 143_325
+|1453_305 1613_205 1673_149
+|1808_1582 1781_1452 1762_1210 1790_1071 1861_992 1889_743 1834_624 1794_485
+|2082_1106 2012_1072 1868_881`;
+
+/* Lugares do jogo (posição em metros). Endereços só onde são conhecidos. */
+const POIS = [
+  {id:"assoc", type:"assoc", name:"Sede da Associação", addr:"Rua Prefeito José Hoffmann, 37", x:1140, y:1338},
+  {id:"campo", type:"campo", name:"Campo de Futebol (Socity)", addr:"Ao lado das escolas", x:1376, y:1396},
+  {id:"escolas", type:"school", name:"Escolas Iolando Taques e Zair Santos", addr:"Rua Professor Fábio Fanucchi, 600", x:1472, y:1440},
+  {id:"eclea", type:"school", name:"Escola Municipal Ecléa dos Passos Horn", addr:"Vila Isabel", x:2118, y:1828},
+  {id:"rosas", type:"shop", name:"Mercado Rosa's", addr:"Jardim Los Angeles", x:1053, y:717, roof:"#c8553d"},
+  {id:"divino", type:"bakery", name:"Panificadora Divino Sabor", addr:"Rua Professor Fábio Fanucchi, 1056", x:981, y:865, roof:"#7a4b8c"},
+  {id:"posto", type:"fuel", name:"Posto Florense", addr:"Av. Senador Flávio Carvalho Guimarães", x:1723, y:2104},
+  {id:"churras", type:"shop", name:"Churrascaria Estrela de Prata", addr:"Av. Senador Flávio Carvalho Guimarães", x:1760, y:2025, roof:"#9c2f2f"},
+  {id:"rodaviva", type:"yard", name:"Ferro Velho Roda Viva", addr:"Reciclagem de metais", x:1494, y:1497},
+  {id:"hubner", type:"factory", name:"Hübner Fundição", addr:"Área industrial", x:1665, y:1395},
+  {id:"balena", type:"factory", name:"Metalúrgica Balena", addr:"Área industrial", x:1630, y:1700},
+  {id:"scheffer", type:"factory", name:"Scheffer Logística e Automação", addr:"Área industrial", x:1563, y:1600},
+  {id:"agua", type:"factory", name:"Água Sistemas de Armazenagem", addr:"Jardim Eldorado", x:2010, y:430},
+  {id:"busA", type:"bus", name:"Ponto de ônibus (Fanucchi)", addr:"Local aproximado, a confirmar", x:1170, y:1148},
+  {id:"busB", type:"bus", name:"Ponto de ônibus (Avenida)", addr:"Local aproximado, a confirmar", x:1824, y:1806},
+];
+const MY_BAIRROS = ["Jardim Los Angeles I","Jardim Los Angeles II","Jardim Califórnia I","Jardim Califórnia II","Residencial Hortência"];
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hashStr(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+function parsePts(g){return g.trim().split(/\s+/).map(p=>p.split("_").map(Number))}
+function parseLines(txt){return txt.split("\n").filter(Boolean).map(l=>{const p=l.split("|");return p.length===3?{k:p[0],name:p[1],pts:parsePts(p[2])}:{k:"w",name:p[0],pts:parsePts(p[1])}})}
+const roads=parseLines(ROADS), areas=parseLines(AREAS), water=parseLines(WATER);
+function inPoly(x,y,pts){let c=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const [xi,yi]=pts[i],[xj,yj]=pts[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c}return c}
+function segDist(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;let t=L?((px-ax)*dx+(py-ay)*dy)/L:0;t=Math.max(0,Math.min(1,t));const qx=ax+t*dx,qy=ay+t*dy;return Math.hypot(px-qx,py-qy)}
+function bairroAt(x,y){for(const a of areas){if(a.k==="res"&&a.name&&inPoly(x,y,a.pts))return a.name}return ""}
+
+/* ============ pixel map rendering ============ */
+const MPP=1.5;                 // metros por pixel do mapa
+const X0=-150,Y0=-150,WW=2750,WH=2650;
+const BW=Math.round(WW/MPP), BH=Math.round(WH/MPP);
+const bx=x=>(x-X0)/MPP, by=y=>(y-Y0)/MPP;
+const PAL={
+  grass:"#5f9e45",grass2:"#68a84c",grassD:"#4f8a3a",lot:"#8fb862",lot2:"#86ad5b",farm:"#b5b562",farm2:"#9fa553",
+  scrub:"#6f9a48",meadow:"#7cae55",wood:"#2f6b2e",wood2:"#3f8436",woodL:"#56a046",
+  side:"#cfc8b6",asph:"#5a5d66",asphK:"#4a4d55",line:"#e8cf5a",dirt:"#b08a5a",
+  water:"#3b8fd6",water2:"#6cb6ee",ind:"#a2a39f",ind2:"#8e8f8b",retail:"#b9b4a8",yard:"#9a876a",paved:"#c2bdb2",
+  pitch:"#3fa34d",white:"#f4f1e6",wall:"#efe3c8",door:"#6e4526",shadow:"#3f6f2f",
+  roof1:"#c8553d",roof2:"#e07a2e",roof3:"#2f6fae",roof4:"#7a4b8c",roof5:"#3d8c7a",roof6:"#a8443a",navy:"#0A2240",orange:"#F57E20"
+};
+function hex(c){return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]}
+const PALRGB=Object.values(PAL).map(hex);
+
+let base, houses=[], labels=[], roadSegs=[];
+function buildMap(){
+  base=document.createElement("canvas");base.width=BW;base.height=BH;
+  const g=base.getContext("2d");
+  const rnd=mulberry(7);
+  g.fillStyle=PAL.grass;g.fillRect(0,0,BW,BH);
+  for(let i=0;i<BW*BH*0.05;i++){g.fillStyle=rnd()<.5?PAL.grass2:PAL.grassD;g.fillRect((rnd()*BW)|0,(rnd()*BH)|0,1,1)}
+  const path=(pts)=>{g.beginPath();pts.forEach(([x,y],i)=>i?g.lineTo(bx(x),by(y)):g.moveTo(bx(x),by(y)));g.closePath()};
+  const order=["farmland","grass","grassland","scrub","farmyard","res","retail","ind","yard","paved","wood","pitch"];
+  for(const kind of order){
+    for(const a of areas.filter(a=>a.k===kind)){
+      g.save();path(a.pts);
+      const col={farmland:PAL.farm,grass:PAL.meadow,grassland:PAL.meadow,scrub:PAL.scrub,farmyard:PAL.dirt,res:PAL.lot,retail:PAL.retail,ind:PAL.ind,yard:PAL.yard,paved:PAL.paved,wood:PAL.wood,pitch:PAL.pitch}[kind];
+      g.fillStyle=col;g.fill();g.clip();
+      const xs=a.pts.map(p=>bx(p[0])),ys=a.pts.map(p=>by(p[1]));
+      const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+      if(kind==="farmland"){g.fillStyle=PAL.farm2;for(let y=Math.floor(y0);y<y1;y+=4)g.fillRect(Math.floor(x0),y,Math.ceil(x1-x0),1)}
+      if(kind==="res"){g.fillStyle=PAL.lot2;for(let i=0;i<(x1-x0)*(y1-y0)*0.04;i++)g.fillRect(Math.floor(x0+rnd()*(x1-x0)),Math.floor(y0+rnd()*(y1-y0)),1,1)}
+      if(kind==="ind"){g.fillStyle=PAL.ind2;for(let y=Math.floor(y0);y<y1;y+=6)g.fillRect(Math.floor(x0),y,Math.ceil(x1-x0),1)}
+      if(kind==="scrub"||kind==="grassland"){for(let i=0;i<(x1-x0)*(y1-y0)*0.03;i++){g.fillStyle=rnd()<.5?PAL.wood2:PAL.grassD;g.fillRect(Math.floor(x0+rnd()*(x1-x0)),Math.floor(y0+rnd()*(y1-y0)),2,2)}}
+      if(kind==="wood"){for(let i=0;i<(x1-x0)*(y1-y0)*0.05;i++){const tx=Math.floor(x0+rnd()*(x1-x0)),ty=Math.floor(y0+rnd()*(y1-y0));g.fillStyle=PAL.wood2;g.fillRect(tx,ty,4,4);g.fillStyle=PAL.woodL;g.fillRect(tx+1,ty,2,1)}}
+      if(kind==="pitch"){g.strokeStyle=PAL.white;g.lineWidth=1;g.beginPath();g.moveTo(bx(1361),by(1404));g.lineTo(bx(1390),by(1387));g.stroke()}
+      g.restore();
+      if(kind==="pitch"){g.strokeStyle=PAL.white;g.lineWidth=1;path(a.pts);g.stroke()}
+    }
+  }
+  // water
+  g.lineCap="round";g.lineJoin="round";
+  for(const w of water){g.beginPath();w.pts.forEach(([x,y],i)=>i?g.lineTo(bx(x),by(y)):g.moveTo(bx(x),by(y)));g.strokeStyle=PAL.water;g.lineWidth=w.name?4:3;g.stroke();g.strokeStyle=PAL.water2;g.lineWidth=1;g.stroke()}
+  // roads
+  const W={K:20,M:22,D:15,R:11,V:11,L:10,T:5,P:3};
+  const line=(pts)=>{g.beginPath();pts.forEach(([x,y],i)=>i?g.lineTo(bx(x),by(y)):g.moveTo(bx(x),by(y)))};
+  const sorted=[...roads].sort((a,b)=>W[a.k]-W[b.k]);
+  for(const r of sorted){if(r.k==="T"||r.k==="P")continue;line(r.pts);g.strokeStyle=PAL.side;g.lineWidth=(W[r.k]+5)/MPP;g.stroke()}
+  for(const r of sorted){line(r.pts);if(r.k==="T"||r.k==="P"){g.strokeStyle=PAL.dirt;g.lineWidth=W[r.k]/MPP;g.setLineDash(r.k==="P"?[2,2]:[]);g.stroke();g.setLineDash([]);continue}
+    g.strokeStyle=(r.k==="K"||r.k==="M")?PAL.asphK:PAL.asph;g.lineWidth=W[r.k]/MPP;g.stroke()}
+  for(const r of roads){if(r.k!=="K"&&r.k!=="M"&&r.k!=="D")continue;line(r.pts);g.strokeStyle=PAL.line;g.lineWidth=1;g.setLineDash([4,4]);g.stroke();g.setLineDash([])}
+  // quantize (remove anti-aliasing so it reads as pixel art)
+  const im=g.getImageData(0,0,BW,BH),d=im.data,cache=new Map();
+  for(let i=0;i<d.length;i+=4){const key=(d[i]<<16)|(d[i+1]<<8)|d[i+2];let c=cache.get(key);
+    if(c===undefined){let best=0,bd=1e9;for(let j=0;j<PALRGB.length;j++){const p=PALRGB[j],dd=(p[0]-d[i])**2+(p[1]-d[i+1])**2+(p[2]-d[i+2])**2;if(dd<bd){bd=dd;best=j}}c=best;cache.set(key,c)}
+    const p=PALRGB[c];d[i]=p[0];d[i+1]=p[1];d[i+2]=p[2];d[i+3]=255}
+  g.putImageData(im,0,0);
+  // houses along residential streets, only on residential ground
+  const bad=["side","asph","asphK","line","dirt","water","water2","ind","ind2","retail","yard","paved","pitch","white","wood","wood2","woodL","farm","farm2"].map(k=>hex(PAL[k]));
+  const resPolys=areas.filter(a=>a.k==="res");
+  const isLot=(x,y)=>{if(x<0||y<0||x>=BW||y>=BH)return false;const i=(y*BW+x)*4;return !bad.some(c=>c[0]===d[i]&&c[1]===d[i+1]&&c[2]===d[i+2])};
+  const occ=new Uint8Array(BW*BH);
+  const roofs=[PAL.roof1,PAL.roof2,PAL.roof3,PAL.roof4,PAL.roof5,PAL.roof6];
+  for(const r of roads){if(r.k!=="R"||!r.name)continue;
+    for(let s=0;s<r.pts.length-1;s++){const [ax,ay]=r.pts[s],[cx,cy]=r.pts[s+1];const L=Math.hypot(cx-ax,cy-ay);const ux=(cx-ax)/L,uy=(cy-ay)/L;
+      for(let t=10;t<L-8;t+=11){for(const side of[-1,1]){const mx=ax+ux*t-uy*side*15,my=ay+uy*t+ux*side*15;if(!resPolys.some(a=>inPoly(mx,my,a.pts)))continue;const hx=Math.round(bx(mx))-3,hy=Math.round(by(my))-3;let ok=true;
+        for(let yy=0;yy<7&&ok;yy++)for(let xx=0;xx<7&&ok;xx++){if(!isLot(hx+xx,hy+yy)||occ[(hy+yy)*BW+hx+xx])ok=false}
+        if(!ok)continue;for(let yy=-1;yy<7;yy++)for(let xx=-1;xx<7;xx++)occ[(hy+yy)*BW+hx+xx]=1;
+        const rf=roofs[(hashStr(r.name+t+side)%roofs.length)];
+        g.fillStyle=PAL.shadow;g.fillRect(hx+1,hy+1,6,6);
+        g.fillStyle=rf;g.fillRect(hx,hy,6,3);g.fillStyle=PAL.wall;g.fillRect(hx,hy+3,6,3);g.fillStyle=PAL.door;g.fillRect(hx+2,hy+4,1,2);g.fillStyle="#9fd3f5";g.fillRect(hx+4,hy+4,1,1);
+        houses.push({x:hx+3,y:hy+3,street:r.name})}}}}
+  // POI buildings
+  for(const p of POIS)drawPOI(g,p);
+  // label anchors
+  const seen=[];
+  for(const r of roads){if(!r.name)continue;for(let s=0;s<r.pts.length-1;s++){const [ax,ay]=r.pts[s],[cx,cy]=r.pts[s+1];roadSegs.push({ax,ay,cx,cy,name:r.name})}
+    let best=null,bl=0;for(let s=0;s<r.pts.length-1;s++){const L=Math.hypot(r.pts[s+1][0]-r.pts[s][0],r.pts[s+1][1]-r.pts[s][1]);if(L>bl){bl=L;best=s}}
+    if(bl<70)continue;const [ax,ay]=r.pts[best],[cx,cy]=r.pts[best+1];const mx=(ax+cx)/2,my=(ay+cy)/2;
+    if(seen.some(o=>o.n===r.name&&Math.hypot(o.x-mx,o.y-my)<350))continue;seen.push({n:r.name,x:mx,y:my});
+    let ang=Math.atan2(cy-ay,cx-ax);if(ang>Math.PI/2)ang-=Math.PI;if(ang<-Math.PI/2)ang+=Math.PI;
+    labels.push({x:mx,y:my,ang,text:r.name.replace(/^Rua /,"R. ").replace(/^Avenida /,"Av. "),len:bl,major:r.k==="K"||r.k==="M"})}
+}
+function px(g,x,y,w,h,c){g.fillStyle=c;g.fillRect(x,y,w,h)}
+function drawPOI(g,p){
+  const x=Math.round(bx(p.x)),y=Math.round(by(p.y));
+  if(p.type==="assoc"){px(g,x-9,y-6,19,13,PAL.shadow);px(g,x-10,y-8,19,5,PAL.navy);px(g,x-10,y-3,19,8,PAL.white);px(g,x-10,y-3,19,2,PAL.orange);px(g,x-2,y+1,3,4,PAL.door);px(g,x-8,y,3,2,"#9fd3f5");px(g,x+4,y,3,2,"#9fd3f5");px(g,x+9,y-15,1,8,PAL.white);px(g,x+10,y-15,4,3,PAL.orange)}
+  else if(p.type==="school"){px(g,x-8,y-4,17,11,PAL.shadow);px(g,x-9,y-6,17,4,"#a8443a");px(g,x-9,y-2,17,7,PAL.wall);for(let i=0;i<4;i++)px(g,x-7+i*4,y,2,2,"#9fd3f5");px(g,x-1,y+2,2,3,PAL.door);px(g,x-9,y-12,1,6,PAL.white);px(g,x-8,y-12,4,2,PAL.green||"#319B27")}
+  else if(p.type==="shop"||p.type==="bakery"){px(g,x-6,y-4,13,10,PAL.shadow);px(g,x-7,y-6,13,4,p.roof);px(g,x-7,y-2,13,6,PAL.wall);for(let i=0;i<13;i+=2)px(g,x-7+i,y-2,1,2,PAL.orange);px(g,x-1,y+1,2,3,PAL.door);px(g,x-5,y+1,3,2,"#9fd3f5");px(g,x+3,y+1,3,2,"#9fd3f5")}
+  else if(p.type==="fuel"){px(g,x-8,y-6,16,3,"#c8553d");px(g,x-7,y-3,1,7,PAL.white);px(g,x+6,y-3,1,7,PAL.white);px(g,x-2,y,2,4,PAL.navy);px(g,x+2,y,2,4,PAL.navy)}
+  else if(p.type==="factory"){px(g,x-12,y-6,25,14,PAL.shadow);px(g,x-13,y-8,25,14,"#7d7f86");for(let i=0;i<5;i++)px(g,x-13+i*5,y-8,3,2,"#5a5d66");px(g,x+7,y-16,3,8,"#6b4a3a");px(g,x-3,y+1,5,5,"#4a4d55");px(g,x-10,y-2,3,2,"#9fd3f5");px(g,x+4,y-2,3,2,"#9fd3f5")}
+  else if(p.type==="yard"){for(let i=0;i<10;i++){px(g,x-8+((i*7)%16),y-6+((i*5)%12),3,2,i%2?"#8e8f8b":"#6b4a3a")}}
+  else if(p.type==="bus"){px(g,x-3,y-5,7,2,PAL.roof3);px(g,x-3,y-3,1,5,PAL.navy);px(g,x+3,y-3,1,5,PAL.navy);px(g,x-2,y,5,1,"#6e4526");px(g,x+5,y-7,1,9,PAL.navy);px(g,x+4,y-8,3,3,"#ffd23f")}
+}
+
+/* ============ sprites ============ */
+const AVATARS=[
+  {skin:"#f1c27d",hair:"#3b2414",shirt:"#F57E20",pants:"#0A2240"},
+  {skin:"#c68642",hair:"#1d1d1d",shirt:"#008CE3",pants:"#2b2b2b"},
+  {skin:"#8d5524",hair:"#1d1d1d",shirt:"#319B27",pants:"#0A2240"},
+  {skin:"#ffdbac",hair:"#d9a441",shirt:"#e2483d",pants:"#3a3f55"},
+  {skin:"#e0ac69",hair:"#6b3d1e",shirt:"#7a4b8c",pants:"#0A2240"},
+  {skin:"#a0662f",hair:"#2a1a10",shirt:"#f4f1e6",pants:"#2f6fae"},
+];
+// 9x12 sprite, 2 walk frames
+const SPR=["...hhh...","..hhhhh..","..hsssh..","..sssss..","...sss...",".tttttt..","ttttttts.","s.tttt.s.","..tttt...","..pp.pp..","..pp.pp..","..bb.bb.."];
+const SPR2=["...hhh...","..hhhhh..","..hsssh..","..sssss..","...sss...",".tttttt..",".ttttttt.",".stttts..","..tttt...","..pp.pp..",".pp...pp.",".bb...bb."];
+function drawAvatar(ctx,av,x,y,s,frame){const rows=frame?SPR2:SPR;const map={h:av.hair,s:av.skin,t:av.shirt,p:av.pants,b:"#2a2a2a"};
+  for(let r=0;r<rows.length;r++)for(let c=0;c<9;c++){const ch=rows[r][c];if(ch===".")continue;ctx.fillStyle=map[ch];ctx.fillRect(x+c*s,y+r*s,s,s)}}
+const ICONS={star:["....o....","...ooo...","ooooooooo",".ooooooo.","..ooooo..",".oo...oo.","oo.....oo"],pin:["..ooooo..",".ooo.ooo.",".oo...oo.",".ooo.ooo.","..ooooo..","...ooo...","....o...."],cup:["ooooooooo","ooooooooo",".ooooooo.","..ooooo..","...ooo...","....o....","..ooooo.."],add:["...ooo...","...ooo...","ooooooooo","ooooooooo","...ooo...","...ooo...","........."],house:["....o....","..ooooo..",".ooooooo.","ooooooooo",".oo...oo.",".oo.o.oo.",".oo.o.oo."]};
+function paintIcon(cv,name,color){const c=cv.getContext("2d");c.clearRect(0,0,11,11);c.fillStyle=color;ICONS[name].forEach((row,r)=>[...row].forEach((ch,i)=>{if(ch==="o")c.fillRect(1+i,2+r,1,1)}))}
+
+/* ============ state ============ */
+const DAY=()=>new Date().toISOString().slice(0,10);
+const ENERGY_MAX=5, ENERGY_REGEN=20*60*1000, JOB_COOLDOWN=30*60*1000, REFILL_COOLDOWN=2*60*60*1000;
+let S=store.get("jla_state",null);
+const LEVELS=[[0,"Morador Novo"],[50,"Vizinho Presente"],[150,"Vizinho Solidário"],[300,"Guardião da Rua"],[600,"Embaixador do Bairro"],[1000,"Lenda do JLA"]];
+function level(p){let i=0;for(let k=0;k<LEVELS.length;k++)if(p>=LEVELS[k][0])i=k;return i}
+function save(){store.set("jla_state",S)}
+function regen(){if(!S)return;const now=Date.now();if(S.energy>=ENERGY_MAX){S.energyTs=now;return}while(S.energy<ENERGY_MAX&&now-S.energyTs>=ENERGY_REGEN){S.energy++;S.energyTs+=ENERGY_REGEN}}
+
+/* ============ missions ============ */
+const MISSIONS=[
+  {id:"sede",title:"Conheça a sede",desc:"Vá até a sede da Associação, na Rua Prefeito José Hoffmann, 37.",pts:10,once:true,poi:"assoc"},
+  {id:"vida",title:"Pegue mais vida na Associação",desc:"Passe na sede e recarregue toda a sua energia (a cada 2 horas).",pts:0,poi:"assoc",kind:"refill"},
+  {id:"lixo",title:"Sua rua está com lixo",desc:"Vá até a sua casa e separe o lixo nas lixeiras certas.",pts:10,daily:true,cost:1,target:"home"},
+  {id:"vizinho",title:"Visite um vizinho",desc:"Ande até a casa marcada no mapa e deixe um bom-dia.",pts:10,daily:true,cost:1,target:"visit"},
+  {id:"onibus",title:"Pegue o ônibus",desc:"Vá a um ponto de ônibus e faça a viagem até o outro ponto do bairro.",pts:10,daily:true,cost:1,poi:"busA"},
+  {id:"campo",title:"Cuide do Socity",desc:"Recolha o lixo do campo de futebol antes do jogo começar.",pts:15,daily:true,cost:1,poi:"campo"},
+  {id:"trabalho",title:"Trabalhe em uma empresa do bairro",desc:"Faça um serviço rápido em uma empresa. Rende pontos e 1 vida.",pts:15,daily:true,poi:"divino"},
+  {id:"escola",title:"Quiz da cidadania",desc:"Vá até as escolas e responda 3 perguntas sobre o bairro.",pts:10,daily:true,cost:1,poi:"escolas"},
+  {id:"convite",title:"Convide um vizinho",desc:"Mande seu código pelo WhatsApp. Vale pontos quando ele se cadastra.",pts:20,kind:"invite",real:true},
+  {id:"evento",title:"Ação real da Associação",desc:"Participou de um mutirão ou evento? Digite o código do QR Code.",pts:50,kind:"code",real:true},
+];
+function mDone(m){const v=S.missions[m.id];if(!v)return false;if(m.once)return true;if(m.daily)return v===DAY();return false}
+function complete(id,ptsOverride){const m=MISSIONS.find(x=>x.id===id);const p=ptsOverride??m.pts;if(m.once||m.daily)S.missions[id]=m.once?true:DAY();S.pts+=p;save();updateHUD();toast(`${m.title}: +${p} pontos`);if(waypoint&&waypoint.mission===id)waypoint=null}
+
+/* ============ world & camera ============ */
+const cv=$("#map"),ctx=cv.getContext("2d");
+let Z=3, cw=0, ch=0, dpr=1, player={x:0,y:0,face:1,walk:0,moving:false}, target=null, keys={}, padDir=null, waypoint=null, nearPOI=null, lastPlace="";
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cw=cv.clientWidth;ch=cv.clientHeight;cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);ctx.imageSmoothingEnabled=false;dirty=true}
+let dirty=true;
+function homeHouse(){return houses[S.home]||{x:bx(1140),y:by(1338),street:S.rua}}
+function screenToBase(sx,sy){return{x:player.x+(sx-cw/2)/Z,y:player.y+(sy-ch/2)/Z}}
+function render(t){
+  const s=Z*dpr;const camx=player.x-cw/2/Z,camy=player.y-ch/2/Z;
+  ctx.fillStyle="#2f5a25";ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.imageSmoothingEnabled=false;
+  const ox=Math.round(-camx*s),oy=Math.round(-camy*s);
+  ctx.drawImage(base,ox,oy,BW*s,BH*s);
+  const P=(x,y)=>[ox+x*s,oy+y*s];
+  // bairro names when zoomed out
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  if(Z<=2){ctx.font=`700 ${15*dpr}px "Pixelify Sans",monospace`;for(const a of areas){if(a.k!=="res"||!a.name)continue;const cx=a.pts.reduce((q,p)=>q+p[0],0)/a.pts.length,cy=a.pts.reduce((q,p)=>q+p[1],0)/a.pts.length;const [X,Y]=P(bx(cx),by(cy));if(X<-200||Y<-50||X>cv.width+200||Y>cv.height+50)continue;ctx.lineWidth=4*dpr;ctx.strokeStyle="#0A2240cc";ctx.strokeText(a.name.toUpperCase(),X,Y);ctx.fillStyle=MY_BAIRROS.includes(a.name)?"#ffd9b8":"#e8eef7";ctx.fillText(a.name.toUpperCase(),X,Y)}}
+  // street labels
+  const fs=Math.max(10,Math.min(14,8+Z*1.5));
+  ctx.font=`800 ${fs*dpr}px Nunito,sans-serif`;
+  for(const l of labels){const [X,Y]=P(bx(l.x),by(l.y));if(X<-300||Y<-60||X>cv.width+300||Y>cv.height+60)continue;const w=ctx.measureText(l.text).width;if(w>l.len/MPP*s*0.95&&!l.major)continue;
+    ctx.save();ctx.translate(X,Y);ctx.rotate(l.ang);ctx.lineWidth=3*dpr;ctx.strokeStyle="#ffffffee";ctx.strokeText(l.text,0,0);ctx.fillStyle="#1d2c44";ctx.fillText(l.text,0,0);ctx.restore()}
+  // home marker
+  if(S){const h=homeHouse();const [X,Y]=P(h.x,h.y);const b=Math.sin(t/300)*2*dpr;ctx.fillStyle="#F57E20";ctx.fillRect(X-1*dpr,Y-26*dpr+b,2*dpr,16*dpr);ctx.fillRect(X+1*dpr,Y-26*dpr+b,10*dpr,7*dpr);ctx.font=`800 ${11*dpr}px Nunito`;ctx.lineWidth=3*dpr;ctx.strokeStyle="#0A2240";ctx.strokeText("Sua casa",X,Y-32*dpr+b);ctx.fillStyle="#fff";ctx.fillText("Sua casa",X,Y-32*dpr+b)}
+  // visit target
+  if(S&&S.visit&&!mDone(MISSIONS.find(m=>m.id==="vizinho"))){const h=houses[S.visit];if(h){const [X,Y]=P(h.x,h.y);const r=(6+Math.sin(t/200)*2)*dpr*Z/3;ctx.strokeStyle="#ffd23f";ctx.lineWidth=3*dpr;ctx.strokeRect(X-r-4*dpr,Y-r-4*dpr,(r+4*dpr)*2,(r+4*dpr)*2)}}
+  // POI labels
+  ctx.font=`800 ${12*dpr}px Nunito`;
+  for(const p of POIS){const [X,Y]=P(bx(p.x),by(p.y));if(X<-200||Y<-60||X>cv.width+200||Y>cv.height+60)continue;const tx=p.name;const w=ctx.measureText(tx).width+12*dpr;const yy=Y-(p.type==="factory"?22:16)*s/3*1.2;
+    ctx.fillStyle=p.type==="bus"?"#008CE3":p.type==="factory"||p.type==="yard"||p.type==="fuel"||p.type==="shop"||p.type==="bakery"?"#0A2240":"#F57E20";ctx.fillRect(X-w/2,yy-10*dpr,w,20*dpr);ctx.fillStyle="#fff";ctx.fillText(tx,X,yy+1*dpr)}
+  // player
+  const ps=Math.max(2,Math.round(s*0.5*1.6));const [PX,PY]=P(player.x,player.y);
+  ctx.fillStyle="#0005";ctx.fillRect(PX-4*ps,PY+5*ps,8*ps,2*ps);
+  drawAvatar(ctx,AVATARS[S?S.avatar:0],Math.round(PX-4.5*ps),Math.round(PY-6*ps),ps,player.moving&&((t/180|0)%2));
+  // waypoint arrow
+  if(waypoint){const [WX,WY]=P(waypoint.x,waypoint.y);const inside=WX>40&&WY>90&&WX<cv.width-40&&WY<cv.height-140*dpr;
+    if(!inside){const a=Math.atan2(WY-PY,WX-PX);const R=Math.min(cv.width,cv.height)*0.36;const AX=PX+Math.cos(a)*R,AY=PY+Math.sin(a)*R;ctx.save();ctx.translate(AX,AY);ctx.rotate(a);ctx.fillStyle="#ffd23f";ctx.strokeStyle="#0A2240";ctx.lineWidth=3*dpr;ctx.beginPath();ctx.moveTo(16*dpr,0);ctx.lineTo(-10*dpr,-11*dpr);ctx.lineTo(-4*dpr,0);ctx.lineTo(-10*dpr,11*dpr);ctx.closePath();ctx.stroke();ctx.fill();ctx.restore();
+      const dist=Math.round(Math.hypot(waypoint.x-player.x,waypoint.y-player.y)*MPP);ctx.font=`800 ${12*dpr}px Nunito`;ctx.lineWidth=3*dpr;ctx.strokeStyle="#0A2240";ctx.strokeText(dist+" m",AX,AY+22*dpr);ctx.fillStyle="#fff";ctx.fillText(dist+" m",AX,AY+22*dpr)}
+    else{ctx.fillStyle="#ffd23f";const b=Math.abs(Math.sin(t/250))*6*dpr;ctx.beginPath();ctx.moveTo(WX,WY-18*dpr-b);ctx.lineTo(WX-8*dpr,WY-32*dpr-b);ctx.lineTo(WX+8*dpr,WY-32*dpr-b);ctx.closePath();ctx.fill()}}
+}
+
+/* ============ loop & movement ============ */
+let last=performance.now();
+function step(now){const dt=Math.min(0.05,(now-last)/1000);last=now;
+  if(S){let dx=0,dy=0;
+    if(keys.ArrowLeft||keys.a)dx--;if(keys.ArrowRight||keys.d)dx++;if(keys.ArrowUp||keys.w)dy--;if(keys.ArrowDown||keys.s)dy++;
+    if(padDir){dx+=padDir[0];dy+=padDir[1]}
+    if(dx||dy){target=null}
+    else if(target){const tx=target.x-player.x,ty=target.y-player.y,L=Math.hypot(tx,ty);if(L<1.5)target=null;else{dx=tx/L;dy=ty/L}}
+    const L=Math.hypot(dx,dy);player.moving=L>0;
+    if(L>0){const sp=42*dt;player.x=Math.max(5,Math.min(BW-5,player.x+dx/L*sp));player.y=Math.max(5,Math.min(BH-5,player.y+dy/L*sp));if(dx)player.face=Math.sign(dx);dirty=true}
+    checkPlace();
+  }
+  render(now);requestAnimationFrame(step)}
+let hudT=0;
+function checkPlace(){const now=performance.now();if(now-hudT<250)return;hudT=now;
+  const mx=player.x*MPP+X0,my=player.y*MPP+Y0;
+  let best=null,bd=40;for(const sgm of roadSegs){const d=segDist(mx,my,sgm.ax,sgm.ay,sgm.cx,sgm.cy);if(d<bd){bd=d;best=sgm.name}}
+  const b=bairroAt(mx,my);$("#hudwhere").innerHTML="";const sp=document.createElement("span");sp.textContent=best||"Fora das ruas";const sm=document.createElement("small");sm.textContent=b?" · "+b:"";$("#hudwhere").append(sp,sm);
+  // near POI / home / visit
+  let near=null;for(const p of POIS){if(Math.hypot(bx(p.x)-player.x,by(p.y)-player.y)<16){near={kind:"poi",p};break}}
+  if(!near){const h=homeHouse();if(Math.hypot(h.x-player.x,h.y-player.y)<10)near={kind:"home"}}
+  if(!near&&S.visit!=null){const h=houses[S.visit];if(h&&Math.hypot(h.x-player.x,h.y-player.y)<10&&!mDone(MISSIONS.find(m=>m.id==="vizinho")))near={kind:"visit"}}
+  const key=near?(near.kind+(near.p?near.p.id:"")):"";
+  if(key!==lastPlace){lastPlace=key;showPlace(near)}
+  regen();updateHUD();
+}
+
+/* ============ place card ============ */
+function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(k==="text")e.textContent=v;else e.setAttribute(k,v)}for(const k of kids)if(k!=null)e.append(k);return e}
+function showPlace(near){const box=$("#place");box.innerHTML="";if(!near){box.hidden=true;$("#pad").hidden=false;return}
+  const acts=el("div",{class:"acts"});let title="",sub="";
+  if(near.kind==="home"){title="Sua casa";sub=S.rua+" · "+S.bairro;
+    acts.append(el("button",{class:"btn",onclick:()=>startMission("lixo")},"Separar o lixo"))}
+  else if(near.kind==="visit"){const h=houses[S.visit];title="Casa do vizinho";sub=h.street;
+    acts.append(el("button",{class:"btn green",onclick:()=>{complete("vizinho");showPlace(null);lastPlace=""}},"Deixar um bom-dia"))}
+  else{const p=near.p;title=p.name;sub=p.addr;
+    for(const a of placeActions(p))acts.append(a)}
+  box.append(el("div",{class:"t"},el("h3",{text:title}),el("p",{text:sub})),acts);box.hidden=false;$("#pad").hidden=true}
+const JOBS={
+  rosas:{label:"Repor a prateleira",game:"order",items:["Arroz","Feijão","Leite","Óleo","Café"],intro:"Repor a prateleira na ordem da lista do gerente."},
+  divino:{label:"Atender no balcão",game:"order",items:["Pão francês","Sonho","Café com leite","Bolo de fubá","Pão de queijo"],intro:"Um cliente fez o pedido. Entregue na ordem certa."},
+  churras:{label:"Montar os pratos",game:"order",items:["Arroz","Feijão","Salada","Farofa","Maionese"],intro:"Monte o prato do cliente na ordem do pedido."},
+  posto:{label:"Abastecer",game:"timing",intro:"Solte a bomba quando o marcador estiver na faixa verde."},
+  hubner:{label:"Encher os moldes",game:"timing",intro:"Despeje o metal no molde na hora certa."},
+  balena:{label:"Soldar as peças",game:"timing",intro:"Faça a solda quando o marcador passar na faixa verde."},
+  scheffer:{label:"Carregar o caminhão",game:"order",items:["Caixa 1","Caixa 2","Caixa 3","Caixa 4","Caixa 5"],intro:"Carregue as caixas na ordem das entregas."},
+  agua:{label:"Empilhar paletes",game:"timing",intro:"Solte o palete quando ele estiver alinhado (faixa verde)."},
+  rodaviva:{label:"Separar materiais",game:"sort",intro:"Separe o que chegou para reciclagem."},
+};
+function placeActions(p){const out=[];
+  if(p.type==="assoc"){
+    if(!mDone(MISSIONS[0]))out.push(el("button",{class:"btn green",onclick:()=>{complete("sede");showPlace({kind:"poi",p})}},"Conhecer a sede"));
+    const left=REFILL_COOLDOWN-(Date.now()-(S.refill||0));
+    out.push(el("button",{class:"btn",onclick:()=>{if(left>0)return toast("A sede recarrega sua vida de novo em "+Math.ceil(left/60000)+" min");S.energy=ENERGY_MAX;S.energyTs=Date.now();S.refill=Date.now();save();updateHUD();toast("Energia cheia! Obrigado por passar na sede.");showPlace({kind:"poi",p})}},left>0?"Vida em "+Math.ceil(left/60000)+" min":"Pegar mais vida"));
+    out.push(el("button",{class:"btn blue",onclick:()=>openTab("assoc")},"Ver a Associação"))}
+  else if(p.type==="campo")out.push(el("button",{class:"btn",onclick:()=>startMission("campo")},mDone(MISSIONS.find(m=>m.id==="campo"))?"Já cuidou hoje":"Recolher o lixo do campo"));
+  else if(p.type==="school")out.push(el("button",{class:"btn",onclick:()=>startMission("escola")},"Quiz da cidadania"));
+  else if(p.type==="bus")out.push(el("button",{class:"btn blue",onclick:()=>startBus(p)},"Pegar o ônibus"));
+  if(JOBS[p.id]){const j=JOBS[p.id];const left=JOB_COOLDOWN-(Date.now()-((S.jobs||{})[p.id]||0));
+    out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+j.label))}
+  return out}
+
+/* ============ sheets & minigames ============ */
+function openSheet(title,...content){const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null}
+let stopGame=null;
+function closeSheet(){$("#sheet").hidden=true;if(stopGame){stopGame();stopGame=null}document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("on"))}
+function spend(m){if(!m.cost)return true;regen();if(S.energy<m.cost){openSheet("Sem energia",el("p",{text:"Sua energia acabou. Ela volta sozinha (1 coração a cada 20 minutos), ou você pode passar na sede da Associação ou trabalhar em uma empresa do bairro."}),el("button",{class:"btn",onclick:()=>{closeSheet();goTo("assoc")}},"Ir até a sede"));return false}S.energy-=m.cost;if(S.energy===ENERGY_MAX-1)S.energyTs=Date.now();save();updateHUD();return true}
+function result(ok,title,okMsg,failMsg,onOk){const box=el("div",{class:"game"},el("div",{class:"big",text:ok?"Muito bem!":"Quase lá"}),el("p",{text:ok?okMsg:failMsg}));openSheet(title,box,el("button",{class:"btn",onclick:closeSheet},"Voltar ao mapa"));if(ok&&onOk)onOk()}
+
+function startMission(id){const m=MISSIONS.find(x=>x.id===id);if(mDone(m))return toast("Missão de hoje já cumprida. Volte amanhã!");
+  if(id==="lixo"){if(!spend(m))return;gameSort("Sua rua está com lixo","Separe o lixo da "+S.rua+" nas lixeiras certas.",ok=>result(ok,"Sua rua está com lixo","Rua mais limpa! Separar o lixo ajuda a coleta seletiva.","Algumas coisas foram para a lixeira errada. Tente de novo amanhã.",()=>complete("lixo")))}
+  if(id==="campo"){if(!spend(m))return;gameCollect(ok=>result(ok,"Cuide do Socity","O campo está pronto para o jogo!","Ainda ficou lixo no campo. Tente outra vez amanhã.",()=>complete("campo")))}
+  if(id==="escola"){if(!spend(m))return;gameQuiz("Quiz da cidadania",pick(QUIZ,3),ok=>result(ok,"Quiz da cidadania","Você sabe como cuidar do bairro!","Errou mais de uma. Amanhã tem perguntas novas.",()=>complete("escola")))}
+}
+function startJob(p){const j=JOBS[p.id];const done=ok=>{S.jobs=S.jobs||{};S.jobs[p.id]=Date.now();if(ok){S.energy=Math.min(ENERGY_MAX,S.energy+1);if(!mDone(MISSIONS.find(m=>m.id==="trabalho")))complete("trabalho");else{S.pts+=10;toast("Serviço feito: +10 pontos e +1 vida")}}else{S.pts+=2}save();updateHUD();result(ok,p.name,"Serviço bem feito! Você ganhou pontos e 1 vida.","Não saiu perfeito, mas valeu: +2 pontos. Volte no próximo turno.");showPlace({kind:"poi",p})};
+  if(j.game==="order")gameOrder(p.name,j.intro,j.items,done);
+  else if(j.game==="timing")gameTiming(p.name,j.intro,done);
+  else gameSort(p.name,j.intro,done)}
+function startBus(p){const m=MISSIONS.find(x=>x.id==="onibus");const other=POIS.find(q=>q.type==="bus"&&q.id!==p.id);
+  const q={q:"Enquanto espera o ônibus, o mais seguro é:",o:["Ficar no ponto, na calçada, e dar sinal com antecedência","Esperar no meio da rua para o motorista ver","Correr atrás do ônibus quando ele passar"],a:0};
+  const box=el("div",{class:"game"},el("p",{text:"Próximo destino: "+other.name+". Antes de embarcar:"}),el("b",{text:q.q}));const g=el("div",{class:"grid2"});
+  q.o.forEach((o,i)=>g.append(el("button",{class:"opt",onclick:e=>{if(i!==q.a){e.target.classList.add("bad");return}e.target.classList.add("ok");setTimeout(()=>{closeSheet();player.x=bx(other.x)+4;player.y=by(other.y)+10;target=null;lastPlace="";if(!mDone(m)&&spend(m))complete("onibus");else toast("Você desceu no "+other.name)},500)}},o)));
+  box.append(g);openSheet("Pegar o ônibus",box)}
+
+const QUIZ=[
+  {q:"A lâmpada do poste da sua rua queimou. Quem conserta a iluminação pública?",o:["A Prefeitura","A Associação","Os vizinhos"],a:0},
+  {q:"Tem um vazamento de água na rua. Quem deve ser avisado?",o:["A Sanepar","Os Correios","A escola"],a:0},
+  {q:"Faltou energia elétrica na sua casa. Quem atende no Paraná?",o:["A Copel","A Sanepar","A Associação"],a:0},
+  {q:"Qual é o endereço da sede da Associação?",o:["Rua Prefeito José Hoffmann, 37","Avenida Senador Flávio Carvalho Guimarães, 1","Rua Sabáudia, 10"],a:0},
+  {q:"Quais bairros a Associação de Moradores atende?",o:["Jardim Los Angeles, Califórnia I e II e Hortência","Só o Jardim Los Angeles","Toda a cidade de Ponta Grossa"],a:0},
+  {q:"O que a Associação de Moradores faz?",o:["Representa os moradores e leva as demandas ao poder público","Cobra impostos dos moradores","Conserta os ônibus"],a:0},
+  {q:"Onde jogar o óleo de cozinha usado?",o:["Guardar em uma garrafa e levar a um ponto de coleta","Na pia da cozinha","No ralo da rua"],a:0},
+  {q:"Pilhas e baterias usadas devem ir para:",o:["Um ponto de coleta específico","O lixo comum","O rio"],a:0},
+  {q:"Na faixa de pedestres você deve:",o:["Olhar para os dois lados antes de atravessar","Atravessar correndo sem olhar","Atravessar mexendo no celular"],a:0},
+  {q:"Qual projeto esportivo a Associação apoia?",o:["Projeto Atleta do Bairro","Fórmula 1 do Bairro","Nenhum"],a:0},
+];
+const TRASH=[["Jornal velho","Papel"],["Caixa de papelão","Papel"],["Garrafa PET","Plástico"],["Sacolinha plástica","Plástico"],["Lata de refrigerante","Metal"],["Tampinha de metal","Metal"],["Pote de vidro","Vidro"],["Garrafa de vidro","Vidro"],["Casca de banana","Orgânico"],["Resto de comida","Orgânico"],["Borra de café","Orgânico"]];
+const BINS={"Papel":"#2f6fae","Plástico":"#e2483d","Metal":"#d9a400","Vidro":"#319B27","Orgânico":"#7a4b2a"};
+function pick(arr,n){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,n)}
+function shuffleQ(q){const idx=pick([0,1,2],3);return{q:q.q,o:idx.map(i=>q.o[i]),a:idx.indexOf(q.a)}}
+
+function gameQuiz(title,qs,cb){let i=0,hits=0;const box=el("div",{class:"game"});
+  const show=()=>{box.innerHTML="";if(i>=qs.length)return cb(hits>=2);const q=shuffleQ(qs[i]);box.append(el("div",{class:"muted",style:"color:#b9c6d8",text:`Pergunta ${i+1} de ${qs.length}`}),el("p",{style:"font-weight:800;font-size:16px",text:q.q}));const g=el("div",{class:"grid2"});
+    q.o.forEach((o,k)=>g.append(el("button",{class:"opt",onclick:e=>{g.querySelectorAll("button").forEach(b=>b.disabled=true);const ok=k===q.a;if(ok)hits++;e.target.classList.add(ok?"ok":"bad");if(!ok)g.children[q.a].classList.add("ok");setTimeout(()=>{i++;show()},900)}},o)));box.append(g)};
+  openSheet(title,box);show()}
+function gameSort(title,intro,cb){const items=pick(TRASH,6);let i=0,hits=0;const box=el("div",{class:"game"});
+  const show=()=>{box.innerHTML="";if(i>=items.length)return cb(hits>=5);const [name,bin]=items[i];
+    box.append(el("p",{text:intro}),el("div",{class:"prog"},el("i",{style:`width:${i/items.length*100}%`})),el("div",{class:"big",text:name}));const g=el("div",{class:"grid2"});
+    Object.keys(BINS).forEach(b=>g.append(el("button",{class:"opt",style:`border-left:12px solid ${BINS[b]}`,onclick:e=>{g.querySelectorAll("button").forEach(x=>x.disabled=true);const ok=b===bin;if(ok)hits++;e.target.classList.add(ok?"ok":"bad");setTimeout(()=>{i++;show()},600)}},b)));box.append(g)};
+  openSheet(title,box);show()}
+function gameOrder(title,intro,pool,cb){const seq=pick(pool,4);let pos=0;const box=el("div",{class:"game"});
+  box.append(el("p",{text:intro}),el("b",{text:"Pedido:"}),el("div",{class:"seq"},...seq.map((s,i)=>el("span",{text:(i+1)+". "+s}))),el("p",{class:"muted",style:"color:#b9c6d8",text:"Memorize! O pedido some em 4 segundos."}));openSheet(title,box);
+  const tm=setTimeout(()=>{box.innerHTML="";box.append(el("p",{text:"Toque nos itens na ordem do pedido."}));const g=el("div",{class:"grid2"});let errs=0;
+    pick(pool,pool.length).forEach(it=>g.append(el("button",{class:"opt",onclick:e=>{if(it===seq[pos]){e.target.classList.add("ok");e.target.disabled=true;pos++;if(pos===seq.length)setTimeout(()=>cb(errs<=1),400)}else{errs++;e.target.classList.add("bad");setTimeout(()=>e.target.classList.remove("bad"),400);if(errs>2){g.querySelectorAll("button").forEach(x=>x.disabled=true);setTimeout(()=>cb(false),400)}}}},it)));box.append(g)},4000);
+  stopGame=()=>clearTimeout(tm)}
+function gameTiming(title,intro,cb){let round=0,hits=0,raf=0,t0=performance.now(),zone=0;const box=el("div",{class:"game"});const bar=el("div",{class:"bar"});const zn=el("div",{class:"zone"});const cur=el("div",{class:"cur"});bar.append(zn,cur);
+  const info=el("p",{});const btn=el("button",{class:"btn",style:"width:100%;font-size:18px"},"Agora!");
+  const newRound=()=>{zone=0.15+Math.random()*0.6;zn.style.left=zone*100+"%";zn.style.width="16%";info.textContent=`${intro} Rodada ${round+1} de 3.`;t0=performance.now()};
+  let pos=0;const tick=n=>{const sp=0.9+round*0.35;pos=(Math.sin((n-t0)/1000*sp*Math.PI)+1)/2;cur.style.left=`calc(${pos*100}% - 3px)`;raf=requestAnimationFrame(tick)};
+  btn.addEventListener("click",()=>{const ok=pos>=zone&&pos<=zone+0.16;if(ok)hits++;toast(ok?"Acertou!":"Fora da faixa");round++;if(round>=3){cancelAnimationFrame(raf);cb(hits>=2)}else newRound()});
+  box.append(info,bar,btn);openSheet(title,box);newRound();raf=requestAnimationFrame(tick);stopGame=()=>cancelAnimationFrame(raf)}
+function gameCollect(cb){let got=0,time=15;const N=8;const box=el("div",{class:"game"});const f=el("div",{class:"field"});const info=el("p",{text:`Toque no lixo para recolher. Faltam ${N}. Tempo: ${time}s`});
+  const cols=["#e2483d","#ffd23f","#f4f1e6","#2f6fae","#7a4b2a"];
+  for(let i=0;i<N;i++){const t=el("button",{class:"trash","aria-label":"Lixo",style:`left:${5+Math.random()*82}%;top:${5+Math.random()*78}%;background:${cols[i%cols.length]}`});t.addEventListener("click",()=>{t.remove();got++;info.textContent=`Toque no lixo para recolher. Faltam ${N-got}. Tempo: ${time}s`;if(got===N){clearInterval(iv);setTimeout(()=>cb(true),300)}});f.append(t)}
+  box.append(info,f);openSheet("Cuide do Socity",box);
+  const iv=setInterval(()=>{time--;info.textContent=`Toque no lixo para recolher. Faltam ${N-got}. Tempo: ${time}s`;if(time<=0){clearInterval(iv);cb(false)}},1000);stopGame=()=>clearInterval(iv)}
+
+/* ============ tabs ============ */
+function goTo(poiId){const p=POIS.find(q=>q.id===poiId);waypoint={x:bx(p.x),y:by(p.y),mission:null};closeSheet();toast("Siga a seta amarela até "+p.name)}
+function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===tab));
+  if(tab==="missoes"){const list=el("div",{class:"list"});
+    for(const m of MISSIONS){const done=mDone(m);const row=el("div",{class:"row"},el("div",{class:"t"},el("b",{text:m.title}),el("span",{text:m.desc})),
+      el("div",{style:"display:flex;flex-direction:column;align-items:flex-end;gap:6px"},m.pts?el("span",{class:"pts",text:"+"+m.pts}):null,done?el("span",{class:"tag done",text:m.once?"Feita":"Feita hoje"}):m.real?el("span",{class:"tag real",text:"Ação real"}):m.cost?el("span",{class:"tag",text:"-1 vida"}):null));
+      if(!done){row.style.cursor="pointer";row.tabIndex=0;row.addEventListener("click",()=>missionGo(m))}list.append(row)}
+    openSheet("Missões",el("p",{class:"muted",text:"Toque em uma missão para ver o caminho no mapa. As missões diárias renovam à meia-noite."}),list)}
+  if(tab==="lugares"){const list=el("div",{class:"list"});
+    for(const p of POIS){list.append(el("div",{class:"row",style:"cursor:pointer",onclick:()=>goTo(p.id)},el("div",{class:"t"},el("b",{text:p.name}),el("span",{text:p.addr+(JOBS[p.id]?" · Trabalho: "+JOBS[p.id].label:"")})),el("span",{class:"tag",text:Math.round(Math.hypot(bx(p.x)-player.x,by(p.y)-player.y)*MPP)+" m"})))}
+    openSheet("Lugares do bairro",el("p",{class:"muted",text:"Empresas e lugares reais do mapa. Toque para ver o caminho."}),list)}
+  if(tab==="ranking"){const lv=level(S.pts);
+    openSheet("Ranking",el("div",{class:"stat"},el("div",{},el("b",{text:S.pts}),el("span",{text:"pontos"})),el("div",{},el("b",{text:Object.keys(S.missions).length}),el("span",{text:"missões feitas"})),el("div",{},el("b",{text:S.invites||0}),el("span",{text:"vizinhos convidados"}))),
+      el("p",{},el("b",{text:"Seu nível: "}),document.createTextNode(LEVELS[lv][1]+(LEVELS[lv+1]?` (faltam ${LEVELS[lv+1][0]-S.pts} pontos para ${LEVELS[lv+1][1]})`:""))),
+      el("div",{class:"list"},...["Embaixadores do Bairro: quem trouxe mais vizinhos","Moradores Participativos: quem cumpriu mais missões","Ruas Campeãs: a soma dos pontos de cada rua"].map(t=>el("div",{class:"row"},el("div",{class:"t"},el("b",{text:t.split(":")[0]}),el("span",{text:t.split(":")[1].trim()}))))),
+      el("p",{class:"muted",style:"margin-top:12px",text:"Nesta versão de teste, o progresso fica salvo só neste celular. O ranking com todos os moradores entra na versão comunitária, quando o jogo tiver um servidor para juntar os cadastros."}))}
+  if(tab==="convidar"){const code=S.code;const msg=`Entra no JLA: Bairro em Jogo, o jogo da nossa Associação de Moradores! Use meu código ${code} no cadastro.`;
+    const copy=el("button",{class:"btn blue",onclick:async()=>{try{await navigator.clipboard.writeText(msg);toast("Mensagem copiada")}catch(e){const r=document.createRange();r.selectNodeContents(pre);const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Selecionei a mensagem: copie com o dedo")}}},"Copiar mensagem");
+    const pre=el("p",{style:"background:#fff;border:2px solid #d9d2c0;border-radius:6px;padding:10px;user-select:text",text:msg});
+    openSheet("Convide um vizinho",el("p",{text:"Seu código de convite:"}),el("div",{class:"code",text:code}),el("p",{style:"margin-top:12px",text:"Cada vizinho que entrar com o seu código vale +20 pontos, e +10 extra quando ele cumprir a primeira missão. Você entra no ranking de Embaixadores do Bairro."}),pre,
+      el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("a",{class:"btn green",href:"https://wa.me/?text="+encodeURIComponent(msg),target:"_blank",rel:"noopener",style:"text-decoration:none;display:inline-flex;align-items:center"},"Enviar no WhatsApp"),copy),
+      el("p",{class:"muted",style:"margin-top:12px",text:"Limite de 10 convites pontuados por semana, para evitar cadastros falsos. Nesta versão de teste, os pontos de convite ainda não são contados automaticamente."}))}
+  if(tab==="assoc"){openSheet("Associação de Moradores",el("p",{},el("b",{text:"Associação de Moradores do Jardim Los Angeles"})),
+      el("p",{text:"Sede: Rua Prefeito José Hoffmann, 37 – Jardim Los Angeles, Ponta Grossa/PR. Atende os bairros Jardim Los Angeles, Jardim Califórnia I, Jardim Califórnia II e Jardim Hortência."}),
+      el("p",{text:"Projetos: Atleta do Bairro (esporte para crianças e adolescentes), Capoeira Arte Viva, campanhas solidárias e de segurança alimentar, mutirões e eventos."}),
+      el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento")),
+      el("p",{class:"muted",text:"Mapa: dados © colaboradores do OpenStreetMap (ODbL), desenhados em pixel art. As empresas aparecem porque estão no mapa público; antes do lançamento, a Associação vai pedir autorização a cada uma. Os pontos de ônibus estão em local aproximado."}),
+      el("button",{class:"btn ghost",style:"margin-top:8px",onclick:()=>{if(resetArm){store.set("jla_state",null);location.reload()}else{resetArm=true;toast("Toque de novo para apagar seu progresso")}}},"Apagar meu progresso"))}
+}
+let resetArm=false;
+function askCode(){const inp=el("input",{class:"inp",id:"evcode",placeholder:"Ex.: MUTIRAO-NOV",maxlength:"24"});const err=el("div",{class:"err"});
+  openSheet("Código de ação real",el("p",{text:"Nos mutirões e eventos, a Associação mostra um QR Code com um código. Digite aqui para ganhar +50 pontos."}),inp,err,
+    el("button",{class:"btn",onclick:()=>{const c=inp.value.trim().toUpperCase();S.codes=S.codes||[];if(S.codes.includes(c))return err.textContent="Você já usou esse código.";
+      if(c==="TESTE-JLA"){S.codes.push(c);complete("evento");closeSheet()}else err.textContent="Código não encontrado. Confira com a equipe da Associação."}},"Validar"),
+    el("p",{class:"muted",style:"margin-top:10px",text:"Para testar agora, use o código TESTE-JLA."}))}
+function missionGo(m){
+  if(m.kind==="invite")return openTab("convidar");if(m.kind==="code")return askCode();
+  if(m.target==="home"){const h=homeHouse();waypoint={x:h.x,y:h.y,mission:m.id};closeSheet();return toast("Vá até a sua casa (bandeira laranja)")}
+  if(m.target==="visit"){if(S.visit==null||S.visitDay!==DAY()){const others=houses.map((h,i)=>[h,i]).filter(([h])=>h.street!==S.rua&&Math.hypot(h.x-homeHouse().x,h.y-homeHouse().y)<500);const pickH=others.length?others[Math.floor(Math.random()*others.length)]:[houses[0],0];S.visit=pickH[1];S.visitDay=DAY();save()}
+    const h=houses[S.visit];waypoint={x:h.x,y:h.y,mission:m.id};closeSheet();return toast("Seu vizinho mora na "+h.street)}
+  if(m.id==="onibus"){const near=POIS.filter(p=>p.type==="bus").sort((a,b)=>Math.hypot(bx(a.x)-player.x,by(a.y)-player.y)-Math.hypot(bx(b.x)-player.x,by(b.y)-player.y))[0];return goTo(near.id)}
+  if(m.poi)goTo(m.poi)}
+
+/* ============ HUD & toast ============ */
+function updateHUD(){if(!S)return;$("#hudnick").textContent=S.nick;$("#hudlvl").textContent=LEVELS[level(S.pts)][1];$("#hudpts").textContent=S.pts;
+  const h=$("#hudhearts");if(h.childElementCount!==ENERGY_MAX){h.innerHTML="";for(let i=0;i<ENERGY_MAX;i++)h.append(el("span",{class:"heart"}))}[...h.children].forEach((c,i)=>c.classList.toggle("off",i>=S.energy));
+  const a=$("#hudav").getContext("2d");a.clearRect(0,0,9,12);drawAvatar(a,AVATARS[S.avatar],0,0,1,0)}
+let tt=0;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
+
+/* ============ start / onboarding ============ */
+function streetsIn(bairro){const poly=areas.find(a=>a.k==="res"&&a.name===bairro).pts;const set=new Set();for(const r of roads){if(r.k!=="R"||!r.name)continue;if(r.pts.some(([x,y])=>inPoly(x,y,poly))||r.pts.slice(1).some(([x,y],i)=>inPoly((x+r.pts[i][0])/2,(y+r.pts[i][1])/2,poly)))set.add(r.name)}return [...set].sort((a,b)=>a.localeCompare(b,"pt"))}
+let chosenAv=0;
+function setupStart(){const sel=$("#fbairro");MY_BAIRROS.forEach(b=>sel.append(el("option",{value:b,text:b})));
+  const fillRuas=()=>{const r=$("#frua");r.innerHTML="";streetsIn(sel.value).forEach(s=>{if(houses.some(h=>h.street===s))r.append(el("option",{value:s,text:s}))})};sel.addEventListener("change",fillRuas);sel.value=MY_BAIRROS[0];fillRuas();
+  const avs=$("#favs");AVATARS.forEach((a,i)=>{const c=el("canvas",{width:"9",height:"12"});drawAvatar(c.getContext("2d"),a,0,0,1,0);const b=el("button",{class:"av"+(i===0?" on":""),"aria-label":"Personagem "+(i+1),onclick:()=>{chosenAv=i;avs.querySelectorAll(".av").forEach((x,k)=>x.classList.toggle("on",k===i))}},c);avs.append(b)});
+  const inv=(location.hash||"").replace("#","");if(/^JLA-[A-Z0-9]{3,12}$/i.test(inv)){const t=$("#invitedBy");t.hidden=false;t.textContent="Convite do código "+inv.toUpperCase()}
+  // preview of the map around the sede
+  const pv=$("#preview").getContext("2d");pv.imageSmoothingEnabled=false;pv.drawImage(base,bx(1140)-100,by(1338)-50,200,100,0,0,300,150);
+  $("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
+    if(nick.length<2)return err.textContent="Escolha um apelido com pelo menos 2 letras.";if(!$("#frua").value)return err.textContent="Escolha sua rua.";if(!$("#fage").checked)return err.textContent="Confirme a idade ou que está jogando com um adulto.";
+    const rua=$("#frua").value;const hs=houses.map((h,i)=>[h,i]).filter(([h])=>h.street===rua);const home=hs[hashStr(nick)%hs.length][1];
+    const code="JLA-"+(nick.normalize("NFD").replace(/[^A-Za-z]/g,"").toUpperCase().slice(0,5)||"VIZ")+(hashStr(nick+rua)%90+10);
+    S={nick,bairro:$("#fbairro").value,rua,avatar:chosenAv,home,pts:0,energy:ENERGY_MAX,energyTs:Date.now(),missions:{},jobs:{},invites:0,code,invitedBy:/^JLA-/i.test(inv)?inv.toUpperCase():null,created:Date.now()};
+    const h=houses[home];S.px=h.x;S.py=h.y+8;save();enterGame(true)})}
+function enterGame(first){$("#start").hidden=true;player.x=S.px??homeHouse().x;player.y=S.py??homeHouse().y+8;updateHUD();
+  if(first)openSheet("Bem-vindo, "+S.nick+"!",el("p",{text:"Sua casa fica na "+S.rua+" (bandeira laranja). Toque no mapa para andar, ou use as setas."}),el("p",{text:"Comece pela missão “Conheça a sede”: a seta amarela mostra o caminho."}),el("button",{class:"btn",onclick:()=>{goTo("assoc");waypoint.mission="sede"}},"Começar"))}
+
+/* ============ input ============ */
+let down=null;
+cv.addEventListener("pointerdown",e=>{down={x:e.clientX,y:e.clientY,t:Date.now()}});
+cv.addEventListener("pointerup",e=>{if(!down||!S)return;const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y);if(moved<12){const r=cv.getBoundingClientRect();target=screenToBase(e.clientX-r.left,e.clientY-r.top)}down=null});
+addEventListener("keydown",e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT")return;const k=e.key.length===1?e.key.toLowerCase():e.key;if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","a","s","d","w"].includes(k)){keys[k]=true;if(k.startsWith("Arrow"))e.preventDefault()}if(e.key==="Escape"&&!$("#sheet").hidden)closeSheet()});
+addEventListener("keyup",e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;keys[k]=false});
+document.querySelectorAll("#pad button").forEach(b=>{const d=b.dataset.d.split(",").map(Number);b.addEventListener("pointerdown",e=>{e.preventDefault();padDir=d;b.setPointerCapture(e.pointerId)});b.addEventListener("pointerup",()=>padDir=null);b.addEventListener("pointercancel",()=>padDir=null)});
+$("#zin").onclick=()=>{Z=Math.min(6,Z+1)};$("#zout").onclick=()=>{Z=Math.max(1,Z-1)};$("#zhome").onclick=()=>{const h=homeHouse();waypoint={x:h.x,y:h.y,mission:null};toast("Siga a seta até a sua casa")};
+document.querySelectorAll("#tabs button").forEach(b=>{paintIcon(b.querySelector("canvas"),b.querySelector("canvas").dataset.icon,"#F57E20");b.addEventListener("click",()=>{if(!S)return;openTab(b.dataset.tab)})});
+$("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
+addEventListener("resize",resize);
+setInterval(()=>{if(S){S.px=Math.round(player.x);S.py=Math.round(player.y);save()}},5000);
+
+/* ============ boot ============ */
+requestAnimationFrame(()=>setTimeout(()=>{
+  buildMap();resize();
+  $("#loading").hidden=true;
+  if(S&&houses[S.home]){enterGame(false)}else{S=null;player.x=bx(1140);player.y=by(1338);setupStart();$("#start").hidden=false}
+  requestAnimationFrame(step);
+},30));
+</script>
+</body></html>
