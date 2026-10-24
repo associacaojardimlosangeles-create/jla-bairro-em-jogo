@@ -28,6 +28,11 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Viaduto de entrada (posição e altura) | `const VIA` e `function buildViaduct` |
 | Reforma da casa (cores e preços) | `WALLC`, `ROOFC`, `MUROC` e `function openReform` |
 | Visual de desenho animado | `TOONG` e `function lam` |
+| Rosto e corpo dos personagens | `function makeChar` |
+| Desenhos para colorir no mural do viaduto | `const MURAL_T` |
+| Palavras proibidas nos recados e ideias | `BAD_EXACT`, `BAD_STEM`, `BAD_PHRASE` |
+| Mural de ideias da sede | `SUG_CATS`, `function openSuggest` |
+| Logo da Associação | `const LOGO_URI` |
 
 ### Como colocar um comércio novo
 
