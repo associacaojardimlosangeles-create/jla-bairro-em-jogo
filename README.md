@@ -21,6 +21,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Missões e quanto cada uma vale | `const MISSIONS` |
 | Trabalhos nas empresas | `const JOBS` |
 | Joguinho de balcão (lanchonete, padaria, churrascaria): itens, cores, tempo | `const COUNTER`, `const FOOD`, `function gameCounter` |
+| Outros joguinhos dos trabalhos (caixa, posto, fundição, solda, cargas, paletes, lava-car, ferro-velho) | `MG_CAIXA`, `MG_POSTO`, `MG_LINHA`, `MG_CARGAS`, `MG_PILHA`, `MG_LAVA`, `MG_RECICLA` e `function miniGame` |
 | Perguntas do quiz | `const QUIZ` |
 | Códigos do comércio (moedas no balcão) | `const COMERCIO` |
 | Veículos e preços | `const VEH` |
