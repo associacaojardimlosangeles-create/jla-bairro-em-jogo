@@ -33,6 +33,12 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Palavras proibidas nos recados e ideias | `BAD_EXACT`, `BAD_STEM`, `BAD_PHRASE` |
 | Mural de ideias da sede | `SUG_CATS`, `function openSuggest` |
 | Logo da Associação | `const LOGO_URI` |
+| Perfil (apelido, casa, pele, cabelo, roupas) | `const LOOKS`, `HAIRS`, `function openProfile` |
+| Mochilas e acessórios (boné, óculos, fone) | `BAGS`, `ACCS`, `function charBag`, `function charAcc` |
+| Roupinhas dos bichinhos | `PET_OUTFITS`, `function petOutfit` |
+| Botão "Casa" | `function goHome` |
+| Desenho do carro e das bikes | `function makeVehicle` |
+| Veículos só andam na rua | `function offRoad`, `function roadConstrain` |
 
 ### Como colocar um comércio novo
 
