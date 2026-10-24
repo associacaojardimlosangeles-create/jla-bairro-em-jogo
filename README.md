@@ -25,6 +25,9 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Personagens (cores) | `const AVATARS` |
 | Falas do Everton (Family Burguer) | `function talkEverton` |
 | Construções em 3D | funções `mkAssoc`, `mkShop`, `mkFactory`, `mkGarage`... |
+| Viaduto de entrada (posição e altura) | `const VIA` e `function buildViaduct` |
+| Reforma da casa (cores e preços) | `WALLC`, `ROOFC`, `MUROC` e `function openReform` |
+| Visual de desenho animado | `TOONG` e `function lam` |
 
 ### Como colocar um comércio novo
 
