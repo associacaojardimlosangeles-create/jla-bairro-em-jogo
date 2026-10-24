@@ -402,6 +402,7 @@ Rio Los Angeles|824_629 811_495 794_460 763_434 742_407 690_334 668_279 586_226 
 
 const POIS = [
   {id:"assoc", type:"assoc", name:"Sede da Associação", addr:"Rua Prefeito José Hoffmann, 37", x:1140, y:1338},
+  {id:"correio", type:"correio", name:"Correio do Bairro", addr:"Casinha de recados entre moradores", x:1172, y:1362},
   {id:"campo", type:"campo", name:"Campo de Futebol (Socity)", addr:"Ao lado das escolas", x:1376, y:1396},
   {id:"escolas", type:"school", name:"Escolas Iolando Taques e Zair Santos", addr:"Rua Professor Fábio Fanucchi, 600", x:1472, y:1440},
   {id:"eclea", type:"school", name:"Escola Municipal Ecléa dos Passos Horn", addr:"Vila Isabel", x:2118, y:1828},
@@ -446,7 +447,7 @@ const PAL={grass:"#5f9e45",lot:"#8fb862",farm:"#b5b562",scrub:"#6f9a48",meadow:"
   side:"#cfc8b6",asph:"#5a5d66",asphK:"#3e4148",dirt:"#b08a5a",water:"#3b8fd6",ind:"#a2a39f",retail:"#b9b4a8",yard:"#9a876a",paved:"#c2bdb2",pitch:"#3fa34d",house:"#e9d9b8"};
 function hex(c){return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]}
 let plan, houses=[], labels=[], roadSegs=[];
-const POI_DIMS={assoc:[18,12,6],school:[34,14,7.5],shop:[13,11,5],fuel:[18,14,6],factory:[44,28,11],yard:[26,20,4],bus:[4.5,2,3],vshop:[18,13,6],shelter:[16,16,5],garage:[15,12,6]};
+const POI_DIMS={assoc:[18,12,6],school:[34,14,7.5],shop:[13,11,5],fuel:[18,14,6],factory:[44,28,11],yard:[26,20,4],bus:[4.5,2,3],vshop:[18,13,6],shelter:[16,16,5],garage:[15,12,6],correio:[9,8,5]};
 function roadClear(x,y){let m=1e9;for(const r of roads){if(r.k==="T"||r.k==="P")continue;for(let i=0;i<r.pts.length-1;i++){const d=segProj(x,y,r.pts[i][0],r.pts[i][1],r.pts[i+1][0],r.pts[i+1][1]).d-RW[r.k]/2;if(d<m)m=d}}return m}
 function placePOIs(){const done=[];for(const p of POIS){if(!POI_DIMS[p.type]||p.type==="bus"){done.push(p);continue}const D=POI_DIMS[p.type];const half=Math.hypot(D[0],D[1])/2;const need=half+1.5;
     const ok=(x,y)=>roadClear(x,y)>=need&&done.every(q=>!POI_DIMS[q.type]||q.type==="bus"||Math.hypot(q.x-x,q.y-y)>half+Math.hypot(...POI_DIMS[q.type])/2+2)&&!inViaFoot(x,y);
@@ -493,7 +494,7 @@ const ENERGY_MAX=5, ENERGY_REGEN=20*60*1000, JOB_COOLDOWN=30*60*1000, REFILL_COO
 let S=store.get("jla_state3d",null);
 const LEVELS=[[0,"Morador Novo"],[50,"Vizinho Presente"],[150,"Vizinho Solidário"],[300,"Guardião da Rua"],[600,"Embaixador do Bairro"],[1000,"Lenda do JLA"]];
 function level(p){let i=0;for(let k=0;k<LEVELS.length;k++)if(p>=LEVELS[k][0])i=k;return i}
-function save(){store.set("jla_state3d",S)}
+function save(){store.set("jla_state3d",S);if(MAIL.db)registerMorador()}
 function regen(){if(!S)return;const now=Date.now();if(S.energy>=ENERGY_MAX){S.energyTs=now;return}while(S.energy<ENERGY_MAX&&now-S.energyTs>=ENERGY_REGEN){S.energy++;S.energyTs+=ENERGY_REGEN}}
 const AVATARS=[
   {skin:"#f1c27d",hair:"#3b2414",shirt:"#F57E20",pants:"#0A2240",shoe:"#ffffff",hs:0},
@@ -514,6 +515,7 @@ const MISSIONS=[
   {id:"campo",title:"Cuide do Socity",desc:"Recolha o lixo do campo de futebol antes do jogo começar.",pts:15,daily:true,cost:1,poi:"campo"},
   {id:"trabalho",title:"Trabalhe em uma empresa do bairro",desc:"Faça um serviço rápido em uma empresa. Rende pontos e 1 vida.",pts:15,daily:true,poi:"divino"},
   {id:"escola",title:"Quiz da cidadania",desc:"Vá até as escolas e responda 3 perguntas sobre o bairro.",pts:10,daily:true,cost:1,poi:"escolas"},
+  {id:"recado",title:"Deixe um recado para um vizinho",desc:"Vá ao Correio do Bairro, ao lado da sede, e mande um recado gentil.",pts:10,daily:true,poi:"correio"},
   {id:"ideia",title:"Dê uma ideia para o bairro",desc:"Escreva no mural de ideias da sede o que pode melhorar no bairro.",pts:10,daily:true,poi:"assoc"},
   {id:"mural",title:"Pinte o mural do viaduto",desc:"Faça um desenho nas paredes da passagem sob a rodovia, na entrada do bairro.",pts:15,daily:true,cost:1,poi:"viaduto"},
   {id:"bueiro",title:"Limpe os bueiros do viaduto",desc:"Tire o barro dos bueiros para a chuva escoar e a entrada não alagar.",pts:15,daily:true,cost:1,poi:"viaduto"},
@@ -685,10 +687,10 @@ function buildPOIs(){
     const nr=nearestRoad(p.x,p.y);let fx=nr.qx-p.x,fy=nr.qy-p.y;const fl=Math.hypot(fx,fy)||1;fx/=fl;fy/=fl;
     let px=p.x,py=p.y;if(p.type==="bus"){const need=RW[nr.k]/2+3.2;if(nr.d<need){px=nr.qx-fx*need;py=nr.qy-fy*need}}
     p.x=px;p.y=py;p.fx=fx;p.fy=fy;p.depth=depth;const [X,Z]=W3(px,py);g.position.set(X,0,Z);g.rotation.y=Math.atan2(fx,fy);
-    ({assoc:mkAssoc,school:mkSchool,shop:mkShop,fuel:mkFuel,factory:mkFactory,yard:mkYard,bus:mkBus,vshop:mkVShop,shelter:mkShelter,garage:mkGarage})[p.type](g,p);
+    ({assoc:mkAssoc,school:mkSchool,shop:mkShop,fuel:mkFuel,factory:mkFactory,yard:mkYard,bus:mkBus,vshop:mkVShop,shelter:mkShelter,garage:mkGarage,correio:mkCorreio})[p.type](g,p);
     scene.add(g);if(p.type!=="bus")addCol(px,py,rad*0.8);p.mh=h;
   }
-  for(const p of POIS){const t=textTex(p.name,{w:768,h:120,bg:p.type==="bus"?"#008CE3":(p.type==="vshop"||p.type==="shelter"||p.id==="petshop")?"#319B27":p.type==="garage"?"#2b2f36":p.type==="assoc"||p.type==="campo"||p.type==="school"||p.type==="viaduto"?"#F57E20":"#0A2240",fg:"#fff",round:56});
+  for(const p of POIS){const t=textTex(p.name,{w:768,h:120,bg:p.type==="bus"?"#008CE3":(p.type==="vshop"||p.type==="shelter"||p.id==="petshop")?"#319B27":p.type==="correio"?"#008CE3":p.type==="garage"?"#2b2f36":p.type==="assoc"||p.type==="campo"||p.type==="school"||p.type==="viaduto"?"#F57E20":"#0A2240",fg:"#fff",round:56});
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true,fog:false}));sp.renderOrder=10;const [X,Z]=W3(p.x,p.y);sp.position.set(X,(p.mh||6)+5,Z);sp.scale.set(12,1.9,1);scene.add(sp);markers.push({sp,p})}
 }
 function mkAssoc(g,p){box(g,18,5.2,12,0xf4f1e6,0,0,0);box(g,18.6,0.5,12.6,0x0A2240,0,5.2,0);box(g,18.05,0.8,12.05,0xF57E20,0,3.6,0);
@@ -819,6 +821,75 @@ function openVehShop(){const list=el("div",{class:"list"});const own=S.vehicles|
     list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:v.name}),el("span",{text:v.desc}),el("span",{style:"display:block;color:#F57E20;font-weight:900;margin-top:2px",text:"Velocidade "+stars(v.stars)+(has?" · já é seu":" · "+v.price+" moedas")}),v.elec?el("span",{style:"display:block;font-size:12px",text:"Bateria: "+(has?batTxt(k)+" · ":"")+"anda uns "+(v.range/1000).toLocaleString("pt-BR")+" km por carga. Carrega na tomada de casa."}):null),b))}
   openSheet("Loja de Bikes e Veículos",el("p",{},document.createTextNode("Seu saldo: "),el("b",{text:(S.coins||0)+" moedas"})),list,
     el("p",{class:"muted",style:"margin-top:12px",text:"Ganhe moedas trabalhando nas empresas do bairro (20 por serviço) e cumprindo missões. Os veículos elétricos não poluem o bairro. Depois de comprar, use o botão Veículo para subir e descer. Os elétricos precisam ficar carregando na sua casa."}))}
+
+/* ============ correio do bairro: recados entre moradores ============ */
+/* Os recados ficam guardados no banco de dados do jogo (quando o jogo roda no link oficial).
+   Recados NÃO são secretos: a Associação pode ler todos. Nada de endereço, telefone ou links. */
+var MAIL={db:null,uid:null,owner:false,inbox:[],assoc:[],started:false,sig:"",first:true};
+const MAIL_WELCOME={id:"boasvindas",fromNick:"Associação de Moradores",fromRua:"Rua Prefeito José Hoffmann, 37",ts:0,
+  text:"Bem-vindo ao Correio do Bairro! Aqui chegam os recados dos seus vizinhos. Seja gentil: os recados não são secretos e a Associação pode ler todos."};
+const MAIL_FRASES=["Bom dia, vizinho!","Obrigado pela ajuda!","Bem-vindo ao bairro!","Vamos no próximo mutirão?","Seu bichinho é muito fofo!","Bora jogar bola no campo?"];
+const MAIL_EXTRA=/(@|insta|whats|zap|telegram|face(book)?|tiktok|endere[cç]o|n[uú]mero da casa|me passa|me chama no)/i;
+async function initMail(){try{if(!window.claude||typeof claude.use!=="function")return;const [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);if(!db||!user)return;
+  const uid=await user.id();if(!uid)return;MAIL.db=db;MAIL.uid=uid;MAIL.owner=!!(user.isOwner&&await user.isOwner());registerMorador();
+  db.collection("recados").where("to","==",uid).orderBy("ts","desc").limit(40).onSnapshot(s=>{const before=new Set(MAIL.inbox.map(r=>r.id));
+    MAIL.inbox=s.docs.map(d=>Object.assign({id:d.id},d.data()));const fresh=MAIL.inbox.filter(r=>!before.has(r.id)&&!(S.mailBlock||[]).includes(r.from));
+    if(!MAIL.first&&fresh.length)toast("Chegou recado de "+fresh[0].fromNick+"! Veja na caixa de correio da sua casa.");MAIL.first=false;mailChanged()},()=>{});
+  if(MAIL.owner)db.collection("recados").where("to","==","assoc").orderBy("ts","desc").limit(60).onSnapshot(s=>{MAIL.assoc=s.docs.map(d=>Object.assign({id:d.id},d.data()));mailChanged()},()=>{});
+  mailChanged()}catch(e){}}
+function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"+S.bairro;if(sig===MAIL.sig)return;MAIL.sig=sig;
+  MAIL.db.doc("moradores/"+MAIL.uid).set({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()}).catch(()=>{MAIL.sig=""})}
+function mailList(){const bl=S.mailBlock||[];return [MAIL_WELCOME,...MAIL.inbox.filter(r=>!bl.includes(r.from))]}
+function mailUnread(){const rd=S.mailRead||[];return mailList().filter(r=>!rd.includes(r.id)).length}
+let mailFlag=null;
+function mailChanged(){const n=mailUnread();if(mailFlag)mailFlag.visible=n>0;if(lastPlace==="home"){lastPlace="";checkPlace()}}
+function fmtDate(ts){if(!ts)return "";const d=new Date(ts);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+function openInbox(assocView){const items=assocView?MAIL.assoc:mailList();const list=el("div",{class:"list"});
+  S.mailRead=[...new Set([...(S.mailRead||[]),...items.map(r=>r.id)])].slice(-300);save();if(mailFlag)mailFlag.visible=false;
+  if(!items.length)list.append(el("p",{class:"muted",text:"Nenhum recado por aqui ainda."}));
+  for(const r of items){const real=r.id!=="boasvindas";
+    const btns=el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"});
+    if(real&&MAIL.db){btns.append(el("button",{class:"btn blue",style:"min-height:34px;padding:5px 10px;font-size:13px",onclick:()=>openWrite({to:r.from,nick:r.fromNick,rua:r.fromRua})},"Responder"),
+      el("button",{class:"btn ghost",style:"min-height:34px;padding:5px 10px;font-size:13px",onclick:()=>{MAIL.db.doc("recados/"+r.id).delete().catch(()=>{});MAIL.inbox=MAIL.inbox.filter(x=>x.id!==r.id);MAIL.assoc=MAIL.assoc.filter(x=>x.id!==r.id);openInbox(assocView)}},"Apagar"));
+      if(!assocView&&r.from)btns.append(el("button",{class:"btn ghost",style:"min-height:34px;padding:5px 10px;font-size:13px",onclick:()=>{S.mailBlock=[...new Set([...(S.mailBlock||[]),r.from])];save();toast("Você não vai mais receber recados de "+r.fromNick+".");openInbox()}},"Bloquear"))}
+    list.append(el("div",{class:"row",style:"display:block"},el("b",{text:r.fromNick||"Morador"}),el("span",{style:"display:block;font-size:12px;opacity:.75",text:(r.fromRua||"")+(r.ts?" · "+fmtDate(r.ts):"")}),
+      el("p",{style:"margin:6px 0 0;font-size:15px",text:r.text}),btns))}
+  openSheet(assocView?"Recados para a Associação":"Minha caixa de correio",
+    el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"},el("button",{class:"btn",onclick:()=>openWrite()},"Escrever recado"),
+      (MAIL.owner&&!assocView)?el("button",{class:"btn green",onclick:()=>openInbox(true)},"Recados para a Associação ("+MAIL.assoc.length+")"):null,assocView?el("button",{class:"btn ghost",onclick:()=>openInbox()},"Minha caixa"):null),
+    list,el("p",{class:"muted",style:"margin-top:10px",text:"Recebeu algo chato? Toque em Bloquear e avise a Associação. Os recados não são secretos."}))}
+async function openWrite(pre){
+  if(!MAIL.db){openSheet("Correio do Bairro",el("p",{text:"Nesta versão o correio entre moradores ainda não está ligado. Ele funciona quando o jogo é aberto pelo link oficial da Associação."}),
+    el("p",{class:"muted",text:"Você já pode ler o recado de boas-vindas na caixa de correio da sua casa."}),el("button",{class:"btn",onclick:()=>openInbox()},"Ver minha caixa"));return}
+  const day=DAY();if(S.mailDay!==day){S.mailDay=day;S.mailCount=0}
+  let to=pre||null;const dest=el("div",{});const err=el("div",{class:"err"});
+  const txt=el("textarea",{class:"inp",maxlength:"140",rows:"3",placeholder:"Escreva um recado gentil (até 140 letras)",style:"width:100%;resize:vertical"});
+  const chips=el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"},...MAIL_FRASES.map(f=>el("button",{class:"btn ghost",style:"min-height:32px;padding:4px 9px;font-size:12px",onclick:()=>{txt.value=f}},f)));
+  const pick=el("div",{class:"list",style:"max-height:220px;overflow:auto"});const q=el("input",{class:"inp",placeholder:"Procurar morador pelo apelido",maxlength:"20"});
+  let people=[];
+  const showDest=()=>{dest.innerHTML="";if(to){dest.append(el("p",{style:"margin:0 0 6px"},document.createTextNode("Para: "),el("b",{text:to.nick}),document.createTextNode(to.rua?" · "+to.rua:"")),
+      el("button",{class:"btn ghost",style:"min-height:32px;padding:4px 9px;font-size:12px",onclick:()=>{to=null;showDest()}},"Trocar"))}else dest.append(q,pick);renderPick()};
+  const renderPick=()=>{pick.innerHTML="";const s=q.value.trim().toLowerCase();
+    const opts=[{to:"assoc",nick:"Associação (diretoria)",rua:"Ideias, pedidos e avisos"},...people.filter(p=>!s||p.nick.toLowerCase().includes(s))];
+    for(const o of opts.slice(0,60))pick.append(el("div",{class:"row",style:"cursor:pointer",tabindex:"0",onclick:()=>{to=o;showDest()}},el("div",{class:"t"},el("b",{text:o.nick}),el("span",{text:o.rua||""}))));
+    if(!people.length)pick.append(el("p",{class:"muted",text:"Ainda não tem outros moradores no jogo. Chame seus vizinhos pela aba Convidar!"}))};
+  q.addEventListener("input",renderPick);
+  openSheet("Escrever recado",dest,el("p",{style:"margin:12px 0 4px;font-weight:800",text:"Recado"}),chips,txt,err,
+    el("button",{class:"btn",style:"margin-top:8px",onclick:async()=>{err.textContent="";const v=txt.value.trim();
+      if(!to)return err.textContent="Escolha para quem vai o recado.";if(v.length<2)return err.textContent="Escreva o recado.";
+      if(!checkText(v).ok||MAIL_EXTRA.test(v))return err.textContent="Esse recado não pode ser enviado. Não use palavrões, telefone, endereço, redes sociais ou links.";
+      if((S.mailCount||0)>=10)return err.textContent="Você já mandou 10 recados hoje. Amanhã tem mais!";
+      try{await MAIL.db.collection("recados").add({to:to.to,from:MAIL.uid,fromNick:S.nick,fromRua:S.rua,text:v,ts:Date.now()});S.mailCount=(S.mailCount||0)+1;
+        if(!S.missions.recado||S.missions.recado!==DAY()){complete("recado")}else save();closeSheet();toast("Recado entregue para "+to.nick+"!")}
+      catch(e){err.textContent=e&&e.code==="quota_exceeded"?"A caixa do correio está cheia. Avise a Associação.":"Não deu para enviar agora. Você precisa de acesso de participante no jogo, ou tente de novo."}}},"Enviar recado"),
+    el("p",{class:"muted",style:"margin-top:10px",text:"Os recados não são secretos: a Associação pode ler todos. Nunca mande endereço, telefone ou foto."}));
+  showDest();
+  try{const s=await MAIL.db.collection("moradores").orderBy("ts","desc").limit(300).get();people=s.docs.filter(d=>d.id!==MAIL.uid).map(d=>{const x=d.data()||{};return{to:d.id,nick:String(x.nick||"Morador").slice(0,16),rua:String(x.rua||"")}});renderPick()}catch(e){}}
+function mkCorreio(g,p){box(g,7,3.4,6,0xffd23f,0,0,0);const r=new THREE.Mesh(prismGeo(),lam(0x008CE3));r.scale.set(7.8,1.8,6.8);r.position.y=3.4;r.castShadow=!lowQ;g.add(r);
+  box(g,1.2,2.2,0.12,0x0A2240,-1.6,0,3.02);box(g,1.6,1.1,0.12,0x9fd3f5,1.4,1.1,3.02,{emissive:0x10304a});
+  plane(g,6.2,1.0,textTex("CORREIO DO BAIRRO",{w:1024,h:160,bg:"#0A2240",fg:"#ffd23f"}),0,3.0,3.1);
+  box(g,0.22,1.1,0.22,0x5b3a22,3.2,0,4.3);const mb=box(g,0.9,0.75,1.3,0x008CE3,3.2,1.1,4.3);box(g,0.92,0.08,1.32,0x0A2240,3.2,1.85,4.3);
+  box(g,0.06,0.6,0.06,0xe2483d,3.7,1.4,4.0);box(g,0.04,0.24,0.34,0xe2483d,3.7,1.76,4.15);box(g,0.5,0.06,0.04,0x0A2240,3.2,1.5,4.97)}
 
 /* ============ new places ============ */
 function mkVShop(g,p){box(g,18,6,13,0xf4f1e6,0,0,0);box(g,18.6,0.5,13.6,0x319B27,0,6,0);
@@ -1024,6 +1095,8 @@ function buildHome(){const h=homeHouse();if(h.x3==null)return;hideHouseInstance(
   if(H.doghouse){box(g,1.3,1.0,1.3,0xe2483d,-w/2+0.8,0,front*(d/2+1.8));const rr=new THREE.Mesh(prismGeo(),lam(0x5b6470));rr.scale.set(1.6,0.7,1.6);rr.position.set(-w/2+0.8,1.0,front*(d/2+1.8));g.add(rr)}
   if(H.garden){const cols=[0xe2483d,0xffd23f,0xF57E20,0xffffff,0xc04fd0];for(let i=0;i<10;i++){const x=-w/2+0.4+i*(w-0.8)/9;box(g,0.35,0.5,0.35,0x3f7d32,x,0,front*(d/2+2.9));box(g,0.3,0.25,0.3,cols[i%5],x,0.5,front*(d/2+2.9))}}
   if(H.solar){for(let i=0;i<3;i++){const p=box(g,1.4,0.08,1.0,0x1d2f55,(i-1)*1.6,ht+0.75,h.side*(d/4));p.rotation.x=h.side*0.45}}
+  {const mx=-2.6,mzz=mz+front*0.55;box(g,0.14,1.0,0.14,0x5b3a22,mx,0,mzz);box(g,0.55,0.45,0.75,0x008CE3,mx,1.0,mzz);box(g,0.57,0.06,0.77,0x0A2240,mx,1.45,mzz);
+    mailFlag=box(g,0.05,0.4,0.05,0xe2483d,mx+0.32,1.2,mzz);mailFlag.add(new THREE.Mesh(new THREE.BoxGeometry(0.03,0.18,0.26),lam(0xe2483d)));mailFlag.children[0].position.set(0,0.12,front*0.12);mailFlag.visible=mailUnread()>0}
   {let xc=w/2-0.4;for(const k of Object.keys(S.plug||{})){if(!VEH[k]||riding===k)continue;const len=k==="car"?4.5:1.5;const vx=xc-len/2;if(vx-len/2<-w/2-1)break;
     const vm=makeVehicle(k);vm.position.set(vx,0,front*(d/2+(k==="car"?2.0:1.6)));vm.rotation.y=Math.PI/2;g.add(vm);
     box(g,0.42,0.6,0.16,0x2b3440,vx,0.9,fz+front*0.09);box(g,0.12,0.12,0.04,0x5fe36a,vx,1.3,fz+front*0.18,{emissive:0x2f9f2f});xc-=len+0.5}}
@@ -1323,10 +1396,10 @@ function checkPlace(){
   if(!near&&S.visit!=null&&!mDone(MS("vizinho"))){const h=houses[S.visit];if(h&&Math.hypot(h.fx-player.x,h.fy-player.y)<6)near={kind:"visit"}}
   const key=near?(near.kind+(near.p?near.p.id:"")):"";if(key!==lastPlace){lastPlace=key;showPlace(near)}
   if(waypoint){const d=Math.round(Math.hypot(waypoint.x-player.x,waypoint.y-player.y));const t=$("#track");t.hidden=false;t.innerHTML="";t.append(el("b",{text:waypoint.label||"Destino"}),document.createTextNode(d<8?"Você chegou!":d+" m · siga a luz amarela"))}else $("#track").hidden=true;
-  regen();updateHUD();updateBatHUD()}
+  regen();updateHUD();updateBatHUD();if(!MAIL.started){MAIL.started=true;initMail()}}
 function showPlace(near){const box_=$("#place");box_.innerHTML="";if(!near){box_.hidden=true;$("#acts").hidden=false;return}
   const acts=el("div",{class:"acts"});let title="",sub="";
-  if(near.kind==="home"){title="Sua casa";sub=S.rua+" · "+S.bairro;acts.append(el("button",{class:"btn",onclick:()=>startMission("lixo")},"Separar o lixo"),el("button",{class:"btn green",onclick:openReform},"Reformar a casa"),el("button",{class:"btn blue",onclick:openPets},"Bichinhos"),el("button",{class:"btn",onclick:openCharge},"Carregar veículos"))}
+  if(near.kind==="home"){title="Sua casa";sub=S.rua+" · "+S.bairro;acts.append(el("button",{class:"btn",onclick:()=>startMission("lixo")},"Separar o lixo"),el("button",{class:"btn green",onclick:openReform},"Reformar a casa"),el("button",{class:"btn blue",onclick:openPets},"Bichinhos"),el("button",{class:"btn",onclick:openCharge},"Carregar veículos"),el("button",{class:"btn "+(mailUnread()?"green":"ghost"),onclick:()=>openInbox()},"Correio"+(mailUnread()?" ("+mailUnread()+" novo"+(mailUnread()>1?"s":"")+")":"")))}
   else if(near.kind==="visit"){const h=houses[S.visit];title="Casa do vizinho";sub=h.street;acts.append(el("button",{class:"btn green",onclick:()=>{complete("vizinho");beam2.visible=false;lastPlace="";showPlace(null)}},"Deixar um bom-dia"))}
   else{const p=near.p;title=p.name;sub=p.addr;for(const a of placeActions(p))acts.append(a)}
   box_.append(el("div",{class:"t"},el("h3",{text:title}),el("p",{text:sub})),acts);box_.hidden=false;$("#acts").hidden=true}
@@ -1352,6 +1425,7 @@ function placeActions(p){const out=[];
   else if(p.type==="school")out.push(el("button",{class:"btn",onclick:()=>startMission("escola")},"Quiz da cidadania"));
   else if(p.type==="viaduto")out.push(el("button",{class:"btn",onclick:openMural},"Pintar o mural"),el("button",{class:"btn green",onclick:()=>viaClean("bueiro")},"Limpar bueiros"),el("button",{class:"btn blue",onclick:()=>viaClean("entrada")},"Recolher lixo"));
   else if(p.type==="bus")out.push(el("button",{class:"btn blue",onclick:()=>startBus(p)},"Pegar o ônibus"));
+  else if(p.type==="correio")out.push(el("button",{class:"btn",onclick:()=>openWrite()},"Escrever recado"),el("button",{class:"btn blue",onclick:()=>openInbox()},"Minha caixa de correio"));
   else if(p.type==="vshop")out.push(el("button",{class:"btn",onclick:openVehShop},"Ver veículos"));
   else if(p.type==="shelter")out.push(el("button",{class:"btn",onclick:openShelter},"Adotar um bichinho"));
   else if(p.id==="petshop")out.push(el("button",{class:"btn",onclick:openPetShop},"Comprar ração"));
@@ -1429,7 +1503,7 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
     for(const m of MISSIONS){const done=mDone(m);const row=el("div",{class:"row"},el("div",{class:"t"},el("b",{text:m.title}),el("span",{text:m.desc})),
       el("div",{style:"display:flex;flex-direction:column;align-items:flex-end;gap:6px"},m.pts?el("span",{class:"pts",text:"+"+m.pts}):null,done?el("span",{class:"tag done",text:m.once?"Feita":"Feita hoje"}):m.real?el("span",{class:"tag real",text:"Ação real"}):m.cost?el("span",{class:"tag",text:"-1 vida"}):null));
       if(!done){row.style.cursor="pointer";row.tabIndex=0;row.addEventListener("click",()=>missionGo(m))}list.append(row)}
-    openSheet("Missões",el("p",{class:"muted",text:"Toque em uma missão: uma luz amarela aparece no lugar e o minimapa mostra o caminho. As missões diárias renovam à meia-noite."}),list)}
+    openSheet("Missões",el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"},el("button",{class:"btn",onclick:askCode},"Tenho um código"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),el("p",{class:"muted",text:"Toque em uma missão: uma luz amarela aparece no lugar e o minimapa mostra o caminho. As missões diárias renovam à meia-noite."}),list)}
   if(tab==="lugares"){const list=el("div",{class:"list"});
     for(const p of POIS)list.append(el("div",{class:"row",style:"cursor:pointer",onclick:()=>goTo(p.id)},el("div",{class:"t"},el("b",{text:p.name}),el("span",{text:p.addr+(JOBS[p.id]?" · Trabalho: "+JOBS[p.id].label:"")})),el("span",{class:"tag",text:Math.round(Math.hypot(p.x-player.x,p.y-player.y))+" m"})));
     openSheet("Lugares do bairro",el("p",{class:"muted",text:"Empresas e lugares reais do mapa. Toque para marcar o caminho."}),list)}

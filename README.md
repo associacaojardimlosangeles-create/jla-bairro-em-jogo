@@ -41,6 +41,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Botão "Casa" | `function goHome` |
 | Desenho do carro e das bikes | `function makeVehicle` |
 | Veículos só andam na rua | `function offRoad`, `function roadConstrain` |
+| Correio do Bairro (recados, frases prontas, bloqueio) | `MAIL_FRASES`, `MAIL_EXTRA`, `function openWrite`, `function openInbox` |
 | Bateria e tomada de casa (tempo de carga, alcance) | `CHARGE_MIN`, `range` em `const VEH`, `function openCharge` |
 
 ### Como colocar um comércio novo
@@ -57,6 +58,12 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 - Nada de nomes completos, endereços ou fotos de moradores no jogo, principalmente de crianças.
 - Comércios e pessoas reais só entram com autorização.
 - Antes de lançar para o bairro, apague os códigos de teste `TESTE-JLA`, `MOEDAS900` e `MOEDAS5000`.
+
+## Correio entre moradores
+
+Os recados precisam de um banco de dados compartilhado. Hoje ele funciona no link do jogo no Claude, para quem tiver acesso de participante.
+Fora dele (GitHub Pages ou arquivo no computador), o jogo mostra só o recado de boas-vindas até a Associação ligar um servidor próprio.
+Os recados não são secretos: a diretoria pode ler todos. O filtro barra palavrão, telefone, link, @, redes sociais e endereço.
 
 ## Créditos
 
