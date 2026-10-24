@@ -1,5 +1,7 @@
 # JLA: Bairro em Jogo
 
+<img src="logo.png" alt="Logo da Associação de Moradores Jardim Los Angeles" width="160">
+
 Jogo do bairro da **Associação de Moradores do Jardim Los Angeles** (Ponta Grossa/PR).
 O morador anda em 3D pelas ruas de verdade do Jardim Los Angeles, Califórnia I e II e Hortência,
 cumpre missões, trabalha nas empresas do bairro, compra veículos elétricos, adota bichinhos
@@ -39,6 +41,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Botão "Casa" | `function goHome` |
 | Desenho do carro e das bikes | `function makeVehicle` |
 | Veículos só andam na rua | `function offRoad`, `function roadConstrain` |
+| Bateria e tomada de casa (tempo de carga, alcance) | `CHARGE_MIN`, `range` em `const VEH`, `function openCharge` |
 
 ### Como colocar um comércio novo
 
@@ -53,7 +56,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 - Uma mudança por vez, com uma descrição clara do que mudou.
 - Nada de nomes completos, endereços ou fotos de moradores no jogo, principalmente de crianças.
 - Comércios e pessoas reais só entram com autorização.
-- Antes de lançar para o bairro, apague os códigos de teste `TESTE-JLA` e `MOEDAS900`.
+- Antes de lançar para o bairro, apague os códigos de teste `TESTE-JLA`, `MOEDAS900` e `MOEDAS5000`.
 
 ## Créditos
 
