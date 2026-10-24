@@ -20,6 +20,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Lugares (sede, escolas, comércios, lojas) | `const POIS` |
 | Missões e quanto cada uma vale | `const MISSIONS` |
 | Trabalhos nas empresas | `const JOBS` |
+| Joguinho de balcão (lanchonete, padaria, churrascaria): itens, cores, tempo | `const COUNTER`, `const FOOD`, `function gameCounter` |
 | Perguntas do quiz | `const QUIZ` |
 | Códigos do comércio (moedas no balcão) | `const COMERCIO` |
 | Veículos e preços | `const VEH` |

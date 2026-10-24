@@ -645,7 +645,7 @@ function buildTrees(R){
   for(const r of roads){if(!(r.k==="K"||r.k==="D"))continue;for(let i=0;i<r.pts.length-1;i++){const [ax,ay]=r.pts[i],[cx,cy]=r.pts[i+1];const L=Math.hypot(cx-ax,cy-ay);const ux=(cx-ax)/L,uy=(cy-ay)/L;
     for(let t=6;t<L;t+=22)for(const s of[-1,1])pts.push({x:ax+ux*t-uy*s*(RW[r.k]/2+3.2),y:ay+uy*t+ux*s*(RW[r.k]/2+3.2),s:0.7,col:true})}}
   for(let i=pts.length-1;i>0;i--){const j=(R()*(i+1))|0;[pts[i],pts[j]]=[pts[j],pts[i]]}
-  const list=pts.filter(p=>!inViaFoot(p.x,p.y)).slice(0,cap);
+  const list=pts.filter(p=>!inViaFoot(p.x,p.y)).slice(0,Math.round(cap*1.15)).filter(p=>roadClear(p.x,p.y)>0.6).slice(0,cap);
   const trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18,0.3,1,6).translate(0,0.5,0),lam(0x6b4a2f),list.length);
   const crown=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,1),lam(0xffffff),list.length);
   const greens=["#3f7d32","#4a8a39","#2f6b2e","#5a9a40","#3b7430","#6aa346"];const dm=new THREE.Object3D(),col=new THREE.Color();
@@ -658,7 +658,7 @@ function buildTrees(R){
 function buildPoles(){
   const list=[];for(const r of roads){if(r.k!=="R"&&r.k!=="K"&&r.k!=="D")continue;for(let i=0;i<r.pts.length-1;i++){const [ax,ay]=r.pts[i],[cx,cy]=r.pts[i+1];const L=Math.hypot(cx-ax,cy-ay);const ux=(cx-ax)/L,uy=(cy-ay)/L;const off=RW[r.k]/2+1.4;
     for(let t=12;t<L-4;t+=36)list.push([ax+ux*t-uy*off,ay+uy*t+ux*off,Math.atan2(-uy,ux)])}}
-  for(let i=list.length-1;i>=0;i--)if(inViaFoot(list[i][0],list[i][1]))list.splice(i,1);
+  for(let i=list.length-1;i>=0;i--)if(inViaFoot(list[i][0],list[i][1])||roadClear(list[i][0],list[i][1])<0.9)list.splice(i,1);
   const pole=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.12,0.16,1,6).translate(0,0.5,0),lam(0xb8b5ad),list.length);
   const arm=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),lam(0x8d8b85),list.length);
   const lamp=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),lam(0xfff6d0,{emissive:0x665c33}),list.length);
@@ -1404,7 +1404,7 @@ function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
   animEverton();
   if(beam.visible)beam.material.opacity=0.28+Math.sin(clockT*3)*0.1;
   renderer.render(scene,camera);requestAnimationFrame(frame)}
-function update(dt){
+function update(dt){if(miniOpen)return;
   let mx=0,my=0;if(keys.a||keys.arrowleft)mx-=1;if(keys.d||keys.arrowright)mx+=1;if(keys.w||keys.arrowup)my+=1;if(keys.s||keys.arrowdown)my-=1;
   if(joyV){mx+=joyV[0];my+=joyV[1]}
   const L=Math.hypot(mx,my);const run=(sprint||keys.shift)?1:0;const empty=riding&&VEH[riding].elec&&batOf(riding)<=0;const sp=(riding?(empty?4:VEH[riding].speed*(run?1.2:1)):(run?15:9.5))*Math.min(1,L);
@@ -1471,17 +1471,139 @@ function showPlace(near){const box_=$("#place");box_.innerHTML="";if(!near){box_
   else if(near.kind==="visit"){const h=houses[S.visit];title="Casa do vizinho";sub=h.street;acts.append(el("button",{class:"btn green",onclick:()=>{complete("vizinho");beam2.visible=false;lastPlace="";showPlace(null)}},"Deixar um bom-dia"))}
   else{const p=near.p;title=p.name;sub=p.addr;for(const a of placeActions(p))acts.append(a)}
   box_.append(el("div",{class:"t"},el("h3",{text:title}),el("p",{text:sub})),acts);box_.hidden=false;$("#acts").hidden=true}
+/* ============ joguinho de balcão em primeira pessoa (lanchonete, padaria, churrascaria) ============ */
+/* Clientes fazem fila, cada um mostra o pedido no balão. Toque nos ingredientes para montar e em Entregar. */
+let miniOpen=false;
+const RR=(c,x,y,w,h,r)=>{c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()};
+/* desenhos dos itens: cada um recebe (ctx, centro x, base y, largura) e devolve a altura usada */
+const FOOD={
+  paoB:{n:"Pão de baixo",d:(c,x,y,w)=>{c.fillStyle="#d9913f";RR(c,x-w/2,y-w*0.16,w,w*0.16,w*0.07);c.fill();c.strokeStyle="#7a4a1c";c.lineWidth=2;c.stroke();return w*0.16}},
+  carne:{n:"Hambúrguer",d:(c,x,y,w)=>{c.fillStyle="#6b3b1f";RR(c,x-w*0.52,y-w*0.15,w*1.04,w*0.15,w*0.07);c.fill();c.strokeStyle="#3a1e0e";c.lineWidth=2;c.stroke();c.strokeStyle="#3a1e0e";for(let i=-2;i<=2;i++){c.beginPath();c.moveTo(x+i*w*0.16-w*0.04,y-w*0.11);c.lineTo(x+i*w*0.16+w*0.04,y-w*0.04);c.stroke()}return w*0.15}},
+  queijo:{n:"Queijo",d:(c,x,y,w)=>{c.fillStyle="#ffcf33";c.beginPath();c.moveTo(x-w*0.55,y-w*0.07);c.lineTo(x+w*0.55,y-w*0.07);c.lineTo(x+w*0.5,y);c.lineTo(x+w*0.3,y+w*0.05);c.lineTo(x+w*0.15,y);c.lineTo(x-w*0.2,y);c.lineTo(x-w*0.32,y+w*0.06);c.lineTo(x-w*0.45,y);c.closePath();c.fill();c.strokeStyle="#c79a12";c.lineWidth=2;c.stroke();return w*0.07}},
+  alface:{n:"Alface",d:(c,x,y,w)=>{c.fillStyle="#4fbf3a";c.beginPath();c.moveTo(x-w*0.56,y-w*0.03);for(let i=0;i<=8;i++){const px=x-w*0.56+i*w*1.12/8;c.quadraticCurveTo(px-w*0.07,y-w*0.12,px,y-w*0.06)}c.lineTo(x+w*0.56,y);c.lineTo(x-w*0.56,y);c.closePath();c.fill();c.strokeStyle="#2d7a1f";c.lineWidth=2;c.stroke();return w*0.09}},
+  tomate:{n:"Tomate",d:(c,x,y,w)=>{for(const dx of[-0.27,0.27]){c.fillStyle="#e2483d";c.beginPath();c.ellipse(x+dx*w,y-w*0.045,w*0.24,w*0.05,0,0,Math.PI*2);c.fill();c.strokeStyle="#9c2219";c.lineWidth=2;c.stroke();c.fillStyle="#ffb3a8";c.beginPath();c.ellipse(x+dx*w,y-w*0.05,w*0.13,w*0.022,0,0,Math.PI*2);c.fill()}return w*0.09}},
+  bacon:{n:"Bacon",d:(c,x,y,w)=>{c.lineCap="round";for(const [col,lw,dy] of[["#9c2f22",w*0.07,0],["#f2b7a0",w*0.025,0]]){c.strokeStyle=col;c.lineWidth=lw;c.beginPath();c.moveTo(x-w*0.5,y-w*0.05+dy);for(let i=1;i<=6;i++)c.lineTo(x-w*0.5+i*w/6,y-w*0.05+(i%2?-1:1)*w*0.025);c.stroke()}c.lineCap="butt";return w*0.09}},
+  ovo:{n:"Ovo",d:(c,x,y,w)=>{c.fillStyle="#fffdf4";c.beginPath();c.ellipse(x,y-w*0.05,w*0.48,w*0.06,0,0,Math.PI*2);c.fill();c.strokeStyle="#d8d2bf";c.lineWidth=2;c.stroke();c.fillStyle="#ffb21f";c.beginPath();c.ellipse(x,y-w*0.07,w*0.13,w*0.05,0,0,Math.PI*2);c.fill();return w*0.1}},
+  paoT:{n:"Pão de cima",d:(c,x,y,w)=>{c.fillStyle="#e09a45";c.beginPath();c.moveTo(x-w/2,y);c.bezierCurveTo(x-w/2,y-w*0.42,x+w/2,y-w*0.42,x+w/2,y);c.closePath();c.fill();c.strokeStyle="#7a4a1c";c.lineWidth=2;c.stroke();c.fillStyle="#fff3d6";for(const [a,b] of[[-0.22,0.2],[0,0.27],[0.2,0.18],[-0.08,0.13],[0.12,0.1]]){c.beginPath();c.ellipse(x+a*w,y-b*w,w*0.025,w*0.013,a,0,Math.PI*2);c.fill()}return w*0.3}},
+  refri:{n:"Refrigerante",cup:"#5a2a14"},suco:{n:"Suco de laranja",cup:"#ff9a1f"},cafe:{n:"Café com leite",cup:"#b07a4a"},
+  pao:{n:"Pão francês",blob:["#e2a457","#a8641f"],shape:"oval"},sonho:{n:"Sonho",blob:["#e9b46a","#fff6e0"],shape:"round",dust:true},
+  bolo:{n:"Bolo de fubá",blob:["#ffd56b","#c9932b"],shape:"slice"},pqueijo:{n:"Pão de queijo",blob:["#f5d58a","#c99a3b"],shape:"balls"},
+  arroz:{n:"Arroz",blob:["#ffffff","#d6d2c4"],shape:"mound"},feijao:{n:"Feijão",blob:["#5b2f1c","#2e160b"],shape:"mound"},farofa:{n:"Farofa",blob:["#e8c98a","#b8924a"],shape:"mound"},
+  salada:{n:"Salada",blob:["#4fbf3a","#e2483d"],shape:"salad"},maionese:{n:"Maionese",blob:["#fff1b0","#d9c36a"],shape:"mound"},churrasco:{n:"Churrasco",blob:["#8a3b1d","#4a1c0b"],shape:"meat"}};
+function drawItem(c,id,x,y,w){const f=FOOD[id];if(f.d)return f.d(c,x,y,w);
+  if(f.cup){c.fillStyle="#f4f1e6";c.beginPath();c.moveTo(x-w*0.22,y-w*0.6);c.lineTo(x+w*0.22,y-w*0.6);c.lineTo(x+w*0.17,y);c.lineTo(x-w*0.17,y);c.closePath();c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();
+    c.fillStyle=f.cup;c.fillRect(x-w*0.2,y-w*0.52,w*0.4,w*0.08);c.fillStyle="#e2483d";c.fillRect(x+w*0.05,y-w*0.78,w*0.04,w*0.2);return w*0.6}
+  const [a,b]=f.blob;c.lineWidth=2;c.strokeStyle="#2a2230";
+  if(f.shape==="oval"){c.fillStyle=a;c.beginPath();c.ellipse(x,y-w*0.14,w*0.42,w*0.14,0,0,Math.PI*2);c.fill();c.stroke();c.strokeStyle=b;c.beginPath();c.moveTo(x-w*0.2,y-w*0.18);c.lineTo(x+w*0.2,y-w*0.12);c.stroke()}
+  else if(f.shape==="round"){c.fillStyle=a;c.beginPath();c.ellipse(x,y-w*0.17,w*0.3,w*0.17,0,0,Math.PI*2);c.fill();c.stroke();c.fillStyle="#fff7da";c.fillRect(x-w*0.28,y-w*0.19,w*0.56,w*0.05);c.fillStyle=b;for(let i=0;i<8;i++)c.fillRect(x-w*0.22+i*w*0.06,y-w*0.3+(i%3)*w*0.03,3,3)}
+  else if(f.shape==="slice"){c.fillStyle=a;c.beginPath();c.moveTo(x-w*0.35,y);c.lineTo(x+w*0.35,y);c.lineTo(x+w*0.35,y-w*0.22);c.lineTo(x-w*0.35,y-w*0.3);c.closePath();c.fill();c.stroke();c.fillStyle=b;c.fillRect(x-w*0.35,y-w*0.06,w*0.7,w*0.06)}
+  else if(f.shape==="balls"){c.fillStyle=a;for(const [dx,dy] of[[-0.2,0],[0.2,0],[0,-0.14]]){c.beginPath();c.arc(x+dx*w,y-w*0.11+dy*w,w*0.12,0,Math.PI*2);c.fill();c.stroke()}}
+  else if(f.shape==="salad"){c.fillStyle=a;c.beginPath();c.ellipse(x,y-w*0.1,w*0.36,w*0.11,0,0,Math.PI*2);c.fill();c.stroke();c.fillStyle=b;for(const dx of[-0.15,0.05,0.2]){c.beginPath();c.arc(x+dx*w,y-w*0.15,w*0.05,0,Math.PI*2);c.fill()}}
+  else if(f.shape==="meat"){c.fillStyle=a;RR(c,x-w*0.36,y-w*0.18,w*0.72,w*0.18,w*0.06);c.fill();c.stroke();c.strokeStyle=b;for(const dx of[-0.18,0,0.18]){c.beginPath();c.moveTo(x+dx*w-w*0.05,y-w*0.15);c.lineTo(x+dx*w+w*0.05,y-w*0.04);c.stroke()}}
+  else{c.fillStyle=a;c.beginPath();c.moveTo(x-w*0.34,y);c.quadraticCurveTo(x,y-w*0.42,x+w*0.34,y);c.closePath();c.fill();c.strokeStyle=b;c.stroke()}
+  return w*0.3}
+const COUNTER={
+  family:{title:"Family Burguer",wall:"#e2483d",wall2:"#b8322a",trim:"#ffd23f",mode:"stack",label:"Monte o lanche de baixo para cima, igual ao pedido",
+    fill:["carne","queijo","alface","tomate","bacon","ovo"],drinks:["refri","suco"],items:["paoB","carne","queijo","alface","tomate","bacon","ovo","paoT","refri","suco"]},
+  divino:{title:"Padaria",wall:"#c98a3a",wall2:"#a46c25",trim:"#fff3d6",mode:"set",label:"Coloque no balcão tudo o que o cliente pediu",
+    pool:["pao","sonho","bolo","pqueijo","cafe","suco"],items:["pao","sonho","bolo","pqueijo","cafe","suco"]},
+  churras:{title:"Churrascaria",wall:"#6b4a2f",wall2:"#4f3420",trim:"#F57E20",mode:"set",label:"Monte o prato com o que o cliente pediu",
+    pool:["arroz","feijao","farofa","salada","maionese","churrasco"],items:["arroz","feijao","farofa","salada","maionese","churrasco","refri","suco"]}};
+function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
+  const wrap=el("div",{id:"cgame",style:"position:fixed;inset:0;z-index:80;background:#1d1d1d;touch-action:none"});const cv=el("canvas",{style:"width:100%;height:100%;display:block"});
+  const quit=el("button",{class:"btn ghost",style:"position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:36px;padding:4px 12px;background:#fff",onclick:()=>end(true)},"Sair");
+  wrap.append(cv,quit);document.body.append(wrap);miniOpen=true;keys&&Object.keys(keys).forEach(k=>keys[k]=false);
+  const c=cv.getContext("2d");let W=0,H=0,dpr=1;const fit=()=>{dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;c.setTransform(dpr,0,0,dpr,0,0)};fit();addEventListener("resize",fit);
+  const pal={skin:LOOKS.skin,hair:LOOKS.hair,shirt:LOOKS.shirt};const rnd=a=>a[Math.floor(Math.random()*a.length)];
+  const mkOrder=()=>{if(cfg.mode==="stack"){const f=pick(cfg.fill,1+Math.floor(Math.random()*3));const o=["paoB",...f,"paoT"];return{list:o,drink:Math.random()<0.5?rnd(cfg.drinks):null}}
+    return{list:pick(cfg.pool,2+Math.floor(Math.random()*2)),drink:null}};
+  const mkCust=()=>({skin:rnd(pal.skin),hair:rnd(pal.hair),shirt:rnd(pal.shirt),hs:Math.floor(Math.random()*4),order:mkOrder(),pat:1,mood:0,x:1.3,leave:0});
+  let queue=[mkCust(),mkCust()],arrived=2,served=0,wrong=0,lost=0,plate=[],drink=null,t0=performance.now(),started=false,over=false,msg="",msgT=0,coins=[],spawnT=0,ended=false;
+  let btns=[];
+  const say=(m)=>{msg=m;msgT=1.6};
+  function layout(){const top=50,cTop=H*0.5,work=H*0.5+H*0.05;const bArea=H*0.73;const n=cfg.items.length;const cols=n>8?5:Math.min(n,5);const rows=Math.ceil(n/cols);const pad=8;
+    const bw=Math.min(110,(W-pad*(cols+1))/cols),bh=Math.min(78,(H-bArea-pad*(rows+1)-8)/rows);const ox=(W-(cols*bw+(cols-1)*pad))/2;
+    btns=cfg.items.map((id,i)=>({id,x:ox+(i%cols)*(bw+pad),y:bArea+pad+Math.floor(i/cols)*(bh+pad),w:bw,h:bh}));
+    const aw=Math.min(150,W*0.28);btns.push({id:"_lixo",x:10,y:work+4,w:aw*0.75,h:44},{id:"_ok",x:W-aw-10,y:work+4,w:aw,h:52});return{top,cTop,work,bArea}}
+  function drawCust(cu,x,y,s){const sk=cu.skin;c.save();c.translate(x,y);c.scale(s,s);
+    c.fillStyle=cu.shirt;RR(c,-46,-10,92,120,30);c.fill();c.strokeStyle="#2a2230";c.lineWidth=3;c.stroke();
+    c.fillStyle=sk;c.beginPath();c.arc(0,-62,48,0,Math.PI*2);c.fill();c.stroke();
+    c.fillStyle=cu.hair;c.beginPath();if(cu.hs===1){c.arc(0,-70,52,Math.PI*0.95,Math.PI*2.05);c.lineTo(52,-30);c.lineTo(44,-60);c.lineTo(-44,-60);c.lineTo(-52,-30)}else if(cu.hs===2){c.arc(0,-78,60,Math.PI*0.9,Math.PI*2.1)}else{c.arc(0,-66,50,Math.PI*1.02,Math.PI*1.98)}c.closePath();c.fill();
+    if(cu.hs===3){c.beginPath();c.arc(0,-118,16,0,Math.PI*2);c.fill()}
+    const sad=cu.pat<0.3||cu.mood<0,happy=cu.mood>0;
+    for(const sx of[-17,17]){c.fillStyle="#fff";c.beginPath();c.ellipse(sx,-60,10,13,0,0,Math.PI*2);c.fill();c.fillStyle="#2a1a12";c.beginPath();c.ellipse(sx,-58,6,8,0,0,Math.PI*2);c.fill();c.fillStyle="#fff";c.beginPath();c.arc(sx+2,-61,2.4,0,Math.PI*2);c.fill();
+      if(sad){c.strokeStyle="#2a2230";c.lineWidth=3;c.beginPath();c.moveTo(sx-9,-80+(sx<0?4:-4)*-1);c.lineTo(sx+9,-80-(sx<0?4:-4)*-1);c.stroke()}}
+    c.fillStyle="rgba(255,120,120,.45)";c.beginPath();c.ellipse(-30,-42,9,5,0,0,Math.PI*2);c.ellipse(30,-42,9,5,0,0,Math.PI*2);c.fill();
+    c.strokeStyle="#7a2e22";c.lineWidth=3.5;c.beginPath();if(sad)c.arc(0,-24,12,Math.PI*1.15,Math.PI*1.85);else c.arc(0,-40,happy?14:10,Math.PI*0.15,Math.PI*0.85);c.stroke();c.restore()}
+  function drawBubble(cu,x,y){const o=cu.order;const iw=46;const n=o.list.length+(o.drink?1:0);
+    if(cfg.mode==="stack"){const bh=Math.max(150,o.list.length*22+50),bw=o.drink?150:110;c.fillStyle="#fff";RR(c,x,y-bh,bw,bh,16);c.fill();c.strokeStyle="#2a2230";c.lineWidth=3;c.stroke();
+      c.beginPath();c.moveTo(x+6,y-24);c.lineTo(x-16,y-6);c.lineTo(x+18,y-12);c.fill();
+      let yy=y-16;for(const id of o.list){yy-=Math.max(12,drawItem(c,id,x+55,yy,iw*1.4)*0.9)+3}if(o.drink)drawItem(c,o.drink,x+122,y-24,iw)}
+    else{const bw=n*66+16,bh=100;x=Math.max(8,Math.min(x,W-bw-8));c.fillStyle="#fff";RR(c,x,y-bh,bw,bh,16);c.fill();c.strokeStyle="#2a2230";c.lineWidth=3;c.stroke();c.font="800 10px system-ui,sans-serif";o.list.forEach((id,i)=>{drawItem(c,id,x+41+i*66,y-36,62);c.fillStyle="#2a2230";c.fillText(FOOD[id].n,x+41+i*66,y-12)})}
+    c.fillStyle=cu.pat>0.5?"#319B27":cu.pat>0.25?"#ffb21f":"#e2483d";RR(c,x,y+6,110*Math.max(0,cu.pat),8,4);c.fill();c.strokeStyle="#2a2230";c.lineWidth=1.5;RR(c,x,y+6,110,8,4);c.stroke()}
+  function draw(L,dt){const now=performance.now();
+    const g=c.createLinearGradient(0,0,0,L.cTop);g.addColorStop(0,cfg.wall);g.addColorStop(1,cfg.wall2);c.fillStyle=g;c.fillRect(0,0,W,L.cTop);
+    c.fillStyle="rgba(255,255,255,.08)";for(let x=0;x<W;x+=60)c.fillRect(x,0,30,L.cTop);
+    c.fillStyle=cfg.trim;c.fillRect(0,L.top+6,W,8);c.fillStyle="#fff";c.font="900 "+Math.min(34,W*0.06)+"px "+getComputedStyle(document.body).getPropertyValue("--display");c.textAlign="center";c.fillText(cfg.title.toUpperCase(),W/2,L.top+46);
+    /* clientes */
+    const vis=queue.slice(0,4);vis.forEach((cu,i)=>{const tx=i===0?0.3:0.56+i*0.13;cu.x+=(tx-cu.x)*Math.min(1,dt*5);const s=i===0?Math.min(1.05,H/620):Math.min(0.72,H/900);drawCust(cu,W*cu.x,L.cTop-(i===0?40:70)*s,s)});
+    if(queue[0]&&queue[0].x<0.4)drawBubble(queue[0],W*0.3+70*Math.min(1.05,H/620),L.cTop-150*Math.min(1.05,H/620));
+    if(queue.length>1){c.fillStyle="rgba(0,0,0,.35)";RR(c,W*0.62,L.cTop-24,W*0.34,22,11);c.fill();c.fillStyle="#fff";c.font="800 13px system-ui,sans-serif";c.fillText((queue.length-1)+" aguardando na fila",W*0.79,L.cTop-8)}
+    /* balcão e área de trabalho */
+    c.fillStyle="#d8d2c4";c.fillRect(0,L.cTop,W,H*0.05);c.fillStyle="#b9b2a2";c.fillRect(0,L.cTop+H*0.05-6,W,6);
+    c.fillStyle="#efe9dc";c.fillRect(0,L.work,W,L.bArea-L.work);c.fillStyle="#8a5a36";c.fillRect(0,L.bArea,W,H-L.bArea);c.fillStyle="#6b4428";c.fillRect(0,L.bArea,W,5);
+    const px=W/2,py=L.bArea-16;c.fillStyle="#fff";c.beginPath();c.ellipse(px,py,Math.min(130,W*0.24),18,0,0,Math.PI*2);c.fill();c.strokeStyle="#c9c2b2";c.lineWidth=3;c.stroke();
+    if(cfg.mode==="stack"){let yy=py-6;for(const id of plate)yy-=drawItem(c,id,px,yy,Math.min(150,W*0.27))*0.85+2}
+    else plate.forEach((id,i)=>{const k=plate.length;drawItem(c,id,px+(i-(k-1)/2)*Math.min(64,W*0.11),py-4,Math.min(70,W*0.12))});
+    if(drink)drawItem(c,drink,px+Math.min(170,W*0.3),py,Math.min(70,W*0.13));
+    /* botões */
+    for(const b of btns){const sp=b.id[0]==="_";c.fillStyle=b.id==="_ok"?"#319B27":b.id==="_lixo"?"#e2483d":"#fff";RR(c,b.x,b.y,b.w,b.h,12);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2.5;c.stroke();
+      if(sp){c.fillStyle="#fff";c.font="900 "+(b.id==="_ok"?18:15)+"px system-ui,sans-serif";c.fillText(b.id==="_ok"?"ENTREGAR":"Jogar fora",b.x+b.w/2,b.y+b.h/2+6)}
+      else{const iw=Math.min(b.w*0.7,b.h*1.1);drawItem(c,b.id,b.x+b.w/2,b.y+b.h*0.68,iw);c.fillStyle="#2a2230";c.font="800 "+Math.max(10,Math.min(12,b.w/9))+"px system-ui,sans-serif";c.fillText(FOOD[b.id].n,b.x+b.w/2,b.y+b.h-5)}}
+    /* topo */
+    const left=Math.max(0,TIME-(now-t0)/1000);c.fillStyle="rgba(0,0,0,.45)";RR(c,10,8+(parseInt(getComputedStyle(document.documentElement).getPropertyValue("--sat"))||0),Math.min(330,W-90),36,18);c.fill();c.fillStyle="#fff";c.textAlign="left";c.font="800 15px system-ui,sans-serif";
+    c.fillText("Atendidos "+served+"/"+TOTAL+"   Tempo "+Math.ceil(left)+"s",24,31);c.textAlign="center";
+    coins=coins.filter(k=>(k.t-=0.02)>0);for(const k of coins){c.globalAlpha=k.t;c.fillStyle="#ffd23f";c.font="900 26px system-ui";c.fillText(k.s,k.x,k.y-(1-k.t)*60);c.globalAlpha=1}
+    if(msgT>0){c.fillStyle="rgba(10,34,64,.85)";const mw=Math.min(W-40,420);RR(c,(W-mw)/2,L.work-56,mw,44,22);c.fill();c.fillStyle="#fff";c.font="800 16px system-ui,sans-serif";c.fillText(msg,W/2,L.work-28)}
+    if(!started){c.fillStyle="rgba(10,34,64,.88)";c.fillRect(0,0,W,H);c.fillStyle="#fff";c.font="900 30px "+getComputedStyle(document.body).getPropertyValue("--display");c.fillText(cfg.title,W/2,H*0.32);
+      c.font="600 16px system-ui,sans-serif";wrapText(intro||cfg.label,W/2,H*0.32+40,Math.min(W-40,460),22);wrapText("Os clientes fazem fila. Olhe o pedido no balão, toque nos ingredientes e depois em ENTREGAR. Atenda "+TOTAL+" clientes antes da paciência acabar!",W/2,H*0.32+96,Math.min(W-40,460),22);
+      c.fillStyle="#F57E20";RR(c,W/2-110,H*0.66,220,56,28);c.fill();c.fillStyle="#fff";c.font="900 20px system-ui,sans-serif";c.fillText("COMEÇAR",W/2,H*0.66+36)}}
+  function wrapText(t,x,y,mw,lh){const ws=t.split(" ");let line="";for(const w of ws){const tt=line?line+" "+w:w;if(c.measureText(tt).width>mw&&line){c.fillText(line,x,y);y+=lh;line=w}else line=tt}c.fillText(line,x,y)}
+  function same(a,b){if(cfg.mode==="stack")return a.length===b.length&&a.every((v,i)=>v===b[i]);const s=x=>[...x].sort().join();return s(a)===s(b)}
+  function deliver(){const cu=queue[0];if(!cu||cu.x>0.45)return;if(!plate.length&&!drink)return say("Monte o pedido primeiro!");
+    if(same(plate,cu.order.list)&&(drink||null)===(cu.order.drink||null)){served++;cu.mood=1;coins.push({s:"+ Pedido certo!",x:W*0.3,y:H*0.25,t:1});queue.shift();plate=[];drink=null;
+      if(served+lost>=TOTAL)return finish()}
+    else{wrong++;cu.pat=Math.max(0,cu.pat-0.3);plate=[];drink=null;say(cfg.mode==="stack"?"Pedido errado! Confira a ordem do lanche.":"Faltou ou sobrou item! Tente de novo.")}}
+  function finish(){if(over)return;over=true;setTimeout(()=>end(false),900)}
+  function end(quitting){if(ended)return;ended=true;miniOpen=false;removeEventListener("resize",fit);wrap.remove();const ok=!quitting&&served>=4;
+    if(quitting&&served===0){toast("Você saiu do serviço.");return}cb(ok,served)}
+  function tap(e){const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;
+    if(!started){if(y>H*0.6){started=true;t0=performance.now()}return}if(over)return;
+    for(const b of btns)if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h){
+      if(b.id==="_ok")deliver();else if(b.id==="_lixo"){plate=[];drink=null}
+      else if(FOOD[b.id].cup&&cfg.mode==="stack"){drink=drink===b.id?null:b.id}
+      else{if(plate.length>=8)return say("O prato está cheio!");plate.push(b.id)}
+      return}}
+  cv.addEventListener("pointerdown",tap);
+  let lastT=performance.now();
+  (function loop(){if(ended)return;const now=performance.now(),dt=Math.min(0.1,(now-lastT)/1000);lastT=now;const L=layout();
+    if(started&&!over){const el_=(now-t0)/1000;if(el_>TIME)finish();
+      queue.forEach((cu,i)=>{cu.pat-=dt*(i===0?0.035:0.012)});
+      if(queue[0]&&queue[0].pat<=0){lost++;queue.shift();plate=[];drink=null;say("Um cliente cansou de esperar e foi embora.");if(served+lost>=TOTAL)finish()}
+      spawnT-=dt;if(arrived<TOTAL&&(queue.length<2||spawnT<=0)){queue.push(mkCust());arrived++;spawnT=9}}
+    if(msgT>0)msgT-=dt;draw(L,dt);requestAnimationFrame(loop)})()}
+
 const JOBS={
   rosas:{label:"Repor a prateleira",game:"order",items:["Arroz","Feijão","Leite","Óleo","Café"],intro:"Repor a prateleira na ordem da lista do gerente."},
-  divino:{label:"Atender no balcão",game:"order",items:["Pão francês","Sonho","Café com leite","Bolo de fubá","Pão de queijo"],intro:"Um cliente fez o pedido. Entregue na ordem certa."},
-  churras:{label:"Montar os pratos",game:"order",items:["Arroz","Feijão","Salada","Farofa","Maionese"],intro:"Monte o prato do cliente na ordem do pedido."},
+  divino:{label:"Atender no balcão",game:"counter",items:["Pão francês","Sonho","Café com leite","Bolo de fubá","Pão de queijo"],intro:"Atenda a fila da padaria: pão, sonho, bolo, café..."},
+  churras:{label:"Montar os pratos",game:"counter",items:["Arroz","Feijão","Salada","Farofa","Maionese"],intro:"Monte os pratos da fila do almoço."},
   posto:{label:"Abastecer",game:"timing",intro:"Solte a bomba quando o marcador estiver na faixa verde."},
   hubner:{label:"Encher os moldes",game:"timing",intro:"Despeje o metal no molde na hora certa."},
   balena:{label:"Soldar as peças",game:"timing",intro:"Faça a solda quando o marcador passar na faixa verde."},
   scheffer:{label:"Carregar o caminhão",game:"order",items:["Caixa 1","Caixa 2","Caixa 3","Caixa 4","Caixa 5"],intro:"Carregue as caixas na ordem das entregas."},
   agua:{label:"Empilhar paletes",game:"timing",intro:"Solte o palete quando ele estiver alinhado (faixa verde)."},
   garage84:{label:"Lavar e polir carros",game:"order",items:["Pré-lavagem","Ensaboar","Enxaguar","Secar","Encerar","Polir"],intro:"Um cliente chegou com a pickup suja. Faça as etapas da estética na ordem certa."},
-  family:{label:"Montar o lanche",game:"order",items:["Pão","Hambúrguer","Queijo","Alface","Tomate","Bacon"],intro:"Monte o lanche do cliente na ordem do pedido."},
+  family:{label:"Montar o lanche",game:"counter",items:["Pão","Hambúrguer","Queijo","Alface","Tomate","Bacon"],intro:"Você está na chapa do Everton! Monte os lanches da fila."},
   rodaviva:{label:"Separar materiais",game:"sort",intro:"Separe o que chegou para reciclagem."},
 };
 function placeActions(p){const out=[];
@@ -1514,6 +1636,7 @@ function startMission(id){const m=MS(id);if(mDone(m))return toast("Missão de ho
   if(id==="campo"){if(!spend(m))return;gameCollect(ok=>result(ok,"Cuide do Socity","O campo está pronto para o jogo!","Ainda ficou lixo no campo. Tente outra vez amanhã.",()=>complete("campo")))}
   if(id==="escola"){if(!spend(m))return;gameQuiz("Quiz da cidadania",pick(QUIZ,3),ok=>result(ok,"Quiz da cidadania","Você sabe como cuidar do bairro!","Errou mais de uma. Amanhã tem perguntas novas.",()=>complete("escola")))}}
 function startJob(p){const j=JOBS[p.id];const done=ok=>{S.jobs=S.jobs||{};S.jobs[p.id]=Date.now();S.coins=(S.coins||0)+(ok?20:3);if(ok){S.energy=Math.min(ENERGY_MAX,S.energy+1);if(!mDone(MS("trabalho")))complete("trabalho");else{S.pts+=10;toast("Serviço feito: +10 pontos e +1 vida")}}else{S.pts+=2}save();updateHUD();result(ok,p.name,"Serviço bem feito! Você recebeu 20 moedas, pontos e 1 vida.","Não saiu perfeito, mas valeu: 3 moedas e 2 pontos. Volte no próximo turno.");showPlace({kind:"poi",p})};
+  if(j.game==="counter")return gameCounter(p.id,j.intro,ok=>done(ok));
   if(j.game==="order")gameOrder(p.name,j.intro,j.items,done);else if(j.game==="timing")gameTiming(p.name,j.intro,done);else gameSort(p.name,j.intro,done)}
 function startBus(p){const m=MS("onibus");const other=POIS.find(q=>q.type==="bus"&&q.id!==p.id);
   const q={q:"Enquanto espera o ônibus, o mais seguro é:",o:["Ficar no ponto, na calçada, e dar sinal com antecedência","Esperar no meio da rua para o motorista ver","Correr atrás do ônibus quando ele passar"],a:0};
