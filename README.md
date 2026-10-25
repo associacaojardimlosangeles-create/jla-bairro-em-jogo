@@ -21,6 +21,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Missões e quanto cada uma vale | `const MISSIONS` |
 | Missão do dia (7 missões que giram na semana) e bônus | `const DAILY`, `DAILY_PTS`, `WEEK_BONUS` |
 | Ordem dos joguinhos em cada lugar | `const JOB_ROT` |
+| Veículos do lava-car (carro, moto, caminhonete, caminhão) | `LAVA_VEH`, `function vehArt` |
 | Joguinhos "pegar no ar" e "memória" e seus temas | `const THEMES`, `function MG_CATCH`, `function MG_MEMO` |
 | Trabalhos nas empresas | `const JOBS` |
 | Joguinho de balcão (lanchonete, padaria, churrascaria): itens, cores, tempo | `const COUNTER`, `const FOOD`, `function gameCounter` |

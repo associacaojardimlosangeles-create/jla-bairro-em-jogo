@@ -2131,7 +2131,28 @@ function carArt(w,h,col){const cv=document.createElement("canvas");cv.width=w;cv
   for(const fx of[0.21,0.79]){const x=w*fx,y=h*0.78,r=h*0.17;c.fillStyle="#141414";c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();const rg=c.createRadialGradient(x-r*0.2,y-r*0.2,2,x,y,r*0.55);rg.addColorStop(0,"#f4f4f4");rg.addColorStop(1,"#8a8f96");c.fillStyle=rg;c.beginPath();c.arc(x,y,r*0.55,0,Math.PI*2);c.fill();
     c.strokeStyle="#5a5f66";c.lineWidth=3;for(let k=0;k<5;k++){const a=k*Math.PI*2/5;c.beginPath();c.moveTo(x,y);c.lineTo(x+Math.cos(a)*r*0.5,y+Math.sin(a)*r*0.5);c.stroke()}}
   return{cv,mask:(()=>{const mm=document.createElement("canvas");mm.width=w;mm.height=h;const x=mm.getContext("2d");x.drawImage(cv,0,0);return mm})()}}
-function lavaSetup(G){const b=G.box;const w=Math.round(b.w),h=Math.round(b.h);G.art=carArt(w,h,G.col);
+/* veículos do lava-car: carro, moto, caminhonete e caminhão (desenho lateral) */
+const LAVA_VEH=[["carro","Carro"],["moto","Moto"],["caminhonete","Caminhonete"],["caminhao","Caminhão"]];
+function vehArt(type,w,h,col){if(type==="carro")return carArt(w,h,col);const cv=document.createElement("canvas");cv.width=w;cv.height=h;const c=cv.getContext("2d");
+  const lw=Math.max(3,w/180);const grad=(y0,y1)=>{const g=c.createLinearGradient(0,h*y0,0,h*y1);g.addColorStop(0,shade(col,0.35));g.addColorStop(0.45,col);g.addColorStop(1,shade(col,-0.35));return g};
+  const glass=(pts)=>{c.fillStyle="#2b3f57";c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(w*x,h*y):c.moveTo(w*x,h*y));c.closePath();c.fill();c.fillStyle="rgba(255,255,255,.3)";c.beginPath();c.moveTo(w*pts[0][0]+w*0.02,h*pts[0][1]-2);c.lineTo(w*pts[0][0]+w*0.04,h*pts[1][1]+4);c.lineTo(w*pts[0][0]+w*0.06,h*pts[1][1]+4);c.lineTo(w*pts[0][0]+w*0.04,h*pts[0][1]-2);c.fill()};
+  const wheel=(fx,fy,fr)=>{const x=w*fx,y=h*fy,r=h*fr;c.fillStyle="#141414";c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();const rg=c.createRadialGradient(x-r*0.2,y-r*0.2,2,x,y,r*0.55);rg.addColorStop(0,"#f4f4f4");rg.addColorStop(1,"#8a8f96");c.fillStyle=rg;c.beginPath();c.arc(x,y,r*0.55,0,Math.PI*2);c.fill();
+    c.strokeStyle="#5a5f66";c.lineWidth=3;for(let k=0;k<5;k++){const a=k*Math.PI*2/5;c.beginPath();c.moveTo(x,y);c.lineTo(x+Math.cos(a)*r*0.5,y+Math.sin(a)*r*0.5);c.stroke()}};
+  const shape=(pts,fill)=>{c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(w*x,h*y):c.moveTo(w*x,h*y));c.closePath();c.fillStyle=fill;c.fill();c.lineWidth=lw;c.strokeStyle="#1d1d1d";c.stroke()};
+  if(type==="caminhonete"){shape([[0.03,0.78],[0.03,0.42],[0.5,0.42],[0.5,0.1],[0.72,0.08],[0.84,0.38],[0.97,0.44],[0.98,0.78]],grad(0.05,0.8));
+    c.fillStyle=shade(col,-0.45);c.fillRect(w*0.05,h*0.36,w*0.44,h*0.07);c.strokeStyle="#1d1d1d";c.lineWidth=lw;c.strokeRect(w*0.05,h*0.36,w*0.44,h*0.07);
+    glass([[0.53,0.37],[0.53,0.14],[0.7,0.13],[0.8,0.37]]);c.fillStyle="#fff6c8";c.beginPath();c.ellipse(w*0.965,h*0.5,w*0.015,h*0.05,0,0,Math.PI*2);c.fill();
+    c.fillStyle="rgba(255,255,255,.25)";c.fillRect(w*0.05,h*0.5,w*0.9,h*0.03);wheel(0.2,0.78,0.18);wheel(0.8,0.78,0.18)}
+  else if(type==="caminhao"){shape([[0.02,0.74],[0.02,0.02],[0.66,0.02],[0.66,0.74]],grad(0,0.8));c.fillStyle="#fff";c.font="900 "+Math.round(h*0.12)+"px system-ui";c.textAlign="center";c.fillText("JLA ENTREGAS",w*0.34,h*0.42);
+    shape([[0.68,0.76],[0.68,0.16],[0.86,0.16],[0.97,0.42],[0.98,0.76]],grad(0.1,0.8));glass([[0.72,0.38],[0.72,0.21],[0.85,0.21],[0.93,0.38]]);
+    c.fillStyle="#2a2e3a";c.fillRect(w*0.02,h*0.72,w*0.96,h*0.06);c.fillStyle="#fff6c8";c.fillRect(w*0.955,h*0.5,w*0.02,h*0.08);wheel(0.14,0.8,0.15);wheel(0.3,0.8,0.15);wheel(0.86,0.8,0.15)}
+  else{c.lineCap="round";wheel(0.2,0.74,0.24);wheel(0.8,0.74,0.24);
+    shape([[0.3,0.62],[0.36,0.36],[0.62,0.32],[0.74,0.42],[0.78,0.62],[0.58,0.66]],grad(0.3,0.7));
+    shape([[0.28,0.36],[0.5,0.3],[0.52,0.38],[0.3,0.42]],"#1d1d1d");shape([[0.62,0.32],[0.7,0.12],[0.74,0.14],[0.68,0.36]],shade(col,-0.2));
+    c.strokeStyle="#1d1d1d";c.lineWidth=lw*2;c.beginPath();c.moveTo(w*0.69,h*0.12);c.lineTo(w*0.62,h*0.08);c.stroke();c.beginPath();c.moveTo(w*0.72,h*0.4);c.lineTo(w*0.8,h*0.72);c.stroke();
+    c.fillStyle="#fff6c8";c.beginPath();c.ellipse(w*0.75,h*0.2,w*0.025,h*0.06,0,0,Math.PI*2);c.fill();c.fillStyle="#9aa1a8";c.fillRect(w*0.42,h*0.58,w*0.14,h*0.08)}
+  const mm=document.createElement("canvas");mm.width=w;mm.height=h;mm.getContext("2d").drawImage(cv,0,0);return{cv,mask:mm}}
+function lavaSetup(G){const b=G.box;const w=Math.round(b.w),h=Math.round(b.h);G.art=vehArt(G.vt,w,h,G.col);
   const mk=()=>{const cv=document.createElement("canvas");cv.width=w;cv.height=h;return cv};
   G.dirt=mk();const d=G.dirt.getContext("2d");d.drawImage(G.art.mask,0,0);d.globalCompositeOperation="source-in";d.fillStyle="rgba(0,0,0,0)";d.fillRect(0,0,w,h);d.globalCompositeOperation="source-over";
   const tmp=mk(),t=tmp.getContext("2d");for(let k=0;k<70+G.car*40;k++){const x=Math.random()*w,y=h*0.2+Math.random()*h*0.65,r=8+Math.random()*w*0.05;const g=t.createRadialGradient(x,y,1,x,y,r);g.addColorStop(0,"rgba(92,58,28,.95)");g.addColorStop(0.7,"rgba(110,72,35,.8)");g.addColorStop(1,"rgba(110,72,35,0)");t.fillStyle=g;t.beginPath();t.arc(x,y,r,0,Math.PI*2);t.fill()}
@@ -2141,11 +2162,11 @@ function lavaSetup(G){const b=G.box;const w=Math.round(b.w),h=Math.round(b.h);G.
   G.foam=mk();G.shine=mk();
   const mc=G.art.mask.getContext("2d").getImageData(0,0,w,h).data;G.nx=36;G.ny=14;G.cells=[];for(let i=0;i<G.nx;i++)for(let j=0;j<G.ny;j++){const x=Math.floor((i+0.5)*w/G.nx),y=Math.floor((j+0.5)*h/G.ny);if(y<h*0.82&&mc[(y*w+x)*4+3]>200)G.cells.push({i,j,s:0})}}
 const MG_LAVA={title:"Garage 84: lavar e polir",time:80,icon:(c,x,y,s)=>{const a=carArt(200,90,"#008CE3");c.drawImage(a.cv,x-100*s,y-30*s,200*s,90*s)},
-  help:["Escolha a ferramenta e passe o dedo no carro: 1) ESPUMA para soltar o barro, 2) ÁGUA para enxaguar, 3) CERA para dar brilho.","Cada etapa termina quando o carro todo estiver feito. Deixe 2 carros brilhando!"],
-  init(G){G.car=0;G.phase=0;G.col=LOOKS.car[Math.floor(Math.random()*LOOKS.car.length)];G.carX=-1.2;G.leaving=false;G.drops=[];G.cust=newPerson();G.box=null},
-  hud:G=>"Carro "+Math.min(G.car+1,2)+"/2 · "+["Espuma","Água","Cera"][Math.min(2,G.phase)],
+  help:["Hoje tem carro, moto, caminhonete ou caminhão! Passe o dedo no veículo: 1) ESPUMA para soltar o barro, 2) ÁGUA para enxaguar, 3) CERA para dar brilho.","Cada etapa termina quando o veículo todo estiver feito. Deixe 2 veículos brilhando!"],
+  init(G){const n=(S.lavaN=(S.lavaN||0)+1);G.types=[LAVA_VEH[n%4][0],LAVA_VEH[(n+1)%4][0]];G.vt=G.types[0];G.car=0;G.phase=0;G.col=LOOKS.car[Math.floor(Math.random()*LOOKS.car.length)];G.carX=-1.2;G.leaving=false;G.drops=[];G.cust=newPerson();G.box=null},
+  hud:G=>(LAVA_VEH.find(v=>v[0]===G.vt)||["",""])[1]+" "+Math.min(G.car+1,2)+"/2 · "+["Espuma","Água","Cera"][Math.min(2,G.phase)],
   resize(G){G.box=null},
-  layout(G){const W=G.W,H=G.H;if(!G.box){const bw=Math.min(W*0.94,720);G.box={x:(W-bw)/2,y:H*0.22,w:bw,h:bw*0.45};lavaSetup(G)}
+  layout(G){const W=G.W,H=G.H;if(!G.box){let bw=Math.min(W*0.94,720,H*0.5/({carro:0.45,caminhonete:0.45,caminhao:0.52,moto:0.75}[G.vt]));if(G.vt==="moto")bw=Math.min(W*0.8,H*0.52/0.75);const asp={carro:0.45,caminhonete:0.45,caminhao:0.52,moto:0.75}[G.vt]||0.45;G.box={x:(W-bw)/2,y:H*0.22,w:bw,h:bw*asp};lavaSetup(G)}
     const n=3,bw=Math.min(130,(W-40)/3);G.buttons=LAVA_TOOLS.map(([nm,col],k)=>({id:"t"+k,x:W/2-1.5*bw-10+k*(bw+10),y:H*0.84,w:bw,h:Math.min(70,H*0.1),col:k===G.phase?col:"#fff8ec",tc:k===G.phase?"#fff":"#8a8f96",label:(k+1)+". "+nm,off:k!==G.phase}))},
   btn(){},
   down(G,x,y){this.rub(G,x,y)},move(G,x,y){this.rub(G,x,y)},
@@ -2163,7 +2184,7 @@ const MG_LAVA={title:"Garage 84: lavar e polir",time:80,icon:(c,x,y,s)=>{const a
       if(p===1){G.dirt.getContext("2d").clearRect(0,0,b.w,b.h);G.foam.getContext("2d").clearRect(0,0,b.w,b.h)}
       G.phase++;G.float(["Tudo ensaboado!","Limpinho!","Brilhando!"][p],G.W/2,b.y-6);G.burst(G.W/2,b.y+b.h/2,["#fff","#5ab8f0","#ffd23f"][p],22,320);if(typeof sfx==="function")sfx("coin");
       if(G.phase>=3){G.good++;G.cust.mood=1;G.leaving=true}}},
-  update(G,dt){if(G.leaving){G.carX+=dt*1.4;if(G.carX>1.2){G.car++;if(G.car>=2)return G.finish();G.phase=0;G.col=LOOKS.car[Math.floor(Math.random()*LOOKS.car.length)];G.cust=newPerson();G.box=null;G.carX=-1.2;G.leaving=false}}
+  update(G,dt){if(G.leaving){G.carX+=dt*1.4;if(G.carX>1.2){G.car++;if(G.car>=2)return G.finish();G.vt=G.types[G.car];G.phase=0;G.col=LOOKS.car[Math.floor(Math.random()*LOOKS.car.length)];G.cust=newPerson();G.box=null;G.carX=-1.2;G.leaving=false}}
     else if(G.carX<0)G.carX=Math.min(0,G.carX+dt*1.6);
     G.drops=G.drops.filter(d=>(d.t-=dt)>0);for(const d of G.drops){d.x+=d.vx*dt;d.y+=d.vy*dt;if(d.k==="w")d.vy+=600*dt}},
   draw(G,c){const W=G.W,H=G.H;const bg=c.createLinearGradient(0,0,0,H);bg.addColorStop(0,"#3a3f4a");bg.addColorStop(1,"#22252c");c.fillStyle=bg;c.fillRect(0,0,W,H);
@@ -2176,7 +2197,7 @@ const MG_LAVA={title:"Garage 84: lavar e polir",time:80,icon:(c,x,y,s)=>{const a
     if(G.phase>=3){for(let k=0;k<6;k++){const sx=ox+b.w*(0.15+k*0.14),sy=b.y+b.h*(0.3+0.15*Math.sin(G.t*3+k));c.fillStyle="#fff";c.save();c.translate(sx,sy);c.rotate(G.t*2+k);c.fillRect(-1.5,-9,3,18);c.fillRect(-9,-1.5,18,3);c.restore()}}
     for(const d of G.drops){c.globalAlpha=Math.min(1,d.t*1.5);if(d.k==="b"){c.strokeStyle="#cfe6ff";c.lineWidth=1.5;c.fillStyle="rgba(255,255,255,.6)";c.beginPath();c.arc(d.x,d.y,d.r,0,Math.PI*2);c.fill();c.stroke()}else if(d.k==="w"){c.fillStyle="#5ab8f0";c.beginPath();c.ellipse(d.x,d.y,d.r*0.7,d.r*1.3,0,0,Math.PI*2);c.fill()}else{c.fillStyle="#fff";c.save();c.translate(d.x,d.y);c.rotate(d.t*4);c.fillRect(-1,-d.r,2,d.r*2);c.fillRect(-d.r,-1,d.r*2,2);c.restore()}c.globalAlpha=1}
     const done=G.cells.filter(k=>k.s>Math.min(2,G.phase)).length/G.cells.length;const px=W*0.1,pw=W*0.8,py=H*0.78;c.fillStyle="rgba(0,0,0,.4)";RR(c,px,py,pw,16,8);c.fill();const pg=c.createLinearGradient(px,0,px+pw,0);pg.addColorStop(0,"#5fe36a");pg.addColorStop(1,"#319B27");c.fillStyle=pg;RR(c,px,py,Math.max(16,pw*Math.min(1,G.phase>=3?1:done/0.92)),16,8);c.fill();
-    G.font(12,900);G.text(G.phase>=3?"Carro pronto!":["Passe a ESPUMA no carro todo","Enxágue com a ÁGUA","Passe a CERA para dar brilho"][G.phase],W/2,py-8,"#fff");
+    G.font(12,900);G.text(G.phase>=3?"Pronto, brilhando!":["Passe a ESPUMA no veículo todo","Enxágue com a ÁGUA","Passe a CERA para dar brilho"][G.phase],W/2,py-8,"#fff");
     const P=G.ptr||G.hover;if(P&&G.started&&!G.over&&G.phase<3){c.save();c.translate(P.x,P.y);if(G.phase===0){c.fillStyle="#ffd23f";RR(c,-26,-16,52,32,10);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();c.fillStyle="#c99a1a";for(let k=0;k<6;k++){c.beginPath();c.arc(-15+(k%3)*15,-5+Math.floor(k/3)*11,3,0,Math.PI*2);c.fill()}}
       else if(G.phase===1){c.fillStyle="#008CE3";RR(c,-8,6,16,34,5);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();c.fillStyle="#7a7a7a";c.fillRect(-5,-6,10,14);if(G.ptr){c.fillStyle="rgba(120,200,255,.5)";c.beginPath();c.moveTo(-4,-6);c.lineTo(-22,-46);c.lineTo(22,-46);c.lineTo(4,-6);c.fill()}}
       else{c.rotate(-0.3);c.fillStyle="#2fb5a8";RR(c,-24,-18,48,36,6);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();c.strokeStyle="rgba(255,255,255,.5)";c.beginPath();c.moveTo(-18,-8);c.lineTo(18,-8);c.moveTo(-18,4);c.lineTo(18,4);c.stroke()}c.restore()}},
