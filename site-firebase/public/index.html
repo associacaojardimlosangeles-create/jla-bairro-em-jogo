@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JLA: Bairro em Jogo</title>
+<meta name="description" content="O jogo da Associação de Moradores do Jardim Los Angeles, Ponta Grossa/PR.">
+<meta property="og:title" content="JLA: Bairro em Jogo">
+<meta property="og:description" content="Ande pelo bairro em 3D, faça missões e ajude os vizinhos. O jogo da Associação de Moradores do Jardim Los Angeles.">
+<meta name="theme-color" content="#0A2240">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bairro em Jogo">
+<style>
+html,body{margin:0;height:100%;background:#0A2240;color:#fff;font:600 17px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.c{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:0 16px}
+.b{width:46px;height:46px;border:5px solid rgba(255,255,255,.2);border-top-color:#F57E20;border-radius:50%;animation:g 1s linear infinite}
+@keyframes g{to{transform:rotate(360deg)}}
+a{color:#ffd23f}
+</style>
+</head>
+<body>
+<div class="c"><div class="b"></div><div id="m">Carregando o bairro...</div></div>
+<script>
+/* Este endereço curto busca sempre a versão mais nova do jogo, publicada no GitHub da Associação.
+   Assim, cada atualização do jogo aparece aqui sozinha, sem precisar publicar de novo. */
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__bip=e});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(function(){});
+(function(){
+  var SRC="https://associacaojardimlosangeles-create.github.io/jla-bairro-em-jogo/";
+  fetch(SRC+"?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()})
+  .then(function(h){document.open();document.write(h);document.close()})
+  .catch(function(){document.getElementById("m").innerHTML='Não deu para carregar agora. Confira a internet e <a href="">tente de novo</a>.'});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "hosting": {
+    "site": "bairroemjogo",
+    "public": "public",
+    "headers": [{ "source": "**", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }]
+  }
+}

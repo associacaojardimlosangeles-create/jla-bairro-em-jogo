@@ -190,6 +190,7 @@ label.f{display:block;font-weight:900;font-size:13px;margin:12px 0 6px}
       <div class="err" id="ferr"></div>
       <button class="btn" id="fgo" style="width:100%;font-size:17px">Entrar no bairro</button>
       <button class="btn blue" id="fgoogle" type="button" style="width:100%;font-size:15px;margin-top:8px">Já joguei antes? Entrar com Google</button>
+      <button class="btn green" id="finstall" type="button" hidden style="width:100%;font-size:15px;margin-top:8px">📲 Instalar o jogo no celular</button>
     </div>
     <p class="muted" style="color:var(--muted);margin-top:14px;font-size:12px;font-weight:700">Mapa: dados © colaboradores do OpenStreetMap (ODbL). Protótipo de teste da Associação de Moradores do Jardim Los Angeles.</p>
   </div>
@@ -879,6 +880,31 @@ function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"
   MAIL.db.doc(MAIL.pcol+"/"+MAIL.uid).set({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()}).catch(()=>{MAIL.sig=""})}
 function online(){return MAIL.kind==="fb"&&!!MAIL.db}
 
+/* ============ instalar o jogo como aplicativo (ícone na tela do celular) ============ */
+let installEvt=window.__bip||null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;refreshInstallBtn()});
+addEventListener("appinstalled",()=>{installEvt=null;refreshInstallBtn();toast("Jogo instalado! Procure o ícone Bairro em Jogo na tela do celular.")});
+if(location.hostname==="bairroemjogo.web.app"){try{for(const [rel,href] of[["manifest","/manifest.webmanifest"],["apple-touch-icon","/apple-touch-icon.png"]]){if(!document.querySelector(`link[rel="${rel}"]`)){const l=document.createElement("link");l.rel=rel;l.href=href;document.head.appendChild(l)}}
+  if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{})}catch(e){}}
+function isStandalone(){try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}catch(e){return false}}
+function isIOS(){return/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+function canOfferInstall(){return!isStandalone()&&(!!installEvt||isIOS())}
+function refreshInstallBtn(){const b=document.getElementById("finstall");if(b)b.hidden=!canOfferInstall()}
+function doInstall(){
+  if(installEvt){const ev=installEvt;ev.prompt();ev.userChoice.then(c=>{if(c.outcome==="accepted")installEvt=null;refreshInstallBtn()}).catch(()=>{});return}
+  if(isIOS())return openSheet("Instalar no iPhone",el("p",{text:"No iPhone é assim:"}),
+    el("ol",{style:"padding-left:22px;line-height:1.6"},el("li",{text:"Abra bairroemjogo.web.app no Safari."}),el("li",{text:"Toque no botão Compartilhar (o quadrado com a setinha para cima)."}),el("li",{text:"Toque em \"Adicionar à Tela de Início\" e depois em Adicionar."})),
+    el("p",{class:"muted",text:"Pronto: o ícone do Bairro em Jogo aparece na tela do celular, igual a um aplicativo."}));
+  openSheet("Instalar o jogo",el("p",{text:"Abra bairroemjogo.web.app no Chrome do celular, toque nos 3 pontinhos ⋮ no canto de cima e escolha \"Instalar app\" ou \"Adicionar à tela inicial\"."}),
+    el("p",{class:"muted",text:"O ícone do Bairro em Jogo aparece na tela do celular, igual a um aplicativo."}))}
+function installBox(){if(isStandalone())return null;
+  return el("div",{class:"row",style:"background:#e8f3fc;border-color:#008CE3;margin:6px 0 12px;display:block"},el("b",{text:"Instale o jogo no celular"}),
+    el("p",{style:"margin:4px 0 8px;font-size:14px",text:"Fica com ícone na tela, abre mais rápido e em tela cheia, igual a um aplicativo. Não ocupa quase nada de espaço."}),
+    el("button",{class:"btn blue",onclick:doInstall},"Instalar o jogo"))}
+function maybeOfferInstall(){if(!canOfferInstall()||store.get("jla_inst_asked",false))return;if(miniOpen||!$("#sheet").hidden)return void setTimeout(maybeOfferInstall,20000);
+  store.set("jla_inst_asked",true);openSheet("Instale o Bairro em Jogo",el("p",{text:"Quer deixar o jogo com ícone na tela do celular? Abre mais rápido e em tela cheia, igual a um aplicativo."}),
+    el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn green",onclick:()=>{closeSheet();doInstall()}},"Instalar agora"),el("button",{class:"btn ghost",onclick:closeSheet},"Agora não")),
+    el("p",{class:"muted",style:"margin-top:10px",text:"Você também pode instalar depois pela aba Associação."}))}
 /* ----- entrar com Google: o jogo fica salvo na conta e volta em qualquer aparelho ----- */
 function isGoogle(){try{return online()&&firebase.auth().currentUser&&!firebase.auth().currentUser.isAnonymous}catch(e){return false}}
 function googleName(){try{const u=firebase.auth().currentUser;return(u&&u.email)||""}catch(e){return""}}
@@ -2794,7 +2820,7 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
   if(tab==="assoc"){openSheet("Associação de Moradores",el("img",{src:LOGO_URI,alt:"Logo da Associação",style:"width:110px;float:right;margin:0 0 8px 12px;border-radius:12px"}),el("p",{},el("b",{text:"Associação de Moradores do Jardim Los Angeles"})),
       el("p",{text:"Sede: Rua Prefeito José Hoffmann, 37 – Jardim Los Angeles, Ponta Grossa/PR. Atende os bairros Jardim Los Angeles, Jardim Califórnia I, Jardim Califórnia II e Jardim Hortência."}),
       el("p",{text:"Projetos: Atleta do Bairro (esporte para crianças e adolescentes), Capoeira Arte Viva, campanhas solidárias e de segurança alimentar, mutirões e eventos."}),
-      googleBox(),el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
+      googleBox(),installBox(),el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
       el("p",{},el("b",{text:"Gráficos: "}),document.createTextNode(lowQ?"modo leve (para celulares mais simples). ":"modo completo, com sombras. "),el("button",{class:"btn ghost",style:"min-height:36px;padding:6px 10px",onclick:()=>{store.set("jla_lowq",!lowQ);location.reload()}},lowQ?"Usar modo completo":"Usar modo leve")),
       el("p",{},el("b",{text:"Chuva: "}),...[["auto","Em alguns dias"],["nunca","Nunca"],["chuva","Chover agora"]].map(([k,n])=>el("button",{class:"btn "+(((S.weather||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.weather=k;save();openTab("assoc")}},n))),
       el("p",{},el("b",{text:"Dia e noite: "}),...[["auto","Automático"],["real","Hora do celular"],["dia","Sempre dia"],["noite","Sempre noite"]].map(([k,n])=>el("button",{class:"btn "+(((S.dayMode||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.dayMode=k;save();lastDayK=-1;openTab("assoc")}},n))),
@@ -2829,7 +2855,7 @@ function setupStart(){$("#startlogo").src=LOGO_URI;const sel=$("#fbairro");MY_BA
   const fg=$("#fgen");const drawGen=()=>{fg.innerHTML="";GENS.forEach(([k,n])=>fg.append(el("button",{type:"button",class:"btn "+(chosenGen===k?"":"ghost"),style:"flex:1;min-height:40px;padding:6px 8px","aria-pressed":chosenGen===k?"true":"false",onclick:()=>{chosenGen=k;drawGen();setAvatar(chosenAv)}},n)))};drawGen();
   const avs=$("#favs");AVATARS.forEach((a,i)=>{const b=el("button",{class:"av"+(i===0?" on":""),"aria-label":"Personagem "+(i+1),style:`background:linear-gradient(${a.hair} 0 18%,${a.skin} 18% 46%,${a.shirt} 46% 78%,${a.pants} 78%)`,onclick:()=>{chosenAv=i;avs.querySelectorAll(".av").forEach((x,k)=>x.classList.toggle("on",k===i));setAvatar(i)}});avs.append(b)});
   const inv=(location.hash||"").replace("#","");if(/^JLA-[A-Z0-9]{3,12}$/i.test(inv)){const t=$("#invitedBy");t.hidden=false;t.textContent="Convite do código "+inv.toUpperCase()}
-  $("#fgoogle").addEventListener("click",()=>googleLogin());$("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
+  $("#fgoogle").addEventListener("click",()=>googleLogin());$("#finstall").addEventListener("click",doInstall);refreshInstallBtn();$("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
     if(nick.length<2)return err.textContent="Escolha um apelido com pelo menos 2 letras.";if(!$("#frua").value)return err.textContent="Escolha sua rua.";if(!$("#fage").checked)return err.textContent="Confirme a idade ou que está jogando com um adulto.";
     const rua=$("#frua").value;const hs=houses.map((h,i)=>[h,i]).filter(([h])=>h.street===rua);const home=hs[hashStr(nick)%hs.length][1];
     const code="JLA-"+(nick.normalize("NFD").replace(/[^A-Za-z]/g,"").toUpperCase().slice(0,5)||"VIZ")+(hashStr(nick+rua)%90+10);
@@ -2841,7 +2867,7 @@ function placeHomeFlag(){if(homeFlag)scene.remove(homeFlag);const h=homeHouse();
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:textTex("Sua casa",{w:512,h:120,bg:"#F57E20",fg:"#fff",round:56}),depthTest:false,transparent:true,fog:false}));sp.position.y=7.4;sp.scale.set(5,1.2,1);sp.renderOrder=11;g.add(sp);
   homeFlag=g;scene.add(g)}
 function enterGame(first){startMode=false;S.coins??=30;S.vehicles??=[];S.pets??=[];S.food??={dog:0,cat:0};S.house??={wall:"#efe3c8",roof:"#b8452f",muro:"#d8d2c4",level:1};$("#start").hidden=true;["#me","#mm","#tabs","#acts","#zoomc"].forEach(s=>$(s).hidden=false);
-  player.x=S.px??homeHouse().fx;player.y=S.py??homeHouse().fy;setAvatar(S.avatar);placeHomeFlag();buildHome();spawnPets();drawMural();updateViaState();updateHUD();if(S.route&&S.route.day===DAY())drawRoute();else S.route=null;updateFlood();setTimeout(maybePetEscape,4000);
+  player.x=S.px??homeHouse().fx;player.y=S.py??homeHouse().fy;setAvatar(S.avatar);placeHomeFlag();buildHome();spawnPets();drawMural();updateViaState();updateHUD();if(S.route&&S.route.day===DAY())drawRoute();else S.route=null;updateFlood();setTimeout(maybePetEscape,4000);setTimeout(maybeOfferInstall,first?90000:30000);
   const hh=homeHouse();yaw=Math.atan2(hh.wx-hh.fx,hh.wy-hh.fy)+Math.PI;
   if(!store.get("jla_hint",false)){$("#hint").hidden=false;setTimeout(()=>{$("#hint").hidden=true;store.set("jla_hint",true)},12000)}
   if(first)openSheet("Bem-vindo, "+S.nick+"!",el("p",{text:"Você está na frente da sua casa, na "+S.rua+" (bandeira laranja)."}),el("p",{text:"Para andar: no celular, arraste o lado esquerdo da tela; no computador, use W A S D. Arraste o lado direito para girar a câmera."}),el("p",{text:"Comece pela missão “Conheça a sede”: siga a luz amarela."}),el("button",{class:"btn",onclick:()=>goTo("assoc","sede")},"Começar"))}
