@@ -21,6 +21,12 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Missões e quanto cada uma vale | `const MISSIONS` |
 | Trabalhos nas empresas | `const JOBS` |
 | Joguinho de balcão (lanchonete, padaria, churrascaria): itens, cores, tempo | `const COUNTER`, `const FOOD`, `function gameCounter` |
+| Trabalhos do Mercado (caixa, açougue, padaria, prateleira) | `function openMarketJobs`, `MG_CAIXA`, `MG_ACOUGUE`, `MG_PRAT` |
+| Visual dos joguinhos (botões, tela de início, estrelas) | `function miniGame`, `function btn3d` |
+| Dia e noite (duração do dia, cores do céu) | `DAY_MIN`, `const DN`, `function updateDayNight` |
+| Passarinhos e gato caçando | `function updateBirds`, `function feedBird`, `function catHunt` |
+| Música e sons | `function sfx`, `const MUS`, `function musicTick` |
+| Desenho do cachorro e do gato | `function makePet`, `function petOutfit` |
 | Outros joguinhos dos trabalhos (caixa, posto, fundição, solda, cargas, paletes, lava-car, ferro-velho) | `MG_CAIXA`, `MG_POSTO`, `MG_LINHA`, `MG_CARGAS`, `MG_PILHA`, `MG_LAVA`, `MG_RECICLA` e `function miniGame` |
 | Perguntas do quiz | `const QUIZ` |
 | Códigos do comércio (moedas no balcão) | `const COMERCIO` |
