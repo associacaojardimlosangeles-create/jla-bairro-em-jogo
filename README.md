@@ -20,6 +20,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Lugares (sede, escolas, comércios, lojas) | `const POIS` |
 | Missões e quanto cada uma vale | `const MISSIONS` |
 | Missão do dia (7 missões que giram na semana) e bônus | `const DAILY`, `DAILY_PTS`, `WEEK_BONUS` |
+| Fazenda Iberá (venda de sementes) | `function mkFazenda`, `function openSeedShop` |
 | Horta comunitária (plantas, preço, tempo de crescer, doações) | `const CROPS`, `function openHorta`, `function openDonate` |
 | Igreja, panfletos e campanha do agasalho | `function mkIgreja`, `function startRoute` |
 | Bichinho que foge para o abrigo (chance e intervalo) | `function maybePetEscape` |
