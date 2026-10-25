@@ -70,6 +70,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Morar junto (pedido, aceitar/recusar, reforma compartilhada) | `function claimHouse`, `function houseTaken`, `function answerReq`, `function openHouseMates` |
 | Entrar com Google e jogo salvo na conta | `function googleLogin`, `function pushCloud`, `function pullCloud` |
 | Instalar como aplicativo (botão, aviso, iPhone) | `function doInstall`, `function installBox`, `function maybeOfferInstall`; arquivos em `site-firebase/public` |
+| Pizzaria Ilse (montar pizza, forno, entregas, horta) | `PZ_REC`, `function MG_MONTA`, `function MG_FORNO`, `function openIlseJobs`, `function startPizzaRoute`, `function startFetch` |
 
 ### Como colocar um comércio novo
 
