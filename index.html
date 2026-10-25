@@ -1742,6 +1742,168 @@ function maybePetEscape(){if(!S||!(S.pets||[]).length)return;const d=LDAY();if(S
 function abrigoSpot(i){const ab=POIS.find(q=>q.id==="abrigo");const fx=ab.fx||0,fy=ab.fy||1;return[ab.x+fx*7+(i?1.8:-1.8)+Math.sin(clockT*0.4+i)*1.2,ab.y+fy*7+Math.cos(clockT*0.35+i)*1.2]}
 function rescuePet(p){p.lost=false;p.home=false;S.pts+=10;save();spawnPets();sfx(p.type==="cat"?"meow":"bark");toast("Você achou "+p.name+"! Ele está com a plaquinha do nome. Agora ele segue você de novo. +10 pontos");lastPlace="";checkPlace()}
 
+/* ============ chuva (não é todo dia) e viaduto alagado ============ */
+/* Em ~35% dos dias chove: 7 minutos a cada 20. Depois de chover um tempo, o viaduto da entrada alaga
+   e só volta ao normal quando alguém desentope os bueiros. S.weather: "auto", "nunca" ou "chuva". */
+let rainK=0,rainObj=null,rainOnT=0,floodMesh=null;
+function rainyDay(d){let h=(d*2654435761)>>>0;h^=h>>>15;return h%100<35}
+function rainNow(){const m=(S&&S.weather)||"auto";if(m==="nunca")return false;if(m==="chuva")return true;if(!rainyDay(LDAY()))return false;return Math.floor(Date.now()/60000)%20<7}
+function initRain(){const N=lowQ?900:1800,pos=new Float32Array(N*6);for(let i=0;i<N;i++){const x=(Math.random()-.5)*90,y=Math.random()*45,z=(Math.random()-.5)*90;pos.set([x,y,z,x+0.15,y-1.3,z],i*6)}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));rainObj=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xaec4dc,transparent:true,opacity:0,fog:false,depthWrite:false}));rainObj.frustumCulled=false;scene.add(rainObj)}
+function updateRain(dt){if(!S||startMode)return;if(!rainObj)initRain();const want=rainNow()?1:0;rainK+=(want-rainK)*Math.min(1,dt*0.35);
+  rainObj.visible=rainK>0.02;if(rainObj.visible){rainObj.material.opacity=0.55*rainK;rainObj.position.set(camera.position.x,camera.position.y-25,camera.position.z);const p=rainObj.geometry.attributes.position.array;
+    for(let i=0;i<p.length;i+=6){p[i+1]-=dt*38;p[i+4]-=dt*38;if(p[i+4]<0){const y=40+Math.random()*6;p[i+1]=y;p[i+4]=y-1.3}}rainObj.geometry.attributes.position.needsUpdate=true}
+  if(scene.fog){scene.fog.color.lerp(new THREE.Color(0x8a96a6),rainK*0.75);scene.fog.far=(lowQ?480:720)*(1-rainK*0.55);scene.fog.near=180*(1-rainK*0.6)}
+  sun.intensity*=1-rainK*0.55;if(hemi)hemi.intensity*=1-rainK*0.25;sky.material.uniforms.top.value.lerp(new THREE.Color(0x5d6878),rainK*0.8);sky.material.uniforms.bot.value.lerp(new THREE.Color(0x9aa4b0),rainK*0.8);
+  if(AC&&AU.rain)AU.rainG.gain.setTargetAtTime(audioOn()?rainK*0.09:0,AC.currentTime,0.3);else if(AC&&!AU.rain){AU.rain=AC.createBufferSource();AU.rain.buffer=AU.noise;AU.rain.loop=true;const f=AC.createBiquadFilter();f.type="highpass";f.frequency.value=900;AU.rainG=AC.createGain();AU.rainG.gain.value=0;AU.rain.connect(f);f.connect(AU.rainG);AU.rainG.connect(AU.sfx);AU.rain.start()}
+  if(want){rainOnT+=dt;if(rainOnT>40&&!S.flood){S.flood=true;save();updateFlood();toast("Choveu forte e o viaduto da entrada do bairro alagou! Vá até lá ajudar a desentupir os bueiros.")}}else rainOnT=0}
+function updateFlood(){if(!floodMesh){const m=new THREE.Mesh(new THREE.PlaneGeometry(VIA.half*2+6,60),new THREE.MeshLambertMaterial({color:0x6f8fa6,transparent:true,opacity:0.82}));m.rotation.x=-Math.PI/2;
+    floodMesh=new THREE.Group();floodMesh.add(m);const [X,Z]=W3(VIA.cx,VIA.cy);floodMesh.position.set(X,0.75,Z);floodMesh.rotation.y=Math.atan2(-VIA.uy,VIA.ux);scene.add(floodMesh)}floodMesh.visible=!!(S&&S.flood)}
+function inFlood(x,y){if(!S||!S.flood)return false;const l=viaLocal(x,y);return Math.abs(l.t)<VIA.half+3&&Math.abs(l.n)<30}
+function floodConstrain(px,py){if(!inFlood(player.x,player.y)||inFlood(px,py)||player.h>2)return;player.x=px;player.y=py;const t=performance.now();if(!floodConstrain.t||t-floodConstrain.t>3000){floodConstrain.t=t;toast("O viaduto está alagado! Não dá para passar. Desentupa os bueiros para a água escoar.")}}
+function unclogFlood(){gameCollect2("Viaduto alagado!","Toque no barro e nas folhas para desentupir os bueiros.","Barro","#4f6a80",["#6b4a2f","#7a5a3a","#3f7d32"],ok=>result(ok,"Viaduto alagado","A água escoou e o viaduto está liberado! Valeu por ajudar o bairro: +20 pontos e 10 moedas.","Ainda está entupido. Tente de novo!",()=>{S.flood=false;S.pts+=20;S.coins=(S.coins||0)+10;track("clean");save();updateHUD();updateFlood()}))}
+/* ============ missões surpresa (a pessoa aceita ou não) ============ */
+/* A cada 2 a 5 minutos de jogo aparece um convite. Quem aceita ganha mais pontos. Para criar outra, adicione em EVENTS
+   e trate o tipo em startEvent / updateStreetEv / evNear. */
+const EVENTS={
+  atravessar:{title:"Ajude a Dona Cida",desc:"Uma vizinha idosa quer atravessar a rua e precisa de ajuda.",pts:25,coins:8},
+  perdido:{title:"Bichinho perdido",desc:"Um bichinho perdido está vagando pela rua. Pegue ele com cuidado e leve até o Abrigo Amigo Bicho.",pts:30,coins:10},
+  lixo:{title:"O vento espalhou lixo",desc:"Recolha os 6 sacos de lixo espalhados aqui perto em até 2 minutos.",pts:20,coins:6},
+  entrega:{title:"Entrega urgente do Family Burguer",desc:"Pegue o lanche no Family Burguer e entregue na casa de um vizinho em até 4 minutos, antes de esfriar.",pts:25,coins:10},
+  buraco:{title:"Buraco perigoso na rua",desc:"Um morador viu um buraco na rua. Vá até lá e avise a Associação para pedir o conserto à Prefeitura.",pts:15,coins:5},
+  poste:{title:"Poste apagado",desc:"Tem um poste apagado deixando a rua escura. Vá até ele e registre o pedido de troca da lâmpada.",pts:15,coins:5}};
+let streetEv=null,evTimer=100,evOffered=null;
+function sidewalkPoint(minD,maxD){const cand=roadSegs.filter(s=>(s.k==="R"||s.k==="K"||s.k==="D")&&(d=>d>minD&&d<maxD)(Math.hypot((s.ax+s.cx)/2-player.x,(s.ay+s.cy)/2-player.y)));if(!cand.length)return null;
+  for(let tries=0;tries<8;tries++){const sg=cand[Math.floor(Math.random()*cand.length)];const L=Math.hypot(sg.cx-sg.ax,sg.cy-sg.ay);if(L<12)continue;const t=0.25+Math.random()*0.5,ux=(sg.cx-sg.ax)/L,uy=(sg.cy-sg.ay)/L,off=RW[sg.k]/2+1.8,sd=Math.random()<0.5?1:-1;
+    const bx=sg.ax+(sg.cx-sg.ax)*t,by=sg.ay+(sg.cy-sg.ay)*t,a=[bx-uy*off*sd,by+ux*off*sd],b=[bx+uy*off*sd,by-ux*off*sd],mid=[bx,by];if(inViaFoot(a[0],a[1]))continue;return{a,b,mid,sg}}return null}
+function evLabel(text,col){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:textTex(text,{w:900,h:120,bg:col||"#7a4b8c",fg:"#fff",round:56}),depthTest:false,transparent:true,fog:false}));sp.scale.set(3,0.42,1);sp.renderOrder=11;return sp}
+function offerEvent(){const keys=Object.keys(EVENTS).filter(k=>k!==(S.lastEv||""));const k=keys[Math.floor(Math.random()*keys.length)],E=EVENTS[k];evOffered=k;sfx("tweet");
+  openSheet("Missão surpresa!",el("div",{style:"background:linear-gradient(135deg,#7a4b8c,#0A2240);color:#fff;border-radius:16px;padding:14px"},el("div",{style:"font-size:12px;font-weight:900;color:#ffd23f;letter-spacing:1px",text:"APARECEU AGORA"}),el("div",{style:"font-family:var(--display);font-size:22px;margin:4px 0",text:E.title}),el("div",{text:E.desc}),el("div",{style:"margin-top:8px;font-weight:900",text:"Recompensa: +"+E.pts+" pontos e "+E.coins+" moedas"})),
+    el("div",{style:"display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"},el("button",{class:"btn green",style:"flex:1",onclick:()=>{closeSheet();if(!startEvent(k))toast("Não deu para começar aqui. Fica para a próxima!")}},"Aceitar"),el("button",{class:"btn ghost",style:"flex:1",onclick:()=>{closeSheet();evOffered=null;toast("Tudo bem! Outra missão surpresa aparece daqui a pouco.")}},"Agora não")))}
+function startEvent(k){S.lastEv=k;const E=EVENTS[k];let e={kind:k,st:"vai",t:240};
+  if(k==="atravessar"){const pt=sidewalkPoint(20,90);if(!pt)return false;const c=makeChar({gen:"f",hs:5,hair:"#d8d8d8",skin:LOOKS.skin[1+Math.floor(Math.random()*5)],eyes:"#3b2414",shirt:"#7a4b8c",top:4,pants:"#7a4b8c",shoe:"#6b4a2f",glasses:1,bag:3,lash:true});
+    const cane=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,1.1,6),lam(0x6b4a2f));cane.position.set(0.12,-0.55,0.1);c.arms[1].add(cane);const [X,Z]=W3(pt.a[0],pt.a[1]);c.g.position.set(X,0.38,Z);c.g.rotation.y=Math.atan2(pt.b[0]-pt.a[0],pt.b[1]-pt.a[1]);c.g.scale.setScalar(0.95);
+    const lb=evLabel("Dona Cida · precisa de ajuda!");lb.position.y=3;c.g.add(lb);scene.add(c.g);Object.assign(e,{c,a:pt.a,b:pt.b,x:pt.a[0],y:pt.a[1],st:"espera",street:pt.sg.name,t:180});setWaypoint({x:pt.a[0],y:pt.a[1],label:"Dona Cida"})}
+  else if(k==="perdido"){const pt=sidewalkPoint(30,110);if(!pt)return false;const type=Math.random()<0.5?"dog":"cat";const pe=makePet({type,v:Math.floor(Math.random()*3),name:"Perdido",fed:Date.now()},true);pe.x=pt.a[0];pe.y=pt.a[1];
+    const lb=evLabel(type==="dog"?"Cachorrinho perdido":"Gatinho perdido","#e2483d");lb.position.y=1.4;lb.scale.set(2,0.32,1);pe.g.add(lb);scene.add(pe.g);Object.assign(e,{pe,hx:pt.a[0],hy:pt.a[1],st:"solto",type});setWaypoint({x:pt.a[0],y:pt.a[1],label:"Bichinho perdido"})}
+  else if(k==="lixo"){e.items=[];for(let i=0;i<6;i++){const a=Math.random()*Math.PI*2,r=10+Math.random()*28;let x=player.x+Math.cos(a)*r,y=player.y+Math.sin(a)*r;const g=new THREE.Group();
+      const bag=new THREE.Mesh(new THREE.SphereGeometry(0.45,10,8),lam(0x1d1d1d));bag.scale.set(1,0.8,1);bag.position.y=0.4;g.add(bag);const knot=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.3,6),lam(0x1d1d1d));knot.position.y=0.85;g.add(knot);
+      const [X,Z]=W3(x,y);g.position.set(X,0,Z);const ring=new THREE.Mesh(new THREE.RingGeometry(0.8,1,20),new THREE.MeshBasicMaterial({color:0xffd23f,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=0.05;g.add(ring);scene.add(g);e.items.push({g,x,y})}
+    e.st="recolhe";e.t=120;toast("Recolha os 6 sacos de lixo (anéis amarelos) passando por cima deles!")}
+  else if(k==="entrega"){const f=POIS.find(q=>q.id==="family");const hs=houses.map((h,i)=>[i,Math.hypot(h.fx-f.x,h.fy-f.y)]).filter(([i,d])=>d>60&&d<220&&i!==S.home);if(!hs.length)return false;
+    Object.assign(e,{st:"pegar",house:hs[Math.floor(Math.random()*hs.length)][0],t:240});setWaypoint({x:f.x,y:f.y,label:"Family Burguer"});toast("Vá até o Family Burguer pegar o lanche!")}
+  else if(k==="buraco"||k==="poste"){const pt=sidewalkPoint(30,120);if(!pt)return false;const g=new THREE.Group();const [X,Z]=W3(k==="buraco"?pt.mid[0]:pt.a[0],k==="buraco"?pt.mid[1]:pt.a[1]);g.position.set(X,0,Z);
+    if(k==="buraco"){const h=new THREE.Mesh(new THREE.CircleGeometry(1.2,16),new THREE.MeshBasicMaterial({color:0x1d1d1d}));h.rotation.x=-Math.PI/2;h.position.y=0.04;h.scale.set(1.3,0.8,1);g.add(h);for(const s of[-1,1]){const cn=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.7,10),lam(0xF57E20));cn.position.set(s*1.8,0.35,0);g.add(cn)}}
+    else{const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.16,8,8),lam(0x7a7a7a));pole.position.y=4;g.add(pole);const lmp=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.2,0.8),lam(0x3a3a3a));lmp.position.set(0,8,0.6);g.add(lmp)}
+    const lb=evLabel(k==="buraco"?"Buraco na rua!":"Poste apagado!","#e2483d");lb.position.y=k==="buraco"?2.2:9;g.add(lb);scene.add(g);const px=k==="buraco"?pt.a:pt.a;Object.assign(e,{g,x:px[0],y:px[1],st:"vai"});setWaypoint({x:px[0],y:px[1],label:EVENTS[k].title})}
+  streetEv=e;lastPlace="";checkPlace();return true}
+function endStreetEv(){const e=streetEv;if(!e)return;if(e.c)scene.remove(e.c.g);if(e.pe)scene.remove(e.pe.g);if(e.g)scene.remove(e.g);if(e.items)e.items.forEach(i=>scene.remove(i.g));streetEv=null;setWaypoint(null);lastPlace="";if(S)checkPlace()}
+function rewardEv(msg){const E=EVENTS[streetEv.kind];S.pts+=E.pts;S.coins=(S.coins||0)+E.coins;S.surprise=(S.surprise||0)+1;save();updateHUD();sfx("win");toast(msg+" +"+E.pts+" pontos e "+E.coins+" moedas");}
+function helpCross(){const e=streetEv;if(!e||e.st!=="espera")return;e.st="atravessa";e.p=0;toast("Olhe para os dois lados... agora pode atravessar com a Dona Cida!");lastPlace="";checkPlace()}
+function evNear(){const e=streetEv;if(!e)return null;const d=(x,y)=>Math.hypot(x-player.x,y-player.y);
+  if(e.kind==="atravessar"&&e.st==="espera"&&d(e.a[0],e.a[1])<5)return{title:"Dona Cida",sub:"Quer atravessar a "+e.street,btn:"Ajudar a atravessar",fn:helpCross};
+  if(e.kind==="perdido"&&e.st==="solto"&&d(e.pe.x,e.pe.y)<4)return{title:e.type==="dog"?"Cachorrinho perdido":"Gatinho perdido",sub:"Está com medo e sem coleira",btn:"Pegar com carinho",fn:()=>{e.st="comigo";const ab=POIS.find(q=>q.id==="abrigo");setWaypoint({x:ab.x,y:ab.y,label:"Abrigo"});sfx(e.type==="cat"?"meow":"bark");toast("Ele está com você! Leve até o Abrigo Amigo Bicho (luz amarela).");lastPlace="";checkPlace()}};
+  if(e.kind==="perdido"&&e.st==="comigo"){const ab=POIS.find(q=>q.id==="abrigo");if(d(ab.x,ab.y)<16)return{title:"Abrigo Amigo Bicho",sub:"Entregar o bichinho perdido",btn:"Entregar no abrigo",fn:()=>{rewardEv("O abrigo vai cuidar dele e procurar o dono!");endStreetEv()}}}
+  if(e.kind==="entrega"&&e.st==="pegar"){const f=POIS.find(q=>q.id==="family");if(d(f.x,f.y)<14)return{title:"Family Burguer",sub:"O lanche da entrega está pronto",btn:"Pegar o lanche",fn:()=>{e.st="levar";const h=houses[e.house];setWaypoint({x:h.fx,y:h.fy,label:"Entrega"});toast("Lanche na mão! Leve até a casa marcada antes de esfriar.");lastPlace="";checkPlace()}}}
+  if(e.kind==="entrega"&&e.st==="levar"){const h=houses[e.house];if(d(h.fx,h.fy)<6)return{title:"Casa do vizinho",sub:h.street,btn:"Entregar o lanche",fn:()=>{rewardEv("Lanche entregue quentinho!");endStreetEv()}}}
+  if((e.kind==="buraco"||e.kind==="poste")&&d(e.x,e.y)<6)return{title:EVENTS[e.kind].title,sub:"Avise a Associação para pedir o conserto",btn:e.kind==="buraco"?"Avisar a Associação":"Pedir troca da lâmpada",fn:()=>{rewardEv("Pedido registrado! A Associação vai levar à Prefeitura.");endStreetEv()}};
+  return null}
+function updateStreetEv(dt){if(!S||startMode||miniOpen)return;if(!streetEv){if($("#sheet")&&!$("#sheet").hidden)return;evTimer-=dt;if(evTimer<=0){evTimer=150+Math.random()*150;if(!riding||Math.random()<0.5)offerEvent()}return}
+  const e=streetEv;e.t-=dt;
+  if(e.t<=0&&e.st!=="feito"&&e.st!=="atravessa"){toast("O tempo da missão surpresa acabou. Fica para a próxima!");return endStreetEv()}
+  if(e.kind==="atravessar"){const c=e.c;if(e.st==="espera")c.legs.forEach(l=>l.rotation.x=0);
+    else if(e.st==="atravessa"){e.p=Math.min(1,e.p+dt/5);e.x=e.a[0]+(e.b[0]-e.a[0])*e.p;e.y=e.a[1]+(e.b[1]-e.a[1])*e.p;const [X,Z]=W3(e.x,e.y);c.g.position.set(X,0.38,Z);const sw=Math.sin(clockT*6)*0.4;c.legs[0].rotation.x=sw;c.legs[1].rotation.x=-sw;
+      const sx=-(e.b[1]-e.a[1]),sy=e.b[0]-e.a[0],sl=Math.hypot(sx,sy)||1;player.x=e.x+sx/sl*1.3;player.y=e.y+sy/sl*1.3;player.face=Math.atan2(e.b[0]-e.a[0],e.b[1]-e.a[1]);
+      if(e.p>=1){e.st="feito";e.t=4;rewardEv("Dona Cida: \"Obrigada, meu bem! Que Deus te abençoe!\"");setWaypoint(null);lastPlace="";checkPlace()}}
+    else if(e.st==="feito"){c.legs.forEach(l=>l.rotation.x=0);if(e.t<=0)endStreetEv()}}
+  else if(e.kind==="perdido"){const pe=e.pe;let tx,ty;if(e.st==="solto"){tx=e.hx+Math.sin(clockT*0.5)*3;ty=e.hy+Math.cos(clockT*0.4)*3}else{const a=player.face+Math.PI;tx=player.x+Math.sin(a)*2;ty=player.y+Math.cos(a)*2}
+    const dx=tx-pe.x,dy=ty-pe.y,d=Math.hypot(dx,dy);let sp=0;if(d>0.4){sp=Math.min(e.st==="comigo"?Math.max(9,player.speed*1.1):2.5,d*3);pe.x+=dx/d*sp*dt;pe.y+=dy/d*sp*dt;pe.face=Math.atan2(dx,dy)}if(d>40&&e.st==="comigo"){pe.x=tx;pe.y=ty}
+    pe.phase+=dt*Math.min(sp,14)*2.4;const sw=sp>0.3?Math.sin(pe.phase)*0.75:0;pe.legs[0].rotation.x=sw;pe.legs[3].rotation.x=sw;pe.legs[1].rotation.x=-sw;pe.legs[2].rotation.x=-sw;pe.tail.rotation.y=Math.sin(clockT*(e.st==="comigo"?13:3))*0.5;
+    const [X,Z]=W3(pe.x,pe.y);pe.g.position.set(X,0.38,Z);pe.g.rotation.y=pe.face}
+  else if(e.kind==="lixo"){for(const it of e.items){if(!it.got&&Math.hypot(it.x-player.x,it.y-player.y)<2.6){it.got=true;scene.remove(it.g);sfx("coin");const left=e.items.filter(i=>!i.got).length;if(left)toast("Recolheu! Faltam "+left+".");else{rewardEv("Rua limpinha de novo!");track("clean");endStreetEv();return}}else if(!it.got)it.g.children[2].rotation.z+=dt}}}
+
+/* ============ serviços do posto: para-brisa, pneus, GNV, óleo, troca de pneu ============ */
+function openPostoJobs(p){const opt=(t,d,g,col)=>el("button",{class:"btn "+col,style:"display:block;width:100%;margin:7px 0;text-align:left;padding:11px 14px",onclick:()=>{closeSheet();startJob(p,g)}},el("b",{text:t,style:"display:block;font-size:16px"}),el("span",{text:d,style:"font-weight:600;font-size:13px;opacity:.9"}));
+  openSheet("Trabalhar no "+p.name,el("p",{text:"Qual serviço você quer fazer?"}),opt("Abastecer","Gasolina, etanol ou diesel no valor certo","posto",""),opt("Lavar o para-brisa","Água com sabão e rodo até ficar limpinho","vidro","blue"),
+    opt("Calibrar os pneus","Encha cada pneu na pressão certa","pneu","green"),opt("Abastecer GNV (gás)","Encha o cilindro de gás até a faixa verde","gnv",""),opt("Trocar o óleo","Coloque óleo até ficar entre as marcas da vareta","oleo","blue"),opt("Trocar o pneu furado","Solte os parafusos, troque o pneu e aperte em estrela","trocapneu","green"))}
+function sideCar(c,x,y,s,col){c.save();c.translate(x,y);c.scale(s,s);c.fillStyle=col;c.strokeStyle="#2a2230";c.lineWidth=3;c.beginPath();c.moveTo(-170,-20);c.lineTo(-170,-70);c.quadraticCurveTo(-160,-80,-120,-84);c.lineTo(-80,-130);c.lineTo(70,-130);c.lineTo(120,-84);c.lineTo(165,-78);c.quadraticCurveTo(178,-70,178,-20);c.closePath();c.fill();c.stroke();
+  c.fillStyle="#23384f";c.beginPath();c.moveTo(-68,-120);c.lineTo(-10,-120);c.lineTo(-10,-86);c.lineTo(-100,-86);c.closePath();c.fill();c.beginPath();c.moveTo(2,-120);c.lineTo(62,-120);c.lineTo(100,-86);c.lineTo(2,-86);c.closePath();c.fill();
+  for(const wx of[-110,110]){c.fillStyle="#1b1b1b";c.beginPath();c.arc(wx,-20,34,0,Math.PI*2);c.fill();c.fillStyle="#ccc";c.beginPath();c.arc(wx,-20,15,0,Math.PI*2);c.fill()}c.restore()}
+/* encher até a marca: pneu (psi), GNV (bar) e óleo (vareta) */
+function MG_GAUGE(kind){const K={pneu:{title:"Calibrar os pneus",unit:"psi",max:50,rate:7,tol:1.5,rounds:5,targets:[28,30,32,34,35],btn:"SEGURE PARA ENCHER",help:["O motorista pede a pressão do pneu. Segure ENCHER e acompanhe o relógio.","Passou? Segure ESVAZIAR. Quando estiver na faixa verde, toque em PRONTO. Calibre 5 pneus!"]},
+    gnv:{title:"Abastecer GNV",unit:"bar",max:240,rate:34,tol:10,rounds:4,targets:[200,200,200,200],btn:"SEGURE PARA ENCHER",help:["Carro a gás chegou! Conecte o bico e segure ENCHER.","O cilindro deve ficar perto de 200 bar (faixa verde). Nem menos, nem mais! 4 carros."]},
+    oleo:{title:"Trocar o óleo",unit:"",max:100,rate:16,tol:9,rounds:4,targets:[70,70,70,70],btn:"SEGURE PARA COLOCAR ÓLEO",help:["O óleo velho já saiu. Segure para colocar óleo novo no motor.","A vareta mostra o nível: pare entre as marcas MÍN e MÁX. 4 carros!"]}}[kind];
+  return{title:K.title,time:75,help:K.help,
+  icon:(c,x,y,s)=>sideCar(c,x,y+40,0.5*s,"#008CE3"),
+  init(G){G.r=0;G.v=0;G.ok=0;G.mode=0;G.col=LOOKS.car[Math.floor(Math.random()*8)];G.target=K.targets[0]+(kind==="pneu"?0:0);G.tire=0},
+  hud:G=>(kind==="pneu"?"Pneu ":"Carro ")+Math.min(G.r+1,K.rounds)+"/"+K.rounds,
+  layout(G){const W=G.W,H=G.H,bw=Math.min(300,W*0.8);G.buttons=[{id:"fill",x:W/2-bw/2,y:H*0.72,w:bw,h:Math.min(70,H*0.1),label:G.mode===1?"ENCHENDO...":K.btn,col:"#008CE3",dark:"#005a94"},
+      {id:"ok",x:W/2+(kind==="pneu"?10:-bw/4),y:H*0.72+Math.min(70,H*0.1)+12,w:kind==="pneu"?bw/2-10:bw/2,h:50,label:"PRONTO",col:"#319B27"}];
+    if(kind==="pneu")G.buttons.push({id:"vent",x:W/2-bw/2,y:H*0.72+Math.min(70,H*0.1)+12,w:bw/2-10,h:50,label:"ESVAZIAR",col:"#e2483d",dark:"#9c2219"})},
+  btn(G,id,down){if(id==="fill")G.mode=down?1:0;else if(id==="vent")G.mode=down?-1:0;else if(id==="ok"&&down){const d=Math.abs(G.v-G.target);
+      if(d<=K.tol){G.good++;G.float(d<=K.tol/2?"Perfeito!":"Certinho!",G.W/2,G.H*0.3);G.burst(G.W/2,G.H*0.45,"#ffd23f");sfx("coin")}else{G.bad++;G.say(G.v<G.target?"Ficou faltando! Era "+G.target+" "+K.unit:"Passou do ponto! Era "+G.target+" "+K.unit);sfx("err")}
+      G.r++;G.v=kind==="pneu"?12+Math.random()*10:0;if(G.r>=K.rounds)return G.finish();G.target=kind==="pneu"?K.targets[Math.floor(Math.random()*K.targets.length)]:K.targets[G.r];if(kind!=="pneu"||G.r%4===0)G.col=LOOKS.car[Math.floor(Math.random()*8)];G.tire=G.r%4}},
+  start(G){G.v=kind==="pneu"?15:0},
+  update(G,dt){if(G.mode)G.v=Math.max(0,Math.min(K.max,G.v+G.mode*K.rate*dt*(1+0.4*Math.sin(G.t*3))));if(G.mode&&Math.random()<dt*8)sfx("foam")},
+  draw(G,c){const W=G.W,H=G.H;c.fillStyle="#8fd3ff";c.fillRect(0,0,W,H);c.fillStyle="#f4f1e6";c.fillRect(0,50,W,40);c.fillStyle="#e2483d";c.fillRect(0,86,W,10);G.disp(22);G.text("POSTO FLORENSE · "+K.title.toUpperCase(),W/2,80,"#e2483d");
+    c.fillStyle="#7a7a7a";c.fillRect(0,H*0.5,W,H);const s=Math.min(1,W/700);sideCar(c,W*0.33,H*0.5,s,G.col);
+    if(kind==="pneu"){const wx=W*0.33+(G.tire%2?110:-110)*s,wy=H*0.5-20*s;c.strokeStyle="#ffd23f";c.lineWidth=5;c.beginPath();c.arc(wx,wy,42*s,0,Math.PI*2);c.stroke();c.strokeStyle="#2a2230";c.lineWidth=4;c.beginPath();c.moveTo(wx,wy);c.quadraticCurveTo(wx+80,wy-80,W*0.68,H*0.36);c.stroke()}
+    else if(kind==="gnv"){c.fillStyle="#cfd6de";RR(c,W*0.33-150*s,H*0.5-118*s,80*s,40*s,14*s);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();c.strokeStyle="#2a2230";c.lineWidth=4;c.beginPath();c.moveTo(W*0.33-110*s,H*0.5-98*s);c.quadraticCurveTo(W*0.5,H*0.2,W*0.68,H*0.36);c.stroke()}
+    else{c.fillStyle="#3a3f4a";RR(c,W*0.33+90*s,H*0.5-100*s,70*s,40*s,6);c.fill();c.fillStyle="#ffd23f";c.fillRect(W*0.33+118*s,H*0.5-118*s,10*s,20*s);if(G.mode===1){c.fillStyle="#c99a1a";c.fillRect(W*0.33+120*s,H*0.5-160*s,6*s,42*s)}}
+    const gx=W*0.72,gy=H*0.36,R=Math.min(95,W*0.18);
+    if(kind==="oleo"){const x=gx-14,y=gy-R,h=R*2;c.fillStyle="#e9e2d2";RR(c,x,y,28,h,10);c.fill();c.strokeStyle="#2a2230";c.lineWidth=3;c.stroke();const lv=(t)=>y+h-(t/100)*h;
+      c.fillStyle="rgba(95,227,106,.45)";c.fillRect(x,lv(G.target+K.tol),28,lv(G.target-K.tol)-lv(G.target+K.tol));c.fillStyle="#b8860b";c.fillRect(x+4,lv(G.v),20,y+h-lv(G.v));
+      c.strokeStyle="#2a2230";for(const [t,l] of[[G.target-K.tol,"MÍN"],[G.target+K.tol,"MÁX"]]){c.beginPath();c.moveTo(x-6,lv(t));c.lineTo(x+34,lv(t));c.stroke();G.font(11,900);G.text(l,x+56,lv(t)+4,"#2a2230")}}
+    else{c.fillStyle="#fff";c.beginPath();c.arc(gx,gy,R,0,Math.PI*2);c.fill();c.strokeStyle="#2a2230";c.lineWidth=4;c.stroke();const ang=v=>Math.PI*0.75+(v/K.max)*Math.PI*1.5;
+      c.strokeStyle="rgba(49,155,39,.75)";c.lineWidth=12;c.beginPath();c.arc(gx,gy,R-12,ang(G.target-K.tol),ang(G.target+K.tol));c.stroke();
+      c.strokeStyle="#2a2230";c.lineWidth=2;for(let k=0;k<=10;k++){const a=ang(k*K.max/10);c.beginPath();c.moveTo(gx+Math.cos(a)*(R-4),gy+Math.sin(a)*(R-4));c.lineTo(gx+Math.cos(a)*(R-14),gy+Math.sin(a)*(R-14));c.stroke()}
+      const a=ang(G.v);c.strokeStyle="#e2483d";c.lineWidth=4;c.beginPath();c.moveTo(gx,gy);c.lineTo(gx+Math.cos(a)*(R-18),gy+Math.sin(a)*(R-18));c.stroke();c.fillStyle="#2a2230";c.beginPath();c.arc(gx,gy,7,0,Math.PI*2);c.fill();
+      G.disp(20);G.text(Math.round(G.v)+" "+K.unit,gx,gy+R*0.55,"#0A2240")}
+    c.fillStyle="#fff";RR(c,W*0.06,H*0.12,Math.min(260,W*0.5),56,14);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2.5;c.stroke();G.font(14,800);G.text(kind==="oleo"?"Encher até entre MÍN e MÁX":"Quero "+G.target+" "+K.unit+(kind==="pneu"?" nesse pneu":""),W*0.06+Math.min(130,W*0.25),H*0.12+34,"#0A2240")},
+  stars:G=>G.bad===0?3:G.bad<=1?2:1,win:G=>G.good>=K.rounds-1}}
+/* lavar o para-brisa: espuma e rodo */
+function MG_VIDRO(){return{title:"Lavar o para-brisa",time:70,help:["Passe o dedo no vidro: primeiro a ÁGUA COM SABÃO para soltar a sujeira e os mosquitos, depois o RODO para secar.","Deixe 3 para-brisas limpinhos!"],
+  icon:(c,x,y,s)=>{c.fillStyle="#7fbfe9";c.beginPath();c.moveTo(x-80*s,y+30*s);c.lineTo(x-55*s,y-30*s);c.lineTo(x+55*s,y-30*s);c.lineTo(x+80*s,y+30*s);c.closePath();c.fill()},
+  init(G){G.car=0;G.ph=0;G.cells=null;G.col=LOOKS.car[Math.floor(Math.random()*8)]},hud:G=>"Carro "+Math.min(G.car+1,3)+"/3 · "+(G.ph?"Rodo":"Água com sabão"),
+  layout(G){const W=G.W,H=G.H;G.box={x:W*0.12,y:H*0.2,w:W*0.76,h:Math.min(H*0.4,W*0.36)};if(!G.cells){G.cells=[];for(let i=0;i<20;i++)for(let j=0;j<8;j++){const u=(i+0.5)/20,v=(j+0.5)/8;const inset=(1-v)*0.16;if(u>inset&&u<1-inset)G.cells.push({i,j,s:0,dirt:Math.random()<0.75,bug:Math.random()<0.07})}}
+    const bw=Math.min(170,(W-30)/2);G.buttons=[{id:"a",x:W/2-bw-6,y:H*0.82,w:bw,h:56,label:"1. Água com sabão",col:G.ph===0?"#008CE3":"#fff8ec",tc:G.ph===0?"#fff":"#8a8f96",off:G.ph!==0},{id:"b",x:W/2+6,y:H*0.82,w:bw,h:56,label:"2. Rodo",col:G.ph===1?"#F57E20":"#fff8ec",tc:G.ph===1?"#fff":"#8a8f96",off:G.ph!==1}]},
+  btn(){},down(G,x,y){this.rub(G,x,y)},move(G,x,y){this.rub(G,x,y)},
+  rub(G,x,y){const b=G.box,cw=b.w/20,ch=b.h/8,R=Math.max(cw,ch)*1.5;let ch_=0;for(const k of G.cells){if(k.s===G.ph&&Math.hypot(b.x+(k.i+0.5)*cw-x,b.y+(k.j+0.5)*ch-y)<R){k.s++;ch_++}}if(ch_&&Math.random()<0.3)sfx(G.ph?"water":"foam");
+    if(ch_&&G.cells.filter(k=>k.s>G.ph).length>=G.cells.length*0.92){G.cells.forEach(k=>k.s=Math.max(k.s,G.ph+1));G.ph++;G.burst(G.W/2,b.y+b.h/2,G.ph===1?"#fff":"#5ab8f0",18,260);
+      if(G.ph>=2){G.good++;G.car++;G.float("Vidro limpinho!",G.W/2,b.y-10);sfx("coin");if(G.car>=3)return G.finish();setTimeout(()=>{G.ph=0;G.cells=null;G.col=LOOKS.car[Math.floor(Math.random()*8)]},600)}else G.float("Agora o rodo!",G.W/2,b.y-10)}},
+  update(){},
+  draw(G,c){const W=G.W,H=G.H,b=G.box;c.fillStyle=G.col;c.fillRect(0,0,W,H);c.fillStyle="rgba(0,0,0,.25)";c.fillRect(0,0,W,50);
+    c.fillStyle="#1d1d1d";c.beginPath();c.moveTo(b.x-12,b.y+b.h+12);c.lineTo(b.x+b.w*0.16-12,b.y-12);c.lineTo(b.x+b.w*0.84+12,b.y-12);c.lineTo(b.x+b.w+12,b.y+b.h+12);c.closePath();c.fill();
+    const g=c.createLinearGradient(0,b.y,0,b.y+b.h);g.addColorStop(0,"#bfe3ff");g.addColorStop(1,"#5f9ec9");c.fillStyle=g;c.beginPath();c.moveTo(b.x,b.y+b.h);c.lineTo(b.x+b.w*0.16,b.y);c.lineTo(b.x+b.w*0.84,b.y);c.lineTo(b.x+b.w,b.y+b.h);c.closePath();c.fill();
+    c.fillStyle="rgba(255,255,255,.35)";c.beginPath();c.moveTo(b.x+b.w*0.25,b.y+b.h*0.9);c.lineTo(b.x+b.w*0.35,b.y+b.h*0.1);c.lineTo(b.x+b.w*0.4,b.y+b.h*0.1);c.lineTo(b.x+b.w*0.3,b.y+b.h*0.9);c.fill();
+    const cw=b.w/20,ch=b.h/8;for(const k of G.cells){const x=b.x+(k.i+0.5)*cw,y=b.y+(k.j+0.5)*ch;if(k.s===0){if(k.dirt){c.fillStyle="rgba(120,96,60,.6)";c.beginPath();c.arc(x,y,cw*0.7,0,Math.PI*2);c.fill()}if(k.bug){c.fillStyle="#1d1d1d";c.beginPath();c.ellipse(x,y,4,3,0.5,0,Math.PI*2);c.fill();c.strokeStyle="rgba(150,40,40,.7)";c.beginPath();c.moveTo(x-6,y-3);c.lineTo(x+6,y+3);c.stroke()}}
+      else if(k.s===1){c.fillStyle="rgba(255,255,255,.75)";c.beginPath();c.arc(x,y,cw*0.75,0,Math.PI*2);c.fill()}}
+    c.fillStyle="#2a2e3a";c.fillRect(0,b.y+b.h+12,W,H);c.fillStyle="#9aa1a8";c.fillRect(W*0.3,b.y+b.h+16,W*0.4,6);
+    const P=G.ptr||G.hover;if(P&&G.started&&!G.over&&G.ph<2){c.save();c.translate(P.x,P.y);if(G.ph===0){c.fillStyle="#ffd23f";RR(c,-24,-15,48,30,10);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke()}else{c.fillStyle="#1d1d1d";c.fillRect(-36,-6,72,10);c.fillStyle="#F57E20";c.fillRect(-5,4,10,34)}c.restore()}},
+  stars:G=>G.t<45?3:G.t<60?2:1,win:G=>G.car>=3}}
+/* trocar o pneu furado */
+function MG_TROCA(){const STAR=[0,2,4,1,3];return{title:"Trocar o pneu furado",time:80,help:["1) Toque em cada parafuso 3 vezes para soltar. 2) Tire o pneu furado e coloque o estepe.","3) Aperte os parafusos em ESTRELA, seguindo os números. Troque 2 pneus!"],
+  icon:(c,x,y,s)=>{c.fillStyle="#1b1b1b";c.beginPath();c.arc(x,y,40*s,0,Math.PI*2);c.fill();c.fillStyle="#b8c2cc";c.beginPath();c.arc(x,y,20*s,0,Math.PI*2);c.fill()},
+  init(G){G.car=0;this.reset(G)},reset(G){G.ph=0;G.nuts=[0,0,0,0,0];G.order=0;G.flat=true;G.swap=0},
+  hud:G=>"Pneu "+Math.min(G.car+1,2)+"/2 · "+["Soltar parafusos","Trocar o pneu","Apertar em estrela"][Math.min(2,G.ph)],
+  layout(G){const W=G.W,H=G.H;G.cx=W/2;G.cy=H*0.46;G.R=Math.min(W,H)*0.26;G.buttons=G.ph===1?[{id:"swap",x:W/2-130,y:H*0.82,w:260,h:58,label:G.swap===0?"Tirar o pneu furado":"Colocar o estepe",col:"#F57E20"}]:[]},
+  btn(G,id,down){if(!down||id!=="swap")return;sfx("door");if(G.swap===0){G.swap=1;G.flat=null}else{G.flat=false;G.ph=2;G.nuts=[0,0,0,0,0];G.float("Estepe no lugar!",G.W/2,G.H*0.2)}},
+  nutPos(G,k){const a=-Math.PI/2+k*Math.PI*2/5;return[G.cx+Math.cos(a)*G.R*0.42,G.cy+Math.sin(a)*G.R*0.42]},
+  down(G,x,y){if(G.ph===1)return;for(let k=0;k<5;k++){const [nx,ny]=this.nutPos(G,k);if(Math.hypot(nx-x,ny-y)<G.R*0.13){
+      if(G.ph===0){if(G.nuts[k]<3){G.nuts[k]++;sfx("tap");if(G.nuts[k]===3)G.burst(nx,ny,"#b8c2cc",6,120)}if(G.nuts.every(n=>n>=3)){G.ph=1;G.swap=0;G.float("Parafusos soltos!",G.W/2,G.H*0.2)}}
+      else if(G.ph===2&&!G.nuts[k]){if(k===STAR[G.order]){G.nuts[k]=1;G.order++;sfx("coin");if(G.order>=5){G.good++;G.car++;G.float("Pneu trocado!",G.W/2,G.H*0.2);G.burst(G.cx,G.cy,"#ffd23f",22,280);if(G.car>=2)return G.finish();setTimeout(()=>this.reset(G),700)}}
+        else{G.bad++;G.say("Aperte em estrela: siga o número "+(G.order+1)+"!");sfx("err")}}return}}},
+  update(){},
+  draw(G,c){const W=G.W,H=G.H;c.fillStyle="#3a3f4a";c.fillRect(0,0,W,H);c.fillStyle="#555b6a";c.fillRect(0,H*0.75,W,H);G.disp(22);G.text("POSTO FLORENSE · BORRACHARIA",W/2,80,"#ffd23f");
+    if(G.flat!==null){c.fillStyle="#141414";c.beginPath();if(G.flat)c.ellipse(G.cx,G.cy+G.R*0.06,G.R*1.04,G.R*0.94,0,0,Math.PI*2);else c.arc(G.cx,G.cy,G.R,0,Math.PI*2);c.fill();
+      c.strokeStyle="#2a2a2a";c.lineWidth=6;for(let k=0;k<24;k++){const a=k*Math.PI/12;c.beginPath();c.moveTo(G.cx+Math.cos(a)*G.R*0.85,G.cy+Math.sin(a)*G.R*0.85);c.lineTo(G.cx+Math.cos(a)*G.R*0.98,G.cy+Math.sin(a)*G.R*0.98);c.stroke()}
+      const rg=c.createRadialGradient(G.cx-G.R*0.15,G.cy-G.R*0.15,4,G.cx,G.cy,G.R*0.62);rg.addColorStop(0,"#f4f4f4");rg.addColorStop(1,"#8a8f96");c.fillStyle=rg;c.beginPath();c.arc(G.cx,G.cy,G.R*0.62,0,Math.PI*2);c.fill();
+      if(G.flat){c.fillStyle="#e2483d";G.font(14,900);G.text("FURADO",G.cx,G.cy+G.R*0.95,"#e2483d");c.fillStyle="#9aa1a8";c.beginPath();c.arc(G.cx+G.R*0.9,G.cy-G.R*0.1,6,0,Math.PI*2);c.fill()}
+      for(let k=0;k<5;k++){const [nx,ny]=this.nutPos(G,k);const loose=G.ph===0?G.nuts[k]:(G.ph===2?(G.nuts[k]?0:3):3);if(G.ph!==1||G.flat){c.fillStyle=loose>=3&&G.ph===0?"#ffd23f":"#cfd6de";c.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3+(G.ph===0?G.nuts[k]*0.6:0);c.lineTo(nx+Math.cos(a)*G.R*0.1,ny+Math.sin(a)*G.R*0.1)}c.closePath();c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();
+        if(G.ph===2&&!G.nuts[k]){G.font(16,900);G.text(String(STAR.indexOf(k)+1),nx,ny+6,"#e2483d")}if(G.ph===0&&G.nuts[k]<3){G.font(12,900);G.text(String(3-G.nuts[k]),nx,ny+5,"#2a2230")}}}}
+    else{G.font(18,800);G.text("Pneu fora! Coloque o estepe.",G.cx,G.cy,"#fff")}},
+  stars:G=>G.bad===0?3:G.bad<=2?2:1,win:G=>G.car>=2}}
+
 /* ============ loop ============ */
 let last=performance.now(),uiT=0,mmT=0;
 function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
@@ -1751,14 +1913,14 @@ function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
   for(const m of markers){const d=Math.hypot(m.sp.position.x-camera.position.x,m.sp.position.z-camera.position.z);m.sp.visible=d<(lowQ?220:320);const k=Math.max(1,d/45)*0.55;m.sp.scale.set(12*k,1.9*k,1)}
   animEverton();
   if(beam.visible)beam.material.opacity=0.28+Math.sin(clockT*3)*0.1;
-  updateDayNight(dt);if(!startMode)updateBirds(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
+  updateDayNight(dt);updateRain(dt);if(!startMode)updateBirds(dt);updateStreetEv(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
 function update(dt){if(miniOpen)return;
   let mx=0,my=0;if(keys.a||keys.arrowleft)mx-=1;if(keys.d||keys.arrowright)mx+=1;if(keys.w||keys.arrowup)my+=1;if(keys.s||keys.arrowdown)my-=1;
   if(joyV){mx+=joyV[0];my+=joyV[1]}
   const L=Math.hypot(mx,my);const run=(sprint||keys.shift)?1:0;const empty=riding&&VEH[riding].elec&&batOf(riding)<=0;const sp=(riding?(empty?4:VEH[riding].speed*(run?1.2:1)):(run?15:9.5))*Math.min(1,L);
   const prevX=player.x,prevY=player.y;if(L>0.08){const fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=-fz,rz=fx;const dx=(fx*my+rx*mx)/Math.max(1,L),dz=(fz*my+rz*mx)/Math.max(1,L);
     player.x+=dx*sp*dt;player.y+=dz*sp*dt;const want=Math.atan2(dx,dz);let diff=want-player.face;diff=Math.atan2(Math.sin(diff),Math.cos(diff));player.face+=diff*Math.min(1,dt*12)}
-  player.speed=L>0.08?sp:0;viaConstrain(prevX,prevY);roadConstrain(prevX,prevY);
+  player.speed=L>0.08?sp:0;viaConstrain(prevX,prevY);roadConstrain(prevX,prevY);floodConstrain(prevX,prevY);
   const pr=riding==="car"?1.3:riding?0.7:0.45;const cs=colliders.get(Math.floor(player.x/16)+","+Math.floor(player.y/16));if(cs&&player.h<1.2)for(const c of cs){const dx=player.x-c.x,dy=player.y-c.y,d=Math.hypot(dx,dy),min=c.r+pr;if(d<min&&d>0.001){player.x=c.x+dx/d*min;player.y=c.y+dy/d*min}}
   player.x=Math.max(-140,Math.min(2590,player.x));player.y=Math.max(-140,Math.min(2490,player.y));drainBat(prevX,prevY);{const mv=Math.hypot(player.x-prevX,player.y-prevY);if(mv<20){distAcc+=mv;if(distAcc>=50){distAcc-=50;track("dist",50)}}}
   const gnd=viaGround(player.x,player.y,player.h);player.gnd=gnd;player.vy-=22*dt;player.h+=player.vy*dt;if(player.h<=gnd){player.h=gnd;player.vy=0;player.onG=true}else player.onG=false;
@@ -1809,14 +1971,16 @@ function checkPlace(){
   const b=bairroAt(player.x,player.y);const w=$("#where");w.innerHTML="";w.append(document.createTextNode(best||"Fora das ruas"),el("small",{text:(b||"Ponta Grossa")+" · "+hourTxt()}));
   let near=null;for(const p of POIS){if(Math.hypot(p.x-player.x,p.y-player.y)<(p.type==="factory"?26:p.type==="school"?20:p.type==="campo"?24:p.type==="viaduto"?26:p.type==="fazenda"?28:p.type==="horta"?22:p.type==="igreja"?16:12)){near={kind:"poi",p};break}}
   if(!near){const h=homeHouse();if(Math.hypot(h.fx-player.x,h.fy-player.y)<(riding?16:6))near={kind:"home"}}
+  if(streetEv){const en=evNear();if(en)near={kind:"ev",en}}
   if(!near&&S.route){const hi=routeNear();if(hi!=null)near={kind:"route",hi}}
   if(!near&&S.visit!=null&&!mDone(MS("vizinho"))){const h=houses[S.visit];if(h&&Math.hypot(h.fx-player.x,h.fy-player.y)<6)near={kind:"visit"}}
-  if(near&&near.p)track("visit",1,near.p.id);if(S.dm&&S.dm.fresh){S.dm.fresh=false;toast("Missão do dia: "+dailyNow().m.title+". Veja em Missões!")}const key=near?(near.kind+(near.p?near.p.id:"")+(near.hi??"")):"";refreshHorta();if(key!==lastPlace){lastPlace=key;showPlace(near)}
+  if(near&&near.p)track("visit",1,near.p.id);if(S.dm&&S.dm.fresh){S.dm.fresh=false;toast("Missão do dia: "+dailyNow().m.title+". Veja em Missões!")}const key=near?(near.kind+(near.p?near.p.id:"")+(near.hi??"")+(near.en?near.en.btn:"")):"";refreshHorta();if(key!==lastPlace){lastPlace=key;showPlace(near)}
   if(waypoint){const d=Math.round(Math.hypot(waypoint.x-player.x,waypoint.y-player.y));const t=$("#track");t.hidden=false;t.innerHTML="";t.append(el("b",{text:waypoint.label||"Destino"}),document.createTextNode(d<8?"Você chegou!":d+" m · siga a luz amarela"))}else $("#track").hidden=true;
   regen();updateHUD();updateBatHUD();if(!MAIL.started){MAIL.started=true;initMail()}}
 function showPlace(near){const box_=$("#place");box_.innerHTML="";if(!near){box_.hidden=true;$("#acts").hidden=false;return}
   const acts=el("div",{class:"acts"});let title="",sub="";
   if(near.kind==="home"){title="Sua casa";sub=S.rua+" · "+S.bairro;acts.append(el("button",{class:"btn",onclick:()=>startMission("lixo")},"Separar o lixo"),el("button",{class:"btn green",onclick:openReform},"Reformar a casa"),el("button",{class:"btn blue",onclick:openPets},"Bichinhos"),el("button",{class:"btn",onclick:openCharge},"Carregar veículos"),el("button",{class:"btn "+(mailUnread()?"green":"ghost"),onclick:()=>openInbox()},"Correio"+(mailUnread()?" ("+mailUnread()+" novo"+(mailUnread()>1?"s":"")+")":"")));if(visitor&&visitor.st==="pousado")acts.append(el("button",{class:"btn blue",onclick:feedBird},visitor.fed?"Passarinho comendo...":"Dar alpiste ao passarinho ("+(S.food.seed||0)+")"))}
+  else if(near.kind==="ev"){title=near.en.title;sub=near.en.sub;acts.append(el("button",{class:"btn green",onclick:near.en.fn},near.en.btn))}
   else if(near.kind==="route"){const r=S.route;title=r.kind==="panfleto"?"Casa da vizinhança":"Casa com doação";sub=houses[near.hi].street;acts.append(el("button",{class:"btn green",onclick:()=>routeStep(near.hi)},r.kind==="panfleto"?"Entregar panfleto":"Pegar a doação"))}
   else if(near.kind==="visit"){const h=houses[S.visit];title="Casa do vizinho";sub=h.street;acts.append(el("button",{class:"btn green",onclick:()=>{complete("vizinho");beam2.visible=false;lastPlace="";showPlace(null)}},"Deixar um bom-dia"))}
   else{const p=near.p;title=p.name;sub=p.addr;for(const a of placeActions(p))acts.append(a)}
@@ -2335,7 +2499,7 @@ function drawSucata(c,it,x,y){const col=SUC_BINS[it.k][1];c.strokeStyle="#2a2230
   else if(/Balde/.test(it.n)){c.beginPath();c.moveTo(x-30,y-26);c.lineTo(x+30,y-26);c.lineTo(x+22,y+28);c.lineTo(x-22,y+28);c.closePath();c.fill();c.stroke()}
   else if(/Jornal/.test(it.n)){c.fillStyle="#f4f1e6";c.fillRect(x-40,y-30,80,56);c.strokeRect(x-40,y-30,80,56);c.fillStyle="#999";for(let k=0;k<5;k++)c.fillRect(x-32,y-22+k*10,64,4)}
   else{c.beginPath();c.moveTo(x-40,y-10);c.lineTo(x,y-30);c.lineTo(x+40,y-10);c.lineTo(x+40,y+28);c.lineTo(x-40,y+28);c.closePath();c.fill();c.stroke()}}
-const MINIS={acougue:()=>MG_ACOUGUE,prateleira:()=>MG_PRAT,caixa:()=>MG_CAIXA,posto:()=>MG_POSTO,molde:()=>MG_LINHA("pour"),solda:()=>MG_LINHA("weld"),cargas:()=>MG_CARGAS,pilha:()=>MG_PILHA,lavagem:()=>MG_LAVA,recicla:()=>MG_RECICLA};
+const MINIS={vidro:()=>MG_VIDRO(),pneu:()=>MG_GAUGE("pneu"),gnv:()=>MG_GAUGE("gnv"),oleo:()=>MG_GAUGE("oleo"),trocapneu:()=>MG_TROCA(),acougue:()=>MG_ACOUGUE,prateleira:()=>MG_PRAT,caixa:()=>MG_CAIXA,posto:()=>MG_POSTO,molde:()=>MG_LINHA("pour"),solda:()=>MG_LINHA("weld"),cargas:()=>MG_CARGAS,pilha:()=>MG_PILHA,lavagem:()=>MG_LAVA,recicla:()=>MG_RECICLA};
 
 const JOBS={
   rosas:{label:"Trabalhar no caixa",game:"caixa",items:["Arroz","Feijão","Leite","Óleo","Café"],intro:"Repor a prateleira na ordem da lista do gerente."},
@@ -2358,7 +2522,7 @@ function placeActions(p){const out=[];
     out.push(el("button",{class:"btn green",onclick:openSuggest},"Mural de ideias"),el("button",{class:"btn",onclick:()=>openDonate("cesta")},"Cesta solidária"),el("button",{class:"btn blue",onclick:()=>openTab("assoc")},"Ver a Associação"))}
   else if(p.type==="campo")out.push(el("button",{class:"btn",onclick:()=>startMission("campo")},mDone(MS("campo"))?"Já cuidou hoje":"Recolher o lixo do campo"));
   else if(p.type==="school")out.push(el("button",{class:"btn",onclick:()=>startMission("escola")},"Quiz da cidadania"));
-  else if(p.type==="viaduto")out.push(el("button",{class:"btn",onclick:openMural},"Pintar o mural"),el("button",{class:"btn green",onclick:()=>viaClean("bueiro")},"Limpar bueiros"),el("button",{class:"btn blue",onclick:()=>viaClean("entrada")},"Recolher lixo"));
+  else if(p.type==="viaduto"){if(S.flood)out.push(el("button",{class:"btn blue",onclick:unclogFlood},"Desentupir os bueiros (alagado!)"));out.push(el("button",{class:"btn",onclick:openMural},"Pintar o mural"),el("button",{class:"btn green",onclick:()=>viaClean("bueiro")},"Limpar bueiros"),el("button",{class:"btn blue",onclick:()=>viaClean("entrada")},"Recolher lixo"));}
   else if(p.type==="bus")out.push(el("button",{class:"btn blue",onclick:()=>startBus(p)},"Pegar o ônibus"));
   else if(p.type==="horta")out.push(el("button",{class:"btn green",onclick:openHorta},"Cuidar da horta"));
   else if(p.type==="fazenda")out.push(el("button",{class:"btn green",onclick:openSeedShop},"Comprar sementes"));
@@ -2372,7 +2536,7 @@ function placeActions(p){const out=[];
   else if(p.id==="garage84"){out.push(el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));if((S.vehicles||[]).includes("car"))out.push(el("button",{class:"btn",onclick:()=>{if((S.coins||0)<20)return toast("A lavagem completa custa 20 moedas");S.coins-=20;S.pts+=5;save();updateHUD();if(riding==="car"&&vehMesh)vehMesh.traverse(o=>{if(o.material&&o.material.emissive&&o.material.color.getHex()===0xF57E20)o.material.emissive.setHex(0x3a1a00)});toast("Seu carro saiu brilhando da Garage 84! +5 pontos")}},"Lavar meu carro · 20 moedas"))}
   else if(p.id==="family")out.push(el("button",{class:"btn",onclick:talkEverton},"Falar com o Everton"),el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));
   if(JOBS[p.id]){const j=JOBS[p.id];const left=JOB_COOLDOWN-(Date.now()-((S.jobs||{})[p.id]||0));
-    out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");(p.id==="rosas"||p.id==="ribas")?openMarketJobs(p):startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+((p.id==="rosas"||p.id==="ribas")?j.label:jobNextLabel(p))))}
+    out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");(p.id==="rosas"||p.id==="ribas")?openMarketJobs(p):p.id==="posto"?openPostoJobs(p):startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+((p.id==="rosas"||p.id==="ribas")?j.label:p.id==="posto"?"escolher serviço":jobNextLabel(p))))}
   return out}
 
 /* ============ sheets & minigames ============ */
@@ -2473,6 +2637,7 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
       el("p",{text:"Projetos: Atleta do Bairro (esporte para crianças e adolescentes), Capoeira Arte Viva, campanhas solidárias e de segurança alimentar, mutirões e eventos."}),
       el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
       el("p",{},el("b",{text:"Gráficos: "}),document.createTextNode(lowQ?"modo leve (para celulares mais simples). ":"modo completo, com sombras. "),el("button",{class:"btn ghost",style:"min-height:36px;padding:6px 10px",onclick:()=>{store.set("jla_lowq",!lowQ);location.reload()}},lowQ?"Usar modo completo":"Usar modo leve")),
+      el("p",{},el("b",{text:"Chuva: "}),...[["auto","Em alguns dias"],["nunca","Nunca"],["chuva","Chover agora"]].map(([k,n])=>el("button",{class:"btn "+(((S.weather||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.weather=k;save();openTab("assoc")}},n))),
       el("p",{},el("b",{text:"Dia e noite: "}),...[["auto","Automático"],["real","Hora do celular"],["dia","Sempre dia"],["noite","Sempre noite"]].map(([k,n])=>el("button",{class:"btn "+(((S.dayMode||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.dayMode=k;save();lastDayK=-1;openTab("assoc")}},n))),
       el("p",{class:"muted",text:"Mapa: dados © colaboradores do OpenStreetMap (ODbL), em 3D. As empresas aparecem porque estão no mapa público; antes do lançamento, a Associação vai pedir autorização a cada uma. Os pontos de ônibus estão em local aproximado."}),
       el("button",{class:"btn ghost",style:"margin-top:8px",onclick:()=>{if(resetArm){store.set("jla_state3d",null);location.reload()}else{resetArm=true;toast("Toque de novo para apagar seu progresso")}}},"Apagar meu progresso"))}}
@@ -2517,7 +2682,7 @@ function placeHomeFlag(){if(homeFlag)scene.remove(homeFlag);const h=homeHouse();
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:textTex("Sua casa",{w:512,h:120,bg:"#F57E20",fg:"#fff",round:56}),depthTest:false,transparent:true,fog:false}));sp.position.y=7.4;sp.scale.set(5,1.2,1);sp.renderOrder=11;g.add(sp);
   homeFlag=g;scene.add(g)}
 function enterGame(first){startMode=false;S.coins??=30;S.vehicles??=[];S.pets??=[];S.food??={dog:0,cat:0};S.house??={wall:"#efe3c8",roof:"#b8452f",muro:"#d8d2c4",level:1};$("#start").hidden=true;["#me","#mm","#tabs","#acts","#zoomc"].forEach(s=>$(s).hidden=false);
-  player.x=S.px??homeHouse().fx;player.y=S.py??homeHouse().fy;setAvatar(S.avatar);placeHomeFlag();buildHome();spawnPets();drawMural();updateViaState();updateHUD();if(S.route&&S.route.day===DAY())drawRoute();else S.route=null;setTimeout(maybePetEscape,4000);
+  player.x=S.px??homeHouse().fx;player.y=S.py??homeHouse().fy;setAvatar(S.avatar);placeHomeFlag();buildHome();spawnPets();drawMural();updateViaState();updateHUD();if(S.route&&S.route.day===DAY())drawRoute();else S.route=null;updateFlood();setTimeout(maybePetEscape,4000);
   const hh=homeHouse();yaw=Math.atan2(hh.wx-hh.fx,hh.wy-hh.fy)+Math.PI;
   if(!store.get("jla_hint",false)){$("#hint").hidden=false;setTimeout(()=>{$("#hint").hidden=true;store.set("jla_hint",true)},12000)}
   if(first)openSheet("Bem-vindo, "+S.nick+"!",el("p",{text:"Você está na frente da sua casa, na "+S.rua+" (bandeira laranja)."}),el("p",{text:"Para andar: no celular, arraste o lado esquerdo da tela; no computador, use W A S D. Arraste o lado direito para girar a câmera."}),el("p",{text:"Comece pela missão “Conheça a sede”: siga a luz amarela."}),el("button",{class:"btn",onclick:()=>goTo("assoc","sede")},"Começar"))}

@@ -24,6 +24,9 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Horta comunitária (plantas, preço, tempo de crescer, doações) | `const CROPS`, `function openHorta`, `function openDonate` |
 | Igreja, panfletos e campanha do agasalho | `function mkIgreja`, `function startRoute` |
 | Bichinho que foge para o abrigo (chance e intervalo) | `function maybePetEscape` |
+| Chuva (quantos dias chove) e viaduto alagado | `function rainyDay`, `function rainNow`, `function unclogFlood` |
+| Missões surpresa (aceitar ou não) e recompensas | `const EVENTS`, `function startEvent`, `function evNear` |
+| Serviços do posto (para-brisa, pneus, GNV, óleo, troca de pneu) | `function openPostoJobs`, `MG_VIDRO`, `MG_GAUGE`, `MG_TROCA` |
 | Ordem dos joguinhos em cada lugar | `const JOB_ROT` |
 | Veículos do lava-car (carro, moto, caminhonete, caminhão) | `LAVA_VEH`, `function vehArt` |
 | Joguinhos "pegar no ar" e "memória" e seus temas | `const THEMES`, `function MG_CATCH`, `function MG_MEMO` |
