@@ -64,6 +64,10 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Veículos só andam na rua | `function offRoad`, `function roadConstrain` |
 | Correio do Bairro (recados, frases prontas, bloqueio) | `MAIL_FRASES`, `MAIL_EXTRA`, `function openWrite`, `function openInbox` |
 | Bateria e tomada de casa (tempo de carga, alcance) | `CHARGE_MIN`, `range` em `const VEH`, `function openCharge` |
+| Servidor Firebase (chave do projeto, login anônimo) | `FB_CFG`, `function initFirebase` |
+| Ranking do mês de verdade | `function pushRank`, `function loadRanking` |
+| Convites contados de verdade | `function syncInvites` |
+| Morar junto (pedido, aceitar/recusar, reforma compartilhada) | `function claimHouse`, `function houseTaken`, `function answerReq`, `function openHouseMates` |
 
 ### Como colocar um comércio novo
 
