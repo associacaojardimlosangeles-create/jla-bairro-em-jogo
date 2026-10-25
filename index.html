@@ -189,6 +189,7 @@ label.f{display:block;font-weight:900;font-size:13px;margin:12px 0 6px}
       <p class="muted" style="margin:0 0 6px">O jogo não pede seu número de casa e não usa a localização do celular. Os outros jogadores só veem seu apelido.</p>
       <div class="err" id="ferr"></div>
       <button class="btn" id="fgo" style="width:100%;font-size:17px">Entrar no bairro</button>
+      <button class="btn blue" id="fgoogle" type="button" style="width:100%;font-size:15px;margin-top:8px">Já joguei antes? Entrar com Google</button>
     </div>
     <p class="muted" style="color:var(--muted);margin-top:14px;font-size:12px;font-weight:700">Mapa: dados © colaboradores do OpenStreetMap (ODbL). Protótipo de teste da Associação de Moradores do Jardim Los Angeles.</p>
   </div>
@@ -505,7 +506,7 @@ const ENERGY_MAX=5, ENERGY_REGEN=20*60*1000, JOB_COOLDOWN=30*60*1000, REFILL_COO
 let S=store.get("jla_state3d",null);
 const LEVELS=[[0,"Morador Novo"],[50,"Vizinho Presente"],[150,"Vizinho Solidário"],[300,"Guardião da Rua"],[600,"Embaixador do Bairro"],[1000,"Lenda do JLA"]];
 function level(p){let i=0;for(let k=0;k<LEVELS.length;k++)if(p>=LEVELS[k][0])i=k;return i}
-function save(){store.set("jla_state3d",S);if(MAIL.db){registerMorador();if(MAIL.kind==="fb"){pushRank();pushHouseStyle()}}}
+function save(){if(S)S.savedTs=Date.now();store.set("jla_state3d",S);if(MAIL.db){registerMorador();if(MAIL.kind==="fb"){pushRank();pushHouseStyle();pushCloud()}}}
 function regen(){if(!S)return;const now=Date.now();if(S.energy>=ENERGY_MAX){S.energyTs=now;return}while(S.energy<ENERGY_MAX&&now-S.energyTs>=ENERGY_REGEN){S.energy++;S.energyTs+=ENERGY_REGEN}}
 const AVATARS=[
   {skin:"#f1c27d",hair:"#3b2414",shirt:"#F57E20",pants:"#0A2240",shoe:"#ffffff",hs:0,eyes:"#3b2414"},
@@ -873,11 +874,42 @@ async function initMail(){
     if(!MAIL.first&&fresh.length)toast("Chegou recado de "+fresh[0].fromNick+"! Veja na caixa de correio da sua casa.");MAIL.first=false;mailChanged()},()=>{});
   if(MAIL.owner)db.collection("recados").where("to","==","assoc").limit(80).onSnapshot(s=>{MAIL.assoc=s.docs.map(d=>Object.assign({id:d.id},d.data())).sort(byTs);mailChanged()},()=>{});
   mailChanged();
-  if(MAIL.kind==="fb"){pushRank(true);syncInvites();claimHouse();watchRequests()}}
+  if(MAIL.kind==="fb"){if(await pullCloud()){toast("Achei um jogo mais novo na sua conta Google. Carregando...");setTimeout(()=>location.reload(),1200);return}pushCloud(true);pushRank(true);syncInvites();claimHouse();watchRequests()}}
 function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"+S.bairro;if(sig===MAIL.sig)return;MAIL.sig=sig;
   MAIL.db.doc(MAIL.pcol+"/"+MAIL.uid).set({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()}).catch(()=>{MAIL.sig=""})}
 function online(){return MAIL.kind==="fb"&&!!MAIL.db}
 
+/* ----- entrar com Google: o jogo fica salvo na conta e volta em qualquer aparelho ----- */
+function isGoogle(){try{return online()&&firebase.auth().currentUser&&!firebase.auth().currentUser.isAnonymous}catch(e){return false}}
+function googleName(){try{const u=firebase.auth().currentUser;return(u&&u.email)||""}catch(e){return""}}
+let cloudT=null;
+function pushCloud(now){if(!isGoogle()||!S)return;if(cloudT&&!now)return;clearTimeout(cloudT);cloudT=setTimeout(()=>{cloudT=null;
+  MAIL.db.doc("saves/"+MAIL.uid).set({s:JSON.stringify(S),ts:S.savedTs||Date.now()}).catch(()=>{})},now?200:20000)}
+async function pullCloud(){if(!isGoogle())return false;try{const d=await MAIL.db.doc("saves/"+MAIL.uid).get();if(!d.exists)return false;const c=d.data()||{};
+    if(S&&(c.ts||0)<=(S.savedTs||0)+3000)return false;const ns=JSON.parse(c.s);if(!ns||!ns.nick)return false;store.set("jla_state3d",ns);return true}catch(e){return false}}
+async function googleLogin(){let pre=null;
+  try{if(!online()){toast("Conectando ao servidor...");const r=await initFirebase();MAIL.db=r.db;MAIL.uid=r.uid;MAIL.kind="fb";MAIL.pcol="jogadores";pre=true}}
+  catch(e){return toast("Sem conexão com o servidor agora. Tente de novo com internet.")}
+  const auth=firebase.auth(),prov=new firebase.auth.GoogleAuthProvider();prov.setCustomParameters({prompt:"select_account"});
+  try{await auth.currentUser.linkWithPopup(prov);MAIL.uid=auth.currentUser.uid;
+    if(S){S.savedTs=Date.now();store.set("jla_state3d",S);pushCloud(true);toast("Pronto! Seu jogo agora fica salvo na conta "+googleName()+".");closeSheet()}
+    else{toast("Conta conectada! Agora crie seu personagem: ele fica salvo nessa conta.")}}
+  catch(e){
+    if(e&&(e.code==="auth/credential-already-in-use"||e.code==="auth/email-already-in-use")){
+      const cred=firebase.auth.GoogleAuthProvider.credentialFromError?firebase.auth.GoogleAuthProvider.credentialFromError(e):e.credential;
+      try{await auth.signInWithCredential(cred);MAIL.uid=auth.currentUser.uid;
+        const d=await MAIL.db.doc("saves/"+MAIL.uid).get();
+        if(d.exists){const ns=JSON.parse((d.data()||{}).s||"null");if(ns&&ns.nick){store.set("jla_state3d",ns);toast("Bem-vindo de volta, "+ns.nick+"! Carregando seu jogo...");setTimeout(()=>location.reload(),900);return}}
+        if(S){S.savedTs=Date.now();store.set("jla_state3d",S);pushCloud(true);toast("Conta conectada! Seu jogo agora fica salvo nela.");setTimeout(()=>location.reload(),900)}
+        else toast("Conta conectada! Crie seu personagem: ele fica salvo nessa conta.")}
+      catch(e2){toast("Não deu para entrar com essa conta agora. Tente de novo.")}}
+    else if(e&&(e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment"))toast("O navegador bloqueou a janela do Google. Abra o jogo pelo link do site da Associação e tente de novo.");
+    else if(e&&e.code==="auth/popup-closed-by-user"||e&&e.code==="auth/cancelled-popup-request")toast("Login cancelado.");
+    else toast("Não deu para entrar com o Google agora ("+((e&&e.code)||"erro")+").")}}
+function googleBox(){if(isGoogle())return el("div",{class:"row",style:"background:#e9f6ec;border-color:#319B27;margin:6px 0 12px"},el("div",{class:"t"},el("b",{text:"Jogo salvo na conta Google"}),el("span",{text:googleName()+" · abre em qualquer aparelho"})));
+  return el("div",{class:"row",style:"background:#fff3e8;border-color:#F57E20;margin:6px 0 12px;display:block"},el("b",{text:"Não perca seu jogo!"}),
+    el("p",{style:"margin:4px 0 8px;font-size:14px",text:"Entre com sua conta Google para salvar o progresso e continuar em outro celular. Menores de 13 anos: peça para um adulto."}),
+    el("button",{class:"btn blue",onclick:googleLogin},"Entrar com Google"))}
 /* ----- ranking do mês de verdade ----- */
 function monthKey(){return new Date().toISOString().slice(0,7)}
 let rankT=null,rankSig="";
@@ -2762,7 +2794,7 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
   if(tab==="assoc"){openSheet("Associação de Moradores",el("img",{src:LOGO_URI,alt:"Logo da Associação",style:"width:110px;float:right;margin:0 0 8px 12px;border-radius:12px"}),el("p",{},el("b",{text:"Associação de Moradores do Jardim Los Angeles"})),
       el("p",{text:"Sede: Rua Prefeito José Hoffmann, 37 – Jardim Los Angeles, Ponta Grossa/PR. Atende os bairros Jardim Los Angeles, Jardim Califórnia I, Jardim Califórnia II e Jardim Hortência."}),
       el("p",{text:"Projetos: Atleta do Bairro (esporte para crianças e adolescentes), Capoeira Arte Viva, campanhas solidárias e de segurança alimentar, mutirões e eventos."}),
-      el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
+      googleBox(),el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
       el("p",{},el("b",{text:"Gráficos: "}),document.createTextNode(lowQ?"modo leve (para celulares mais simples). ":"modo completo, com sombras. "),el("button",{class:"btn ghost",style:"min-height:36px;padding:6px 10px",onclick:()=>{store.set("jla_lowq",!lowQ);location.reload()}},lowQ?"Usar modo completo":"Usar modo leve")),
       el("p",{},el("b",{text:"Chuva: "}),...[["auto","Em alguns dias"],["nunca","Nunca"],["chuva","Chover agora"]].map(([k,n])=>el("button",{class:"btn "+(((S.weather||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.weather=k;save();openTab("assoc")}},n))),
       el("p",{},el("b",{text:"Dia e noite: "}),...[["auto","Automático"],["real","Hora do celular"],["dia","Sempre dia"],["noite","Sempre noite"]].map(([k,n])=>el("button",{class:"btn "+(((S.dayMode||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.dayMode=k;save();lastDayK=-1;openTab("assoc")}},n))),
@@ -2797,7 +2829,7 @@ function setupStart(){$("#startlogo").src=LOGO_URI;const sel=$("#fbairro");MY_BA
   const fg=$("#fgen");const drawGen=()=>{fg.innerHTML="";GENS.forEach(([k,n])=>fg.append(el("button",{type:"button",class:"btn "+(chosenGen===k?"":"ghost"),style:"flex:1;min-height:40px;padding:6px 8px","aria-pressed":chosenGen===k?"true":"false",onclick:()=>{chosenGen=k;drawGen();setAvatar(chosenAv)}},n)))};drawGen();
   const avs=$("#favs");AVATARS.forEach((a,i)=>{const b=el("button",{class:"av"+(i===0?" on":""),"aria-label":"Personagem "+(i+1),style:`background:linear-gradient(${a.hair} 0 18%,${a.skin} 18% 46%,${a.shirt} 46% 78%,${a.pants} 78%)`,onclick:()=>{chosenAv=i;avs.querySelectorAll(".av").forEach((x,k)=>x.classList.toggle("on",k===i));setAvatar(i)}});avs.append(b)});
   const inv=(location.hash||"").replace("#","");if(/^JLA-[A-Z0-9]{3,12}$/i.test(inv)){const t=$("#invitedBy");t.hidden=false;t.textContent="Convite do código "+inv.toUpperCase()}
-  $("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
+  $("#fgoogle").addEventListener("click",()=>googleLogin());$("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
     if(nick.length<2)return err.textContent="Escolha um apelido com pelo menos 2 letras.";if(!$("#frua").value)return err.textContent="Escolha sua rua.";if(!$("#fage").checked)return err.textContent="Confirme a idade ou que está jogando com um adulto.";
     const rua=$("#frua").value;const hs=houses.map((h,i)=>[h,i]).filter(([h])=>h.street===rua);const home=hs[hashStr(nick)%hs.length][1];
     const code="JLA-"+(nick.normalize("NFD").replace(/[^A-Za-z]/g,"").toUpperCase().slice(0,5)||"VIZ")+(hashStr(nick+rua)%90+10);

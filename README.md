@@ -68,6 +68,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Ranking do mês de verdade | `function pushRank`, `function loadRanking` |
 | Convites contados de verdade | `function syncInvites` |
 | Morar junto (pedido, aceitar/recusar, reforma compartilhada) | `function claimHouse`, `function houseTaken`, `function answerReq`, `function openHouseMates` |
+| Entrar com Google e jogo salvo na conta | `function googleLogin`, `function pushCloud`, `function pullCloud` |
 
 ### Como colocar um comércio novo
 
