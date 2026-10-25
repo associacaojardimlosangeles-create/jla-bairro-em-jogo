@@ -427,7 +427,7 @@ const POIS = [
   {id:"horta", type:"horta", name:"Horta Comunitária", addr:"Residencial Hortência · plante, colha e doe", x:600, y:-80},
   {id:"igreja", type:"igreja", name:"Igreja da Rua Alziro Zarur", addr:"Rua Alziro Zarur · panfletos e campanha do agasalho", x:1274, y:1101},
   {id:"ribas", type:"shop", name:"Mercado Ribas", addr:"Rua Alziro Zarur, esquina com a Rua Pedro Mezzomo", x:1298, y:1135, roof:"#008CE3", sign:"MERCADO RIBAS"},
-  {id:"ibera", type:"fazenda", name:"Fazenda Iberá · Sementes", addr:"Lá em cima, depois do Hortência · compre sementes para a horta", x:830, y:-120},
+  {id:"ibera", type:"fazenda", name:"Fazenda Iberá · Sementes", addr:"No fim da Rua Salvador Bueno de Cristo, lá em cima · compre sementes para a horta", x:1072, y:150},
   {id:"abrigo", type:"shelter", name:"Abrigo Amigo Bicho", addr:"Do jogo · adote um cachorro ou um gato", x:1450, y:1289},
 ];
 const MY_BAIRROS = ["Jardim Los Angeles I","Jardim Los Angeles II","Jardim Califórnia I","Jardim Califórnia II","Residencial Hortência"];
@@ -1493,7 +1493,10 @@ function initAudio(){if(AC)return;try{AC=new (window.AudioContext||window.webkit
   AU.sfx=AC.createGain();AU.sfx.gain.value=0.55;AU.sfx.connect(AU.master);AU.music=AC.createGain();AU.music.gain.value=0;AU.music.connect(AU.master);
   const len=AC.sampleRate*1.5,buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;AU.noise=buf;
   const rv=AC.createConvolver();const il=AC.sampleRate*1.8,ib=AC.createBuffer(2,il,AC.sampleRate);for(let ch=0;ch<2;ch++){const x=ib.getChannelData(ch);for(let i=0;i<il;i++)x[i]=(Math.random()*2-1)*Math.pow(1-i/il,3)}rv.buffer=ib;AU.rv=AC.createGain();AU.rv.gain.value=0.22;rv.connect(AU.rv);AU.rv.connect(AU.master);AU.rvIn=rv;
-  AU.eng=AC.createOscillator();AU.eng.type="sawtooth";AU.engF=AC.createBiquadFilter();AU.engF.type="lowpass";AU.engF.frequency.value=600;AU.engG=AC.createGain();AU.engG.gain.value=0;AU.eng.connect(AU.engF);AU.engF.connect(AU.engG);AU.engG.connect(AU.sfx);AU.eng.start();
+  /* motor elétrico: zumbido suave que sobe com a velocidade + barulho dos pneus no asfalto */
+  AU.eng=AC.createOscillator();AU.eng.type="sine";AU.eng2=AC.createOscillator();AU.eng2.type="triangle";AU.engF=AC.createBiquadFilter();AU.engF.type="lowpass";AU.engF.frequency.value=1800;AU.engG=AC.createGain();AU.engG.gain.value=0;
+  const g2=AC.createGain();g2.gain.value=0.35;AU.eng.connect(AU.engF);AU.eng2.connect(g2);g2.connect(AU.engF);AU.engF.connect(AU.engG);AU.engG.connect(AU.sfx);AU.eng.start();AU.eng2.start();
+  AU.road=AC.createBufferSource();AU.road.buffer=AU.noise;AU.road.loop=true;AU.roadF=AC.createBiquadFilter();AU.roadF.type="lowpass";AU.roadF.frequency.value=380;AU.roadG=AC.createGain();AU.roadG.gain.value=0;AU.road.connect(AU.roadF);AU.roadF.connect(AU.roadG);AU.roadG.connect(AU.sfx);AU.road.start();
   AU.nextBeat=AC.currentTime+0.2;AU.step=0;applySound()}
 function applySound(){if(!AC)return;const m=audioOn();AU.master.gain.setTargetAtTime(m?0.9:0,AC.currentTime,0.05);AU.music.gain.setTargetAtTime(m===2?0.16:0,AC.currentTime,0.4);const b=$("#bsnd");if(b)b.textContent=["Mudo","Efeitos","Som"][m]}
 function tone(f,t0,dur,type="sine",vol=0.3,f2,dest){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+dur);
@@ -1535,8 +1538,8 @@ function musicTick(){if(!AC||audioOn()<2)return;const night=lastDayK>0.5,bpm=nig
 let stepIdx=0,petSndT=8;
 function audioUpdate(dt){if(!AC)return;musicTick();if(!S||startMode)return;
   const motor=riding&&riding!=="bike";const sp=player.speed||0;
-  if(motor&&audioOn()&&!miniOpen){const base=riding==="car"?90:riding==="emoto"?140:200;AU.eng.frequency.setTargetAtTime(base+sp*7,AC.currentTime,0.08);AU.engF.frequency.setTargetAtTime(500+sp*40,AC.currentTime,0.1);AU.engG.gain.setTargetAtTime(sp>0.5?0.05:0.015,AC.currentTime,0.15)}
-  else AU.engG.gain.setTargetAtTime(0,AC.currentTime,0.1);
+  if(motor&&audioOn()&&!miniOpen){const t=AC.currentTime,k=Math.min(1,sp/40),base=riding==="car"?160:riding==="emoto"?220:riding==="patinete"?320:260;AU.eng.frequency.setTargetAtTime(base+k*520,t,0.25);AU.eng2.frequency.setTargetAtTime((base+k*520)*1.5,t,0.25);AU.engG.gain.setTargetAtTime(sp>0.5?0.012+k*0.02:0.004,t,0.3);AU.roadG.gain.setTargetAtTime(sp>0.5?(riding==="car"?0.05:0.03)*k+0.005:0,t,0.3);AU.roadF.frequency.setTargetAtTime(250+k*500,t,0.3)}
+  else{AU.engG.gain.setTargetAtTime(0,AC.currentTime,0.15);AU.roadG.gain.setTargetAtTime(riding==="bike"&&sp>0.5?0.02:0,AC.currentTime,0.2)}
   if(!riding&&player.onG&&sp>0.5&&!miniOpen){const k=Math.floor(player.phase/Math.PI);if(k!==stepIdx){stepIdx=k;sfx("step",sp>12)}}
   petSndT-=dt;if(petSndT<=0){petSndT=18+Math.random()*25;const out=petEnts.filter(e=>!e.p.home);if(out.length){const e=out[Math.floor(Math.random()*out.length)];sfx(e.p.type==="cat"?"meow":"bark")}}}
 addEventListener("pointerdown",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume()},{passive:true});addEventListener("keydown",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume()});
@@ -1804,7 +1807,7 @@ function homeHouse(){return houses[S.home]}
 function checkPlace(){
   let best=null,bd=30;for(const sg of roadSegs){const d=segProj(player.x,player.y,sg.ax,sg.ay,sg.cx,sg.cy).d;if(d<bd){bd=d;best=sg.name}}
   const b=bairroAt(player.x,player.y);const w=$("#where");w.innerHTML="";w.append(document.createTextNode(best||"Fora das ruas"),el("small",{text:(b||"Ponta Grossa")+" · "+hourTxt()}));
-  let near=null;for(const p of POIS){if(Math.hypot(p.x-player.x,p.y-player.y)<(p.type==="factory"?26:p.type==="school"?20:p.type==="campo"?24:p.type==="viaduto"?26:12)){near={kind:"poi",p};break}}
+  let near=null;for(const p of POIS){if(Math.hypot(p.x-player.x,p.y-player.y)<(p.type==="factory"?26:p.type==="school"?20:p.type==="campo"?24:p.type==="viaduto"?26:p.type==="fazenda"?28:p.type==="horta"?22:p.type==="igreja"?16:12)){near={kind:"poi",p};break}}
   if(!near){const h=homeHouse();if(Math.hypot(h.fx-player.x,h.fy-player.y)<(riding?16:6))near={kind:"home"}}
   if(!near&&S.route){const hi=routeNear();if(hi!=null)near={kind:"route",hi}}
   if(!near&&S.visit!=null&&!mDone(MS("vizinho"))){const h=houses[S.visit];if(h&&Math.hypot(h.fx-player.x,h.fy-player.y)<6)near={kind:"visit"}}
