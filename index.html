@@ -1707,7 +1707,7 @@ function makeChar(av){const g=new THREE.Group();const OUT=new THREE.MeshBasicMat
     const st=av.shoeType||0;
     if(st===1){add(C_(0.105,0.1,0.26),av.shoe,0,-0.6,0,hip);add(S_(0.13),av.shoe,0,-0.74,0.05,hip,true,[0.95,0.55,1.45])}
     else if(st===2){add(S_(0.11),sk,0,-0.72,0.05,hip,true,[0.9,0.5,1.4]);add(new THREE.BoxGeometry(0.2,0.04,0.36),av.shoe,0,-0.79,0.05,hip,false);add(new THREE.BoxGeometry(0.2,0.03,0.04),av.shoe,0,-0.72,0.12,hip,false)}
-    else{add(S_(0.14),av.shoe,0,-0.72,0.05,hip,true,[1,0.62,1.5]);add(new THREE.CylinderGeometry(0.125,0.125,0.05,16),"#f4f1e6",0,-0.79,0.05,hip,false,[1,1,1.55]);flat(new THREE.BoxGeometry(0.14,0.02,0.02),0x2a2230,0,-0.66,0.2,hip)}
+    else{add(S_(0.155),av.shoe,0,-0.71,0.06,hip,true,[1.02,0.66,1.55]);add(new THREE.CylinderGeometry(0.14,0.14,0.07,16),"#f4f1e6",0,-0.79,0.06,hip,false,[1,1,1.6]);add(new THREE.BoxGeometry(0.03,0.07,0.2),acc,s*0.15,-0.71,0.06,hip,false);flat(new THREE.BoxGeometry(0.15,0.022,0.022),0x2a2230,0,-0.64,0.22,hip);flat(new THREE.BoxGeometry(0.13,0.022,0.022),0x2a2230,0,-0.62,0.17,hip)}
     legs.push(hip)}
   /* quadril, saia */
   add(S_(0.26,20,14),dress?sh:(bot===2?sk:pa),0,0.86,0,body,true,[1.05,0.5,0.8]);
@@ -1726,13 +1726,13 @@ function makeChar(av){const g=new THREE.Group();const OUT=new THREE.MeshBasicMat
   add(C_(0.085,0.095,0.16,12),sk,0,1.66,0,body,false);
   charBag(av,add,body);
   /* braços */
-  for(const s of[-1,1]){const shd=new THREE.Group();shd.position.set(s*(fem?0.31:0.33),1.5,0);shd.rotation.z=s*0.1;body.add(shd);
+  for(const s of[-1,1]){const shd=new THREE.Group();shd.position.set(s*(fem?0.31:0.33),1.5,0);shd.rotation.z=s*0.17;body.add(shd);
     if(top===1){add(S_(0.09),sk,0,0,0,shd,false);add(C_(0.075,0.07,0.3),sk,0,-0.16,0,shd)}
     else{add(S_(0.115),sh,0,-0.01,0,shd,false);add(C_(0.1,0.095,top===2?0.5:0.24),sh,0,top===2?-0.24:-0.11,0,shd,false);if(top!==2)add(C_(0.072,0.068,0.28),sk,0,-0.36,0,shd);else add(new THREE.TorusGeometry(0.085,0.02,6,14),dark,0,-0.49,0,shd,false).rotation.x=Math.PI/2}
     if(top===1)add(C_(0.07,0.066,0.28),sk,0,-0.4,0,shd);
     add(S_(0.09),sk,0,-0.56,0.01,shd,true,[1,1.05,0.9]);arms.push(shd)}
   /* cabeça */
-  const head=new THREE.Group();head.position.y=2.02;body.add(head);
+  const head=new THREE.Group();head.position.y=2.04;head.scale.setScalar(1.07);body.add(head);
   add(S_(0.46,30,24),sk,0,0,0,head,true,[1.05,0.97,0.98],1.04);
   for(const s of[-1,1]){add(S_(0.085,12,10),sk,s*0.47,-0.04,0,head,false,[0.55,1,0.9]);if(av.ear)flat(S_(0.032,8,6),0xffd23f,s*0.48,-0.15,0.02,head)}
   const ink=0x2a1a12,eyeC=new THREE.Color(av.eyes||"#3b2414").getHex();
@@ -1745,7 +1745,7 @@ function makeChar(av){const g=new THREE.Group();const OUT=new THREE.MeshBasicMat
     flat(new THREE.CircleGeometry(0.065,16),0xff8f8f,s*0.28,-0.15,0.38,head,[1,0.65,1],0.45).rotation.y=s*0.62;
     if(av.frk)for(const [dx,dy] of[[0,0],[0.04,0.03],[0.05,-0.025]])flat(S_(0.011,6,5),0xa0522d,s*(0.25+dx),-0.1+dy,0.405,head)}
   flat(S_(0.032,10,8),new THREE.Color(sk).multiplyScalar(0.82).getHex(),0,-0.1,0.455,head);
-  const mouth=new THREE.Mesh(new THREE.TorusGeometry(0.07,0.017,6,16,Math.PI),new THREE.MeshBasicMaterial({color:0x7a2e22}));mouth.position.set(0,-0.19,0.435);mouth.rotation.z=Math.PI;head.add(mouth);
+  const mouth=new THREE.Mesh(new THREE.TorusGeometry(0.082,0.019,6,16,Math.PI),new THREE.MeshBasicMaterial({color:0x7a2e22}));mouth.position.set(0,-0.19,0.435);mouth.rotation.z=Math.PI;head.add(mouth);
   if(fem)flat(new THREE.CircleGeometry(0.03,12),0xe2607a,0,-0.235,0.428,head,[1.4,0.55,1]);
   charHair(av,add,head);charHat(av,add,flat,head,acc);charGlasses(av,flat,head);
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.55,16),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.25,depthWrite:false}));shadow.rotation.x=-Math.PI/2;
@@ -2219,7 +2219,7 @@ function MG_GAUGE(kind){const K={pneu:{title:"Calibrar os pneus",unit:"psi",max:
       c.strokeStyle="#2a2230";c.lineWidth=2;for(let k=0;k<=10;k++){const a=ang(k*K.max/10);c.beginPath();c.moveTo(gx+Math.cos(a)*(R-4),gy+Math.sin(a)*(R-4));c.lineTo(gx+Math.cos(a)*(R-14),gy+Math.sin(a)*(R-14));c.stroke()}
       const a=ang(G.v);c.strokeStyle="#e2483d";c.lineWidth=4;c.beginPath();c.moveTo(gx,gy);c.lineTo(gx+Math.cos(a)*(R-18),gy+Math.sin(a)*(R-18));c.stroke();c.fillStyle="#2a2230";c.beginPath();c.arc(gx,gy,7,0,Math.PI*2);c.fill();
       G.disp(20);G.text(Math.round(G.v)+" "+K.unit,gx,gy+R*0.55,"#0A2240")}
-    c.fillStyle="#fff";RR(c,W*0.06,H*0.12,Math.min(260,W*0.5),56,14);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2.5;c.stroke();G.font(14,800);G.text(kind==="oleo"?"Encher até entre MÍN e MÁX":"Quero "+G.target+" "+K.unit+(kind==="pneu"?" nesse pneu":""),W*0.06+Math.min(130,W*0.25),H*0.12+34,"#0A2240")},
+    const qy=Math.max(H*0.12,96),qh=H<450?44:56;c.fillStyle="#fff";RR(c,W*0.06,qy,Math.min(260,W*0.5),qh,14);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2.5;c.stroke();G.font(14,800);G.text(kind==="oleo"?"Encher até entre MÍN e MÁX":"Quero "+G.target+" "+K.unit+(kind==="pneu"?" nesse pneu":""),W*0.06+Math.min(130,W*0.25),qy+qh/2+5,"#0A2240")},
   stars:G=>G.bad===0?3:G.bad<=1?2:1,win:G=>G.good>=K.rounds-1}}
 /* lavar o para-brisa: espuma e rodo */
 function MG_VIDRO(){return{title:"Lavar o para-brisa",time:70,help:["Passe o dedo no vidro: primeiro a ÁGUA COM SABÃO para soltar a sujeira e os mosquitos, depois o RODO para secar.","Deixe 3 para-brisas limpinhos!"],
@@ -2399,7 +2399,7 @@ const COUNTER={
     pool:["pz_mussarela","pz_calabresa","pz_marguerita","pz_frango","pz_portuguesa","pz_chocolate","refri"],items:["pz_mussarela","pz_calabresa","pz_marguerita","pz_frango","pz_portuguesa","pz_chocolate","refri","suco"]}};
 function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
   const wrap=el("div",{id:"cgame",style:"position:fixed;inset:0;z-index:80;background:#1d1d1d;touch-action:none"});const cv=el("canvas",{style:"width:100%;height:100%;display:block"});
-  const quit=el("button",{class:"btn ghost",style:"position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:36px;padding:4px 12px;background:#fff",onclick:()=>end(true)},"Sair");
+  const quit=el("button",{class:"btn ghost",style:"position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:36px;padding:4px 14px;background:#fff;color:#0A2240;border:2px solid #0A2240;font-weight:900;box-shadow:0 3px 0 #0A224088",onclick:()=>end(true)},"Sair");
   wrap.append(cv,quit);document.body.append(wrap);miniOpen=true;keys&&Object.keys(keys).forEach(k=>keys[k]=false);
   const c=cv.getContext("2d");let W=0,H=0,dpr=1;const fit=()=>{dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;c.setTransform(dpr,0,0,dpr,0,0)};fit();addEventListener("resize",fit);
   const pal={skin:LOOKS.skin,hair:LOOKS.hair,shirt:LOOKS.shirt};const rnd=a=>a[Math.floor(Math.random()*a.length)];
@@ -2513,14 +2513,14 @@ function clockIcon(c,x,y){c.strokeStyle="#fff";c.lineWidth=2;c.beginPath();c.arc
 function star5(c,x,y,r,fill){c.beginPath();for(let k=0;k<10;k++){const a=-Math.PI/2+k*Math.PI/5,rr=k%2?r*0.45:r;c.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}c.closePath();c.fillStyle=fill;c.fill();c.strokeStyle="#2a2230";c.lineWidth=2.5;c.stroke()}
 function miniGame(cfg,cb){
   const wrap=el("div",{id:"mgame",style:"position:fixed;inset:0;z-index:80;background:#0A2240;touch-action:none;user-select:none;-webkit-user-select:none"});const cv=el("canvas",{style:"width:100%;height:100%;display:block"});
-  const quit=el("button",{class:"btn ghost",style:"position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:36px;padding:4px 12px;background:#fff",onclick:()=>end(true)},"Sair");
+  const quit=el("button",{class:"btn ghost",style:"position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:36px;padding:4px 14px;background:#fff;color:#0A2240;border:2px solid #0A2240;font-weight:900;box-shadow:0 3px 0 #0A224088",onclick:()=>end(true)},"Sair");
   wrap.append(cv,quit);document.body.append(wrap);miniOpen=true;if(typeof keys==="object")Object.keys(keys).forEach(k=>keys[k]=false);if(typeof sfx==="function")sfx("open");
   const c=cv.getContext("2d");const G={c,W:0,H:0,t:0,time:cfg.time||60,started:false,over:false,msg:"",msgT:0,floats:[],buttons:[],good:0,bad:0,ptr:null,conf:[],parts:[]};
   const fit=()=>{const d=Math.min(2.5,devicePixelRatio||1);G.W=innerWidth;G.H=innerHeight;cv.width=Math.round(G.W*d);cv.height=Math.round(G.H*d);c.setTransform(d,0,0,d,0,0);c.imageSmoothingQuality="high";cfg.resize&&cfg.resize(G)};fit();addEventListener("resize",fit);
   G.say=m=>{G.msg=m;G.msgT=1.9};G.float=(s,x,y,col)=>G.floats.push({s,x,y,t:1,col:col||"#ffd23f"});
   G.finish=()=>{if(G.over)return;G.over=true;G.endT=0;const w=cfg.win(G);if(typeof sfx==="function")sfx(w?"win":"lose");if(w)for(let k=0;k<90;k++)G.conf.push({x:G.W/2+(Math.random()-.5)*60,y:G.H*0.4,vx:(Math.random()-.5)*700,vy:-200-Math.random()*500,r:Math.random()*6,col:["#F57E20","#008CE3","#319B27","#ffd23f","#e2483d","#ff8fb3"][k%6]});setTimeout(()=>end(false),2300)};
   G.font=(px,w=800)=>c.font=w+" "+px+"px 'Nunito','Inter',system-ui,sans-serif";G.disp=px=>c.font="400 "+px+"px "+getComputedStyle(document.body).getPropertyValue("--display");
-  G.text=(s,x,y,col,al)=>{c.fillStyle=col||"#2a2230";c.textAlign=al||"center";c.fillText(s,x,y);c.textAlign="center"};
+  G.text=(s,x,y,col,al)=>{c.fillStyle=col||"#2a2230";c.textAlign=al||"center";const mw=al==="left"?G.W-x-8:al==="right"?x-8:Math.min(G.W-16,2*Math.min(x,G.W-x)-8);c.fillText(s,x,y,Math.max(40,mw));c.textAlign="center"};
   G.burst=(x,y,col,n=14,sp=260)=>{for(let k=0;k<n;k++){const a=Math.random()*Math.PI*2,v=sp*(0.4+Math.random()*0.6);G.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-80,t:0.7,col,r:2+Math.random()*3})}};
   let ended=false;
   function end(quitting){if(ended)return;ended=true;miniOpen=false;removeEventListener("resize",fit);wrap.remove();if(quitting&&!G.good){toast("Você saiu do serviço.");return}cb(!quitting&&cfg.win(G))}
@@ -2608,7 +2608,7 @@ const MG_CAIXA={title:"Caixa do mercado",time:90,icon:(c,x,y,s)=>{drawProd(c,PRO
     G.font(12,800);G.text("TOTAL",sx+12,sy+20,"#9fd3f5","left");G.disp(22);G.text(money(G.total),sx+12,sy+46,"#5fe36a","left");
     if(G.phase==="troco"||G.phase==="paga"){G.font(13,800);G.text("Pagou "+money(G.paid)+"  ·  TROCO "+money(G.change),sx+12,sy+72,"#ffd23f","left");G.font(12,700);G.text("Você deu: "+money(G.given),sx+12,sy+89,"#fff","left")}
     if(G.phase==="paga"&&cu){const bx=W*G.custX+40,by=G.beltY-200;c.fillStyle="#7fbf6a";c.save();c.translate(bx,by);c.rotate(-0.15);RR(c,0,0,90,44,6);c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();G.font(14,900);G.text("R$ "+G.paid,45,28,"#1f4a17");c.restore()}
-    if(G.phase==="scan"&&G.t<6){G.font(14,800);G.text("Arraste o produto até o leitor →  ← e solte na sacola",W/2,G.beltY+56,"#6b4a2f")}},
+    if(G.phase==="scan"&&G.t<6){const tw=Math.min(W-20,420);c.fillStyle="rgba(10,34,64,.85)";RR(c,W/2-tw/2,58,tw,30,15);c.fill();G.font(W<500?12:14,800);G.text("Arraste o produto até o leitor e solte na sacola",W/2,78,"#fff")}},
   stars:G=>G.good>=4?3:G.good>=3?2:1,
   win:G=>G.ci>=4&&G.good>=3};
 /* ---------- açougue (pesar a carne certa) ---------- */
@@ -2983,7 +2983,7 @@ function MG_FORNO(){const ROUNDS=5;const next=G=>{G.r++;if(G.r>=ROUNDS)return G.
     if(G.wait<=0){drawPizzaTop(c,ox,oy-OR*0.06,OR*0.3,G.fl,G.seed,G.v/0.82)}
     const bx=W*0.1,bw=W*0.8,by=H*0.12;c.fillStyle="#fff";RR(c,bx,by,bw,24,12);c.fill();c.fillStyle="rgba(49,155,39,.8)";c.fillRect(bx+bw*0.72/1.15,by,bw*(0.18/1.15),24);
     c.fillStyle="rgba(226,72,61,.6)";c.fillRect(bx+bw*(1/1.15),by,bw*(0.15/1.15),24);const px=bx+bw*Math.min(1,G.v/1.15);c.fillStyle="#0A2240";c.fillRect(px-3,by-8,6,40);
-    G.font(13,900);G.text("CRUA",bx+30,by+52,"#fff");G.text("NO PONTO",bx+bw*(0.81/1.15),by+52,"#9be36a");G.text("QUEIMADA",bx+bw-36,by+52,"#ffb3a8")},
+    G.font(13,900);G.font(W<500?11:13,900);G.text("CRUA",bx,by+46,"#fff","left");G.text("NO PONTO",bx+bw*(0.81/1.15),by+46,"#9be36a");G.text("QUEIMOU",bx+bw,by+46,"#ffb3a8","right")},
   stars:G=>G.bad===0?3:G.bad<=1?2:1,win:G=>G.good>=ROUNDS-1}}
 function openIlseJobs(p){const opt=(t,d,fn,col)=>el("button",{class:"btn "+col,style:"display:block;width:100%;margin:8px 0;text-align:left;padding:12px 14px",onclick:()=>{closeSheet();fn()}},el("b",{text:t,style:"display:block;font-size:17px"}),el("span",{text:d,style:"font-weight:600;font-size:13px;opacity:.9"}));
   const f=S.fetch,r=S.route&&S.route.kind==="pizza"?S.route:null;
