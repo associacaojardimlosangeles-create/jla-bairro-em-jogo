@@ -911,8 +911,8 @@ async function initMail(){
   if(MAIL.owner)db.collection("recados").where("to","==","assoc").limit(80).onSnapshot(s=>{MAIL.assoc=s.docs.map(d=>Object.assign({id:d.id},d.data())).sort(byTs);mailChanged()},()=>{});
   mailChanged();
   if(MAIL.kind==="fb"){setTimeout(watchFriends,1500);if(await pullCloud()){toast("Achei um jogo mais novo na sua conta Google. Carregando...");setTimeout(()=>location.reload(),1200);return}pushCloud(true);pushRank(true);syncInvites();claimHouse();watchRequests()}}
-function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"+S.bairro+"|"+S.code;if(sig===MAIL.sig)return;MAIL.sig=sig;
-  MAIL.db.doc(MAIL.pcol+"/"+MAIL.uid).set(Object.assign({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()},MAIL.kind==="fb"?{code:S.code}:{})).catch(()=>{MAIL.sig=""})}
+function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"+S.bairro+"|"+S.code+"|nl";if(sig===MAIL.sig)return;MAIL.sig=sig;
+  MAIL.db.doc(MAIL.pcol+"/"+MAIL.uid).set(Object.assign({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()},MAIL.kind==="fb"?{code:S.code,nl:normNick(S.nick)}:{})).catch(()=>{MAIL.sig=""})}
 function online(){return MAIL.kind==="fb"&&!!MAIL.db}
 
 /* ============ instalar o jogo como aplicativo (ícone na tela do celular) ============ */
@@ -990,12 +990,24 @@ async function addFriend(code,err){code=String(code||"").trim().toUpperCase();if
   if(code===S.code)return err.textContent="Esse é o seu próprio código!";if(!online())return err.textContent="Abra o jogo pelo link bairroemjogo.web.app com internet.";
   err.textContent="Procurando...";try{const s=await MAIL.db.collection("jogadores").where("code","==",code).limit(3).get();const d=s.docs.find(x=>x.id!==MAIL.uid);
     if(!d)return err.textContent="Não achei ninguém com esse código. A pessoa precisa abrir o jogo uma vez pelo link bairroemjogo.web.app.";
-    const other=d.id,nick=String((d.data()||{}).nick||"Morador").slice(0,16),id=pairId(MAIL.uid,other),ref=MAIL.db.doc("amigos/"+id);let ex=null;try{const g=await ref.get();ex=g.exists?g.data():null}catch(e){}
+    await askFriend(d.id,String((d.data()||{}).nick||"Morador").slice(0,16),err)}catch(e){err.textContent="Não deu agora. Confira a internet e tente de novo."}}
+function normNick(n){return String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim()}
+async function askFriend(other,nick,err){try{const id=pairId(MAIL.uid,other),ref=MAIL.db.doc("amigos/"+id);let ex=null;try{const g=await ref.get();ex=g.exists?g.data():null}catch(e){}
     if(ex&&ex.status==="aceito")return err.textContent="Vocês já são amigos!";if(ex&&ex.de===other){await ref.update({status:"aceito",["nicks."+MAIL.uid]:S.nick});err.textContent="";toast("Agora você e "+nick+" são amigos!");return openFriends()}
     if(ex)return err.textContent="Você já mandou o pedido. Espere "+nick+" aceitar.";
-    await ref.set({membros:[MAIL.uid,other],nicks:{[MAIL.uid]:S.nick,[other]:nick},de:MAIL.uid,status:"pendente",ts:Date.now()});err.textContent="";toast("Pedido de amizade enviado para "+nick+"!");openFriends()}
+    await ref.set({membros:[MAIL.uid,other],nicks:{[MAIL.uid]:S.nick,[other]:nick},de:MAIL.uid,status:"pendente",ts:Date.now()});err.textContent="";toast("Convite de amizade enviado para "+nick+"!");openFriends()}
   catch(e){err.textContent="Não deu agora. Confira a internet e tente de novo."}}
+/* busca pelo apelido: só mostra quem combina com o que foi digitado (mínimo 3 letras), nunca a lista inteira */
+async function searchPlayers(q,box,err){q=normNick(q);box.innerHTML="";err.textContent="";if(q.length<3)return err.textContent="Digite pelo menos 3 letras do apelido.";if(!online())return err.textContent="Abra o jogo pelo link bairroemjogo.web.app com internet.";
+  try{const s=await MAIL.db.collection("jogadores").where("nl",">=",q).where("nl","<=",q+"\uf8ff").limit(8).get();const res=s.docs.filter(d=>d.id!==MAIL.uid);
+    if(!res.length)return err.textContent="Ninguém encontrado com esse apelido. A pessoa precisa ter aberto o jogo pelo link bairroemjogo.web.app.";
+    for(const d of res){const x=d.data()||{},nick=String(x.nick||"Morador").slice(0,16),f=FR.list.find(z=>z.other===d.id);
+      box.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:nick}),el("span",{text:String(x.bairro||"")})),
+        f?el("span",{class:"tag",text:f.status==="aceito"?"Já é amigo":"Pedido enviado"}):el("button",{class:"btn green",style:"min-height:34px;padding:5px 10px;font-size:13px",onclick:()=>askFriend(d.id,nick,err)},"Convidar para ser amigo")))}}
+  catch(e){err.textContent="Não deu para buscar agora. Tente de novo."}}
 function openFriends(){const inp=el("input",{class:"inp",placeholder:"Código do amigo: JLA-XXXX",maxlength:"16",style:"text-transform:uppercase"});const err=el("div",{class:"err"});const list=el("div",{class:"list"});
+  const sq=el("input",{class:"inp",placeholder:"Digite o apelido do amigo",maxlength:"16"}),serr=el("div",{class:"err"}),sres=el("div",{class:"list",style:"margin-top:6px"});
+  sq.addEventListener("keydown",e=>{if(e.key==="Enter")searchPlayers(sq.value,sres,serr)});
   const acc=FR.list.filter(f=>f.status==="aceito"),pin=FR.list.filter(f=>f.status==="pendente"&&f.de!==MAIL.uid),pout=FR.list.filter(f=>f.status==="pendente"&&f.de===MAIL.uid);
   const sb={style:"min-height:34px;padding:5px 10px;font-size:13px"};
   for(const f of pin)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:"quer ser seu amigo"})),el("button",Object.assign({class:"btn green",onclick:()=>answerFriend(f,true).then(openFriends)},sb),"Aceitar"),el("button",Object.assign({class:"btn ghost",onclick:()=>answerFriend(f,false).then(openFriends)},sb),"Recusar")));
@@ -1005,9 +1017,10 @@ function openFriends(){const inp=el("input",{class:"inp",placeholder:"Código do
   for(const f of pout)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:"pedido enviado, esperando aceitar"}))));
   if(!FR.list.length)list.append(el("p",{class:"muted",text:"Você ainda não tem amigos no jogo. Passe seu código para quem você conhece!"}));
   openSheet("Amigos no jogo",!online()?el("p",{class:"err",text:"Amigos funcionam quando o jogo é aberto pelo link bairroemjogo.web.app, com internet."}):null,
-    el("p",{text:"Seu código de amigo:"}),el("div",{class:"code",text:S.code}),
-    el("p",{style:"margin:10px 0 4px;font-size:14px",text:"Amigos e quem mora com você aparecem andando no seu bairro. Ninguém mais vê onde você está."}),
-    inp,err,el("button",{class:"btn",style:"margin-top:6px",onclick:()=>addFriend(inp.value,err)},"Adicionar amigo"),el("div",{style:"margin-top:12px"},list),
+    el("p",{style:"margin:0 0 8px;font-size:14px",text:"Amigos e quem mora com você aparecem andando no seu bairro. Ninguém mais vê onde você está."}),
+    el("div",{class:"row",style:"display:block;background:#e8f3fc;border-color:#008CE3"},el("b",{text:"Procurar amigo pelo apelido"}),el("div",{style:"display:flex;gap:6px;margin-top:6px"},sq,el("button",{class:"btn blue",onclick:()=>searchPlayers(sq.value,sres,serr)},"Buscar")),serr,sres),
+    el("p",{style:"font-weight:800;margin:14px 0 4px",text:"Seus amigos"}),list,
+    el("details",{style:"margin-top:12px"},el("summary",{style:"cursor:pointer;font-weight:800",text:"Usar código de amigo"}),el("p",{text:"Seu código: "+S.code}),inp,err,el("button",{class:"btn",style:"margin-top:6px",onclick:()=>addFriend(inp.value,err)},"Adicionar pelo código")),
     el("p",{class:"muted",style:"margin-top:10px",text:"Só adicione quem você conhece de verdade. Recebeu pedido de quem não conhece? Recuse."}))}
 /* posição: só quem está na lista "ver" (amigos aceitos e moradores da mesma casa) consegue ler */
 let lastPos={x:0,y:0,t:0};
@@ -2854,7 +2867,7 @@ function placeActions(p){const out=[];
   if(p.type==="assoc"){if(!mDone(MS("sede")))out.push(el("button",{class:"btn green",onclick:()=>{complete("sede");showPlace({kind:"poi",p})}},"Conhecer a sede"));
     const left=REFILL_COOLDOWN-(Date.now()-(S.refill||0));
     out.push(el("button",{class:"btn",onclick:()=>{if(left>0)return toast("A sede recarrega sua vida de novo em "+Math.ceil(left/60000)+" min");S.energy=ENERGY_MAX;S.energyTs=Date.now();S.refill=Date.now();save();updateHUD();toast("Energia cheia! Obrigado por passar na sede.");showPlace({kind:"poi",p})}},left>0?"Vida em "+Math.ceil(left/60000)+" min":"Pegar mais vida"));
-    out.push(el("button",{class:"btn green",onclick:openSuggest},"Mural de ideias"),el("button",{class:"btn",onclick:()=>openDonate("cesta")},"Cesta solidária"),el("button",{class:"btn blue",onclick:()=>openTab("assoc")},"Ver a Associação"))}
+    out.push(el("button",{class:"btn green",onclick:openSuggest},"Mural de ideias"),el("button",{class:"btn blue",onclick:openFriends},"Achar amigos"),el("button",{class:"btn",onclick:()=>openDonate("cesta")},"Cesta solidária"),el("button",{class:"btn blue",onclick:()=>openTab("assoc")},"Ver a Associação"))}
   else if(p.type==="campo")out.push(el("button",{class:"btn",onclick:()=>startMission("campo")},mDone(MS("campo"))?"Já cuidou hoje":"Recolher o lixo do campo"));
   else if(p.type==="school")out.push(el("button",{class:"btn",onclick:()=>startMission("escola")},"Quiz da cidadania"));
   else if(p.type==="viaduto"){if(S.flood)out.push(el("button",{class:"btn blue",onclick:unclogFlood},"Desentupir os bueiros (alagado!)"));out.push(el("button",{class:"btn",onclick:openMural},"Pintar o mural"),el("button",{class:"btn green",onclick:()=>viaClean("bueiro")},"Limpar bueiros"),el("button",{class:"btn blue",onclick:()=>viaClean("entrada")},"Recolher lixo"));}
