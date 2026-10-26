@@ -687,7 +687,7 @@ function buildWorld(){
   const add=(B,mat)=>{const m=new THREE.Mesh(B.build(),mat);m.receiveShadow=true;scene.add(m);return m};
   add(SB,lam(0xb3ad9f,{side:THREE.DoubleSide}));add(AB,lam(0x585b63,{side:THREE.DoubleSide}));add(KB,lam(0x45484f,{side:THREE.DoubleSide}));
   add(DB,lam(0xa8865a,{side:THREE.DoubleSide}));add(LB,lam(0xf2cf45,{side:THREE.DoubleSide}));add(EB,lam(0xf1efe8,{side:THREE.DoubleSide}));
-  buildHouses();buildTrees(R);buildSigns();buildPOIs();buildPoles();buildPasture();placeEverton();
+  buildHouses();buildTrees(R);buildSigns();buildPOIs();buildPoles();buildPasture();setTimeout(preloadMiniArt,6000);placeEverton();
   const bm=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.38,depthWrite:false,side:THREE.DoubleSide,fog:false});
   beam=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,160,20,1,true),bm);beam.position.y=80;beam.visible=false;scene.add(beam);
   wpMark=new THREE.Group();{const mm=new THREE.MeshBasicMaterial({color:0xF57E20,depthTest:false,transparent:true,fog:false});const c=new THREE.Mesh(new THREE.ConeGeometry(1.1,2.2,4),mm);c.rotation.x=Math.PI;c.renderOrder=12;wpMark.add(c);const b=new THREE.Mesh(new THREE.BoxGeometry(0.7,1.6,0.7),mm);b.position.y=1.8;b.renderOrder=12;wpMark.add(b)}wpMark.visible=false;scene.add(wpMark);
@@ -2056,7 +2056,11 @@ function tone(f,t0,dur,type="sine",vol=0.3,f2,dest){const o=AC.createOscillator(
   g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);o.connect(g);g.connect(dest||AU.sfx);o.start(t0);o.stop(t0+dur+0.05);return g}
 function noise(t0,dur,vol=0.3,freq=1200,q=1,type="bandpass"){const s=AC.createBufferSource();s.buffer=AU.noise;const f=AC.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;const g=AC.createGain();
   g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);s.connect(f);f.connect(g);g.connect(AU.sfx);s.start(t0,Math.random()*0.5);s.stop(t0+dur+0.02)}
+/* sons de interface (Kenney Interface Sounds): tocam o arquivo; se não carregou, usa o som sintetizado */
+const SNDF={tap:"click_002",click:"click_002",open:"open_001",close:"close_001",err:"error_004",win:"confirmation_002"},SNDB={};
+function loadSnd(k){if(SNDB[k]!==undefined||!AC)return;SNDB[k]=null;fetch(ASSET_BASE+"sounds/"+SNDF[k]+".ogg").then(r=>r.arrayBuffer()).then(b=>AC.decodeAudioData(b)).then(buf=>SNDB[k]=buf).catch(()=>SNDB[k]=false)}
 function sfx(k,opt){if(!AC||!audioOn())return;const t=AC.currentTime;
+  if(SNDF[k]){loadSnd(k);const buf=SNDB[k];if(buf){const src=AC.createBufferSource();src.buffer=buf;const g=AC.createGain();g.gain.value=k==="tap"||k==="click"?0.5:0.7;src.connect(g).connect(AC.destination);src.start(t);return}}
   switch(k){
     case"jump":tone(320,t,0.22,"square",0.12,720);break;
     case"land":noise(t,0.08,0.25,400,1);break;
@@ -2095,7 +2099,8 @@ function audioUpdate(dt){if(!AC)return;musicTick();if(!S||startMode)return;
   else{AU.engG.gain.setTargetAtTime(0,AC.currentTime,0.15);AU.roadG.gain.setTargetAtTime(riding==="bike"&&sp>0.5?0.02:0,AC.currentTime,0.2)}
   if(!riding&&player.onG&&sp>0.5&&!miniOpen){const k=Math.floor(player.phase/Math.PI);if(k!==stepIdx){stepIdx=k;sfx("step",sp>12)}}
   petSndT-=dt;if(petSndT<=0){petSndT=18+Math.random()*25;const out=petEnts.filter(e=>!e.p.home);if(out.length){const e=out[Math.floor(Math.random()*out.length)];sfx(e.p.type==="cat"?"meow":"bark")}}}
-addEventListener("pointerdown",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume()},{passive:true});addEventListener("keydown",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume()});
+addEventListener("pointerdown",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume()},{passive:true});
+addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".btn,#tabs button,.fitem");if(b&&!b.disabled)sfx("click")},true);addEventListener("keydown",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume()});
 
 /* ============ missão do dia: 7 missões que giram na semana ============ */
 /* Cada dia tem uma missão especial (igual para todo mundo). Depois do 7º dia, o ciclo recomeça.
@@ -2579,7 +2584,15 @@ const PIZZAS={pz_mussarela:{n:"Pizza de mussarela",t:{c:"#fff1b0",k:"bola",base:
   pz_marguerita:{n:"Pizza marguerita",t:{c:"#3f9a2e",k:"folha",base:"#ffe28a"}},pz_frango:{n:"Pizza de frango com catupiry",t:{c:"#f0d7a8",k:"bola",c2:"#fffaf0",base:"#ffd65a"}},
   pz_portuguesa:{n:"Pizza portuguesa",t:{c:"#e7a3a8",k:"fatia",c2:"#2f2f2f",base:"#ffd65a"}},pz_chocolate:{n:"Pizza de chocolate",t:{c:"#e2483d",k:"bola",base:"#5a2f1c"}}};
 for(const [k,v] of Object.entries(PIZZAS))FOOD[k]={n:v.n,d:(c,x,y,w)=>drawPizza(c,x,y,w,v.t)};
-function drawItem(c,id,x,y,w){const f=FOOD[id];if(f.d)return f.d(c,x,y,w);
+/* imagens dos joguinhos: comidas 3D (Kenney Food Kit) e clientes desenhados (Kenney Toon Characters) */
+const IMGC={};function gImg(path){if(!IMGC[path]){const im=new Image();im.crossOrigin="anonymous";im.src=ASSET_BASE+path;IMGC[path]=im}return IMGC[path]}
+const ok=im=>im.complete&&im.naturalWidth>0;
+const FOOD_SPR={refri:"soda-can",cafe:"cup-coffee",sonho:"donut-sprinkles",salada:"salad"};
+const PROD_SPR={"Maçã":"apple","Banana":"banana","Óleo":"bottle-oil","Leite":"carton","Suco":"carton-small","Biscoito":"cookie-chocolate","Refri":"soda-bottle"};
+const TOONS=["fp","mp","fa","ma"];
+function toonDraw(c,cu,x,y,s,pose){if(cu.toon==null)cu.toon=TOONS[(Math.random()*4)|0];const im=gImg("toon/"+cu.toon+"_"+pose+".png");if(!ok(im))return false;c.drawImage(im,x-96*s,y-150*s,192*s,256*s);return true}
+function preloadMiniArt(){for(const v of Object.values(FOOD_SPR))gImg("sprites/"+v+".png");for(const v of Object.values(PROD_SPR))gImg("sprites/"+v+".png");for(const t of TOONS)for(const p of["idle","cheer0","think","talk"])gImg("toon/"+t+"_"+p+".png")}
+function drawItem(c,id,x,y,w){const f=FOOD[id];{const sp=FOOD_SPR[id];if(sp){const im=gImg("sprites/"+sp+".png");if(ok(im)){c.drawImage(im,x-w*0.62,y-w*1.12,w*1.24,w*1.24);return w*0.6}}}if(f.d)return f.d(c,x,y,w);
   if(f.cup){c.fillStyle="#f4f1e6";c.beginPath();c.moveTo(x-w*0.22,y-w*0.6);c.lineTo(x+w*0.22,y-w*0.6);c.lineTo(x+w*0.17,y);c.lineTo(x-w*0.17,y);c.closePath();c.fill();c.strokeStyle="#2a2230";c.lineWidth=2;c.stroke();
     c.fillStyle=f.cup;c.fillRect(x-w*0.2,y-w*0.52,w*0.4,w*0.08);c.fillStyle="#e2483d";c.fillRect(x+w*0.05,y-w*0.78,w*0.04,w*0.2);return w*0.6}
   const [a,b]=f.blob;c.lineWidth=2;c.strokeStyle="#2a2230";
@@ -2616,7 +2629,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
     const bw=Math.min(110,(W-pad*(cols+1))/cols),bh=Math.min(78,(H-bArea-pad*(rows+1)-8)/rows);const ox=(W-(cols*bw+(cols-1)*pad))/2;
     btns=cfg.items.map((id,i)=>({id,x:ox+(i%cols)*(bw+pad),y:bArea+pad+Math.floor(i/cols)*(bh+pad),w:bw,h:bh}));
     const aw=Math.min(150,W*0.28);btns.push({id:"_lixo",x:10,y:work+4,w:aw*0.75,h:44},{id:"_ok",x:W-aw-10,y:work+4,w:aw,h:52});return{top,cTop,work,bArea}}
-  function drawCust(cu,x,y,s){const sk=cu.skin;c.save();c.translate(x,y);c.scale(s,s);
+  function drawCust(cu,x,y,s){{const sad=cu.pat<0.3||cu.mood<0,happy=cu.mood>0;if(toonDraw(c,cu,x,y,s,happy?"cheer0":sad?"think":"talk"))return}const sk=cu.skin;c.save();c.translate(x,y);c.scale(s,s);
     c.fillStyle=cu.shirt;RR(c,-46,-10,92,120,30);c.fill();c.strokeStyle="#2a2230";c.lineWidth=3;c.stroke();
     c.fillStyle=sk;c.beginPath();c.arc(0,-62,48,0,Math.PI*2);c.fill();c.stroke();
     c.fillStyle=cu.hair;c.beginPath();if(cu.hs===1){c.arc(0,-70,52,Math.PI*0.95,Math.PI*2.05);c.lineTo(52,-30);c.lineTo(44,-60);c.lineTo(-44,-60);c.lineTo(-52,-30)}else if(cu.hs===2){c.arc(0,-78,60,Math.PI*0.9,Math.PI*2.1)}else{c.arc(0,-66,50,Math.PI*1.02,Math.PI*1.98)}c.closePath();c.fill();
@@ -2687,7 +2700,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
 /* ============ joguinhos dos trabalhos (tela cheia, em primeira pessoa) ============ */
 /* Cada joguinho é um objeto com init/update/draw e toques. A função miniGame cuida da tela, do tempo e do fim. */
 function newPerson(){const r=a=>a[Math.floor(Math.random()*a.length)];return{skin:r(LOOKS.skin),hair:r(LOOKS.hair),shirt:r(LOOKS.shirt),hs:Math.floor(Math.random()*4),mood:0}}
-function drawPerson(c,cu,x,y,s){c.save();c.translate(x,y);c.scale(s,s);const ink="#2a2230";
+function drawPerson(c,cu,x,y,s){if(toonDraw(c,cu,x,y,s,cu.mood>0?"cheer0":cu.mood<0?"think":"idle"))return;c.save();c.translate(x,y);c.scale(s,s);const ink="#2a2230";
   const sg=c.createLinearGradient(0,-10,0,110);sg.addColorStop(0,shade(cu.shirt,0.15));sg.addColorStop(1,shade(cu.shirt,-0.15));
   for(const sx of[-1,1]){c.fillStyle=shade(cu.shirt,-0.08);c.beginPath();c.ellipse(sx*52,30,15,34,sx*0.25,0,Math.PI*2);c.fill();c.strokeStyle=ink;c.lineWidth=3;c.stroke();c.fillStyle=cu.skin;c.beginPath();c.arc(sx*58,62,12,0,Math.PI*2);c.fill();c.stroke()}
   c.fillStyle=sg;RR(c,-46,-6,92,120,34);c.fill();c.strokeStyle=ink;c.lineWidth=3;c.stroke();
@@ -2765,7 +2778,7 @@ function wrapT(c,t,x,y,mw,lh,col){c.fillStyle=col||"#fff";const ws=t.split(" ");
 const PROD=[{n:"Arroz",p:24.5,k:"bag",a:"#f4f1e6",b:"#e2483d"},{n:"Feijão",p:8.5,k:"bag",a:"#6b3b1f",b:"#ffd23f"},{n:"Leite",p:5,k:"box",a:"#ffffff",b:"#008CE3"},{n:"Óleo",p:8,k:"bottle",a:"#ffcf33",b:"#319B27"},
   {n:"Café",p:17,k:"pack",a:"#9c2f22",b:"#ffd23f"},{n:"Refri",p:9.5,k:"bottle",a:"#5a2a14",b:"#e2483d"},{n:"Sabão",p:12.5,k:"box",a:"#F57E20",b:"#008CE3"},{n:"Maçã",p:3,k:"fruit",a:"#e2483d",b:"#319B27"},
   {n:"Biscoito",p:4.5,k:"pack",a:"#ffd23f",b:"#7a4b8c"},{n:"Macarrão",p:6,k:"pack",a:"#fff1b0",b:"#008CE3"},{n:"Banana",p:6.5,k:"banana",a:"#ffd23f",b:"#6b4a2f"},{n:"Suco",p:7,k:"box",a:"#ff9a1f",b:"#319B27"}];
-function drawProd(c,p,x,y,s){c.save();c.translate(x,y);c.scale(s,s);c.strokeStyle="#2a2230";c.lineWidth=2.5;c.lineJoin="round";
+function drawProd(c,p,x,y,s){{const sp=PROD_SPR[p.n];if(sp){const im=gImg("sprites/"+sp+".png");if(ok(im)){c.drawImage(im,x-42*s,y-80*s,84*s,84*s);return}}}c.save();c.translate(x,y);c.scale(s,s);c.strokeStyle="#2a2230";c.lineWidth=2.5;c.lineJoin="round";
   const gr=(col)=>{const g=c.createLinearGradient(-28,0,28,0);g.addColorStop(0,shade(col,-0.12));g.addColorStop(0.35,shade(col,0.2));g.addColorStop(1,shade(col,-0.18));return g};
   c.fillStyle="rgba(0,0,0,.18)";c.beginPath();c.ellipse(0,1,26,5,0,0,Math.PI*2);c.fill();
   if(p.k==="bag"){c.fillStyle=gr(p.a);c.beginPath();c.moveTo(-24,0);c.lineTo(-26,-50);c.quadraticCurveTo(-20,-62,-12,-58);c.lineTo(12,-58);c.quadraticCurveTo(20,-62,26,-50);c.lineTo(24,0);c.closePath();c.fill();c.stroke();c.fillStyle=p.b;RR(c,-20,-40,40,16,6);c.fill();c.fillStyle="#fff";c.font="900 9px system-ui";c.textAlign="center";c.fillText(p.n.toUpperCase(),0,-28)}
