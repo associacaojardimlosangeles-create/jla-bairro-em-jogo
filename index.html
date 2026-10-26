@@ -957,6 +957,40 @@ function maybeOfferInstall(){if(!canOfferInstall()||store.get("jla_inst_asked",f
   store.set("jla_inst_asked",true);openSheet("Instale o Bairro em Jogo",el("p",{text:"Quer deixar o jogo com ícone na tela do celular? Abre mais rápido e em tela cheia, igual a um aplicativo."}),
     el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn green",onclick:()=>{closeSheet();doInstall()}},"Instalar agora"),el("button",{class:"btn ghost",onclick:closeSheet},"Agora não")),
     el("p",{class:"muted",style:"margin-top:10px",text:"Você também pode instalar depois pela aba Associação."}))}
+/* ============ personagens 3D prontos (Kenney, licença CC0) ============ */
+/* Os arquivos ficam em assets/chars no GitHub. Enquanto o modelo carrega, aparece o boneco clássico no lugar. */
+const CHAR_BASE=window.__CHAR_BASE||((location.hostname.endsWith("github.io")?"./":"https://associacaojardimlosangeles-create.github.io/jla-bairro-em-jogo/")+"assets/chars/");
+const MODELS=[
+  {id:"mini:male-a",n:"Lucas",f:"mini/character-male-a.glb"},{id:"mini:female-a",n:"Jéssica",f:"mini/character-female-a.glb"},
+  {id:"mini:male-b",n:"Seu Zé",f:"mini/character-male-b.glb"},{id:"mini:female-b",n:"Bia",f:"mini/character-female-b.glb"},
+  {id:"mini:male-c",n:"Policial",f:"mini/character-male-c.glb"},{id:"mini:female-c",n:"Dona Rosa",f:"mini/character-female-c.glb"},
+  {id:"mini:male-d",n:"Rafa",f:"mini/character-male-d.glb"},{id:"mini:female-d",n:"Duda",f:"mini/character-female-d.glb"},
+  {id:"mini:male-e",n:"Davi",f:"mini/character-male-e.glb"},{id:"mini:female-e",n:"Doutora Ana",f:"mini/character-female-e.glb"},
+  {id:"mini:male-f",n:"Gabriel",f:"mini/character-male-f.glb"},{id:"mini:female-f",n:"Luna",f:"mini/character-female-f.glb"},
+  {id:"prot:skaterMaleA",n:"Skatista",f:"prot/protagonist.glb",skin:"prot/skins/skaterMaleA.png"},
+  {id:"prot:skaterFemaleA",n:"Skatista (menina)",f:"prot/protagonist.glb",skin:"prot/skins/skaterFemaleA.png"},
+  {id:"prot:criminalMaleA",n:"Estiloso",f:"prot/protagonist.glb",skin:"prot/skins/criminalMaleA.png"},
+  {id:"prot:cyborgFemaleA",n:"Ciborgue",f:"prot/protagonist.glb",skin:"prot/skins/cyborgFemaleA.png"}];
+let gltfLib=null;
+function loadGltfLib(){return gltfLib=gltfLib||(async()=>{for(const f of["loaders/GLTFLoader.js","utils/SkeletonUtils.js"])await withTimeout(loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/"+f),20000)})()}
+const MCACHE={},SKINC={};
+function getGltf(file){return MCACHE[file]=MCACHE[file]||loadGltfLib().then(()=>new Promise((ok,no)=>new THREE.GLTFLoader().load(CHAR_BASE+file,ok,undefined,no)))}
+function getSkin(file){if(!SKINC[file]){SKINC[file]=new THREE.TextureLoader().load(CHAR_BASE+file);SKINC[file].encoding=THREE.LinearEncoding}return SKINC[file]}
+const ANIMATED=new Set();
+function attachModel(ch,av){const M=MODELS.find(m=>m.id===av.model);if(!M)return;
+  getGltf(M.f).then(gl=>{if(ch.dead)return;const m=THREE.SkeletonUtils.clone(gl.scene);
+    m.traverse(o=>{if(o.isMesh){const old=o.material;const map=M.skin?getSkin(M.skin):old.map;if(map&&map.encoding!==THREE.LinearEncoding){map.encoding=THREE.LinearEncoding;map.needsUpdate=true}o.material=new THREE.MeshToonMaterial({map,color:0xb8b8b8,gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:0x101010});o.castShadow=!lowQ;o.frustumCulled=false}});
+    const box=new THREE.Box3().setFromObject(m);const h=box.max.y-box.min.y||1;const k=2.75/h;m.scale.setScalar(k);m.position.y=-box.min.y*k;
+    for(const c of ch.g.children)if(c!==ch.label&&!c.isSprite)c.visible=false;ch.g.add(m);ch.model=m;
+    const mixer=new THREE.AnimationMixer(m);const acts={};for(const c of gl.animations)acts[c.name]=mixer.clipAction(c);ch.mixer=mixer;ch.acts=acts;ch.cur=null;ch.lastP=null;playAnim(ch,"idle");ANIMATED.add(ch)}).catch(()=>{});}
+function playAnim(ch,name,ts=1){const a=ch.acts[name]||(name==="walk"||name==="sprint"?ch.acts.run:null)||ch.acts.idle;if(!a)return;a.timeScale=ts;if(ch.cur===a)return;a.reset().fadeIn(0.18).play();if(ch.cur)ch.cur.fadeOut(0.18);ch.cur=a}
+function updateModels(dt){for(const ch of ANIMATED){if(ch.dead||!ch.g.parent){if(ch.dead||!ch.g.parent)ANIMATED.delete(ch);continue}
+  const p=ch.g.position;let sp=0;if(ch.lastP){sp=Math.hypot(p.x-ch.lastP.x,p.z-ch.lastP.z)/Math.max(dt,0.001)}ch.lastP=ch.lastP||new THREE.Vector3();ch.lastP.copy(p);ch.spd=(ch.spd||0)*0.8+sp*0.2;
+  const me=ch===ME;let st="idle",ts=1;
+  if(me&&riding&&riding!=="car"){st=ch.acts.drive?"drive":"idle"}
+  else if(me&&player.h>(player.gnd||0)+0.25){st=ch.acts.jump?"jump":"idle"}
+  else if(ch.spd>7){st="sprint";ts=ch.acts.sprint?1:1.25}else if(ch.spd>0.5){st="walk";ts=ch.acts.walk?Math.min(1.6,0.6+ch.spd/5):Math.min(1.1,0.5+ch.spd/9)}
+  playAnim(ch,st,ts);ch.mixer.update(dt)}}
 /* ----- entrar com Google: o jogo fica salvo na conta e volta em qualquer aparelho ----- */
 function isGoogle(){try{return online()&&firebase.auth().currentUser&&!firebase.auth().currentUser.isAnonymous}catch(e){return false}}
 function googleName(){try{const u=firebase.auth().currentUser;return(u&&u.email)||""}catch(e){return""}}
@@ -1678,6 +1712,10 @@ function charBag(av,add,body){const b=av.bag||0;
   else if(b===2){const st=add(new THREE.TorusGeometry(0.34,0.02,6,24),"#6b4a2f",0,1.24,0,body,false);st.rotation.set(0,Math.PI/2,0.55);add(new THREE.BoxGeometry(0.28,0.22,0.1),"#6b4a2f",-0.33,0.96,0.1,body)}}
 function setLook(k,v){S.look=Object.assign(S.look||{},{[k]:v});save();setAvatar(S.avatar);updateHUD()}
 function goHome(){if(!S)return;const h=homeHouse();player.x=h.fx;player.y=h.fy;player.h=0;player.vy=0;if(riding)snapToRoad();yaw=Math.atan2(h.wx-h.fx,h.wy-h.fy)+Math.PI;lastPlace="";closeSheet();toast("Você chegou em casa!")}
+function charPicker(L){const cur=L.model||"classic";const tile=(id,n,img)=>el("button",{type:"button",class:"btn "+(cur===id?"":"ghost"),style:"display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;min-height:0;width:78px;font-size:11px;line-height:1.1"+(cur===id?";outline:3px solid #F57E20":""),
+      onclick:()=>{S.look=Object.assign(S.look||{},{model:id});save();setAvatar(S.avatar);openProfile()}},img?el("img",{src:img,alt:"",loading:"lazy",style:"width:60px;height:60px;object-fit:contain;border-radius:8px;background:#e8f3fc"}):el("div",{style:"width:60px;height:60px;border-radius:8px;background:#fff3e8;display:grid;place-items:center;font-size:26px",text:"🧑"}),n);
+  return el("div",{},el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:4px 0"},tile("classic","Clássico"),...MODELS.map(m=>tile(m.id,m.n,CHAR_BASE+"thumbs/"+m.id.replace(":","-")+".png"))),
+    cur!=="classic"?el("p",{class:"muted",style:"margin:2px 0 0;font-size:12px",text:"As opções de cabelo e roupa mais abaixo valem para o boneco Clássico."}):null)}
 function openProfile(){const L=currentLook();const keep=$("#sheetbox")?$("#sheetbox").scrollTop:0;
   const row="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px";
   const sw=(key,list,cur,fn)=>el("div",{style:row},...list.map(c=>el("button",{class:"swatch"+(c===cur?" on":""),"aria-label":key+" "+c,style:"background:"+c,onclick:()=>{fn(c);openProfile()}})));
@@ -1691,6 +1729,7 @@ function openProfile(){const L=currentLook();const keep=$("#sheetbox")?$("#sheet
   const genRow=el("div",{style:row},...GENS.map(([k,n])=>el("button",{class:"btn "+(L.gen===k?"":"ghost"),style:"min-height:38px;padding:6px 14px",onclick:()=>{const lk=S.look||{};S.look=Object.assign(lk,{gen:k});delete S.look.hs;delete S.look.lash;save();setAvatar(S.avatar);openProfile()}},n)));
   openSheet("Meu perfil",
     sec("Apelido"),el("div",{style:"display:flex;gap:8px"},nick,el("button",{class:"btn",onclick:()=>{const v=nick.value.trim();if(v.length<2)return err.textContent="Use pelo menos 2 letras.";const ck=checkText(v);if(!ck.ok)return err.textContent="Esse apelido tem palavras que não são permitidas.";S.nick=v;save();updateHUD();toast("Apelido trocado!")}},"Salvar")),err,
+    sec("Personagem"),charPicker(L),
     sec("Onde eu moro"),el("p",{style:"margin:0 0 6px",text:S.rua+" · "+S.bairro+(S.houseNum?" · nº "+S.houseNum:"")}),
     el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn ghost",onclick:openMove},"Mudar de casa"),el("button",{class:"btn blue",onclick:goHome},"Ir para casa agora")),
     sec("Eu sou"),genRow,sub("Isso muda o jeito do personagem. Depois você pode trocar qualquer roupa ou cabelo."),
@@ -1711,7 +1750,8 @@ function openProfile(){const L=currentLook();const keep=$("#sheetbox")?$("#sheet
   $("#sheet").classList.add("side");profileView=true;if($("#sheetbox"))$("#sheetbox").scrollTop=keep}
 
 /* ============ character ============ */
-function makeChar(av){const g=new THREE.Group();const OUT=new THREE.MeshBasicMaterial({color:0x2a2230,side:THREE.BackSide});
+function makeChar(av){const ch=makeCharClassic(av);if(av&&av.model&&av.model!=="classic")attachModel(ch,av);return ch}
+function makeCharClassic(av){const g=new THREE.Group();const OUT=new THREE.MeshBasicMaterial({color:0x2a2230,side:THREE.BackSide});
   const add=(geo,c,x,y,z,parent=g,out=true,sc,ow=1.05)=>{const m=new THREE.Mesh(geo,c===av.skin?lamSkin(c):lam(new THREE.Color(c)));m.position.set(x,y,z);if(sc)m.scale.set(sc[0],sc[1],sc[2]);m.castShadow=true;parent.add(m);if(out){const o=new THREE.Mesh(geo,OUT);o.scale.setScalar(ow);m.add(o)}return m};
   const flat=(geo,c,x,y,z,parent,sc,op)=>{const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:c,transparent:op!=null,opacity:op??1}));m.position.set(x,y,z);if(sc)m.scale.set(sc[0],sc[1],sc[2]);parent.add(m);return m};
   const S_=(r,w=14,h=12)=>new THREE.SphereGeometry(r,w,h),C_=(a,b,h,n=14,open=false)=>new THREE.CylinderGeometry(a,b,h,n,1,open);
@@ -2310,7 +2350,7 @@ function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
   for(const m of markers){const d=Math.hypot(m.sp.position.x-camera.position.x,m.sp.position.z-camera.position.z);m.sp.visible=d<(lowQ?220:320);const k=Math.max(1,d/45)*0.55;m.sp.scale.set(12*k,1.9*k,1)}
   animEverton();
   if(beam.visible)beam.material.opacity=0.28+Math.sin(clockT*3)*0.1;
-  updateDayNight(dt);updateRain(dt);if(!startMode)updateBirds(dt);updateStreetEv(dt);if(!startMode)updateOthers(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
+  updateDayNight(dt);updateRain(dt);if(!startMode)updateBirds(dt);updateStreetEv(dt);if(!startMode)updateOthers(dt);updateModels(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
 function update(dt){if(miniOpen)return;
   let mx=0,my=0;if(keys.a||keys.arrowleft)mx-=1;if(keys.d||keys.arrowright)mx+=1;if(keys.w||keys.arrowup)my+=1;if(keys.s||keys.arrowdown)my-=1;
   if(joyV){mx+=joyV[0];my+=joyV[1]}
@@ -3212,7 +3252,7 @@ function setupStart(){$("#startlogo").src=LOGO_URI;const sel=$("#fbairro");MY_BA
     const code="JLA-"+(nick.normalize("NFD").replace(/[^A-Za-z]/g,"").toUpperCase().slice(0,5)||"VIZ")+(hashStr(nick+rua)%90+10);
     S={nick,bairro:sel.value,rua,avatar:chosenAv,look:{gen:chosenGen},home,pts:0,coins:30,vehicles:[],pets:[],food:{dog:0,cat:0},energy:ENERGY_MAX,energyTs:Date.now(),missions:{},jobs:{},invites:0,code,invitedBy:/^JLA-/i.test(inv)?inv.toUpperCase():null,created:Date.now()};
     const h=houses[home];S.px=h.fx;S.py=h.fy;save();enterGame(true)})}
-function setAvatar(i){if(ME){scene.remove(ME.g);scene.remove(ME.shadow)}ME=makeChar(currentLook(i));scene.add(ME.g);scene.add(ME.shadow);if(riding==="car")ME.g.visible=false;const [X,Z]=W3(player.x,player.y);ME.g.position.set(X,0.38,Z);ME.shadow.position.set(X,0.42,Z)}
+function setAvatar(i){if(ME){ME.dead=true;scene.remove(ME.g);scene.remove(ME.shadow)}ME=makeChar(currentLook(i));scene.add(ME.g);scene.add(ME.shadow);if(riding==="car")ME.g.visible=false;const [X,Z]=W3(player.x,player.y);ME.g.position.set(X,0.38,Z);ME.shadow.position.set(X,0.42,Z)}
 function placeHomeFlag(){if(homeFlag)scene.remove(homeFlag);const h=homeHouse();const g=new THREE.Group();const [X,Z]=W3(h.fx,h.fy);g.position.set(X,0,Z);
   box(g,0.12,6,0.12,0xdddddd,0,0,0);box(g,1.8,1.1,0.05,0xF57E20,0.95,4.8,0);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:textTex("Sua casa",{w:512,h:120,bg:"#F57E20",fg:"#fff",round:56}),depthTest:false,transparent:true,fog:false}));sp.position.y=7.4;sp.scale.set(5,1.2,1);sp.renderOrder=11;g.add(sp);
