@@ -724,8 +724,8 @@ function buildSigns(){
     if(!spot)continue;const [X,Z]=W3(spot[0],spot[1]);
     const g=new THREE.Group();g.position.set(X,0,Z);g.rotation.y=Math.atan2(-l.uy,l.ux);
     const p=new THREE.Mesh(postG,postM);p.castShadow=!lowQ;g.add(p);
-    if(!cache[l.text])cache[l.text]=new THREE.MeshLambertMaterial({map:textTex(l.text,{w:1024,h:150,bg:"#1257a6",fg:"#ffffff",border:"#ffffff"}),side:THREE.DoubleSide});
-    const len=Math.min(4.2,1.4+l.text.length*0.085);const plate=new THREE.Mesh(new THREE.PlaneGeometry(len,len*150/1024+0.32),cache[l.text]);plate.position.y=2.75;g.add(plate);
+    if(!cache[l.text])cache[l.text]=new THREE.MeshLambertMaterial({map:textTex(l.text,{w:1024,h:150,bg:"#1257a6",fg:"#ffffff",border:"#ffffff"})});
+    const len=Math.min(4.2,1.4+l.text.length*0.085);const plate=new THREE.Mesh(new THREE.PlaneGeometry(len,len*150/1024+0.32),cache[l.text]);plate.position.set(0,2.75,0.015);g.add(plate);const back=plate.clone();back.position.z=-0.015;back.rotation.y=Math.PI;g.add(back);
     scene.add(g)}
 }
 function box(parent,w,h,d,color,x,y,z,o={}){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),lam(color,o));m.position.set(x,y+h/2,z);m.castShadow=!lowQ;m.receiveShadow=true;parent.add(m);return m}
@@ -910,9 +910,9 @@ async function initMail(){
     if(!MAIL.first&&fresh.length)toast("Chegou recado de "+fresh[0].fromNick+"! Veja na caixa de correio da sua casa.");MAIL.first=false;mailChanged()},()=>{});
   if(MAIL.owner)db.collection("recados").where("to","==","assoc").limit(80).onSnapshot(s=>{MAIL.assoc=s.docs.map(d=>Object.assign({id:d.id},d.data())).sort(byTs);mailChanged()},()=>{});
   mailChanged();
-  if(MAIL.kind==="fb"){if(await pullCloud()){toast("Achei um jogo mais novo na sua conta Google. Carregando...");setTimeout(()=>location.reload(),1200);return}pushCloud(true);pushRank(true);syncInvites();claimHouse();watchRequests()}}
-function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"+S.bairro;if(sig===MAIL.sig)return;MAIL.sig=sig;
-  MAIL.db.doc(MAIL.pcol+"/"+MAIL.uid).set({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()}).catch(()=>{MAIL.sig=""})}
+  if(MAIL.kind==="fb"){setTimeout(watchFriends,1500);if(await pullCloud()){toast("Achei um jogo mais novo na sua conta Google. Carregando...");setTimeout(()=>location.reload(),1200);return}pushCloud(true);pushRank(true);syncInvites();claimHouse();watchRequests()}}
+function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"+S.bairro+"|"+S.code;if(sig===MAIL.sig)return;MAIL.sig=sig;
+  MAIL.db.doc(MAIL.pcol+"/"+MAIL.uid).set(Object.assign({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()},MAIL.kind==="fb"?{code:S.code}:{})).catch(()=>{MAIL.sig=""})}
 function online(){return MAIL.kind==="fb"&&!!MAIL.db}
 
 /* ============ instalar o jogo como aplicativo (ícone na tela do celular) ============ */
@@ -971,6 +971,62 @@ function googleBox(){if(isGoogle())return el("div",{class:"row",style:"backgroun
   return el("div",{class:"row",style:"background:#fff3e8;border-color:#F57E20;margin:6px 0 12px;display:block"},el("b",{text:"Não perca seu jogo!"}),
     el("p",{style:"margin:4px 0 8px;font-size:14px",text:"Entre com sua conta Google para salvar o progresso e continuar em outro celular. Menores de 13 anos: peça para um adulto."}),
     el("button",{class:"btn blue",onclick:googleLogin},"Entrar com Google"))}
+/* ----- amigos: só amigos aceitos e quem mora junto aparecem andando no seu bairro ----- */
+var FR={list:[],started:false,shown:null};
+function pairId(a,b){return[a,b].sort().join("_")}
+function friendUids(){return FR.list.filter(f=>f.status==="aceito").map(f=>f.other)}
+function watchFriends(){if(!online()||FR.started)return;FR.started=true;
+  MAIL.db.collection("amigos").where("membros","array-contains",MAIL.uid).onSnapshot(s=>{FR.list=s.docs.map(d=>{const x=d.data()||{};const other=(x.membros||[]).find(u=>u!==MAIL.uid);
+      return{id:d.id,other,nick:String((x.nicks||{})[other]||"Morador").slice(0,16),status:x.status,de:x.de,ts:x.ts||0}});showFriendReq();pushPos(true)},()=>{});
+  watchPos();setInterval(()=>pushPos(false),10000);
+  document.addEventListener("visibilitychange",()=>{if(document.hidden&&online())MAIL.db.doc("pos/"+MAIL.uid).set({ts:0,ver:[]},{merge:true}).catch(()=>{});else pushPos(true)})}
+function showFriendReq(){const p=FR.list.find(f=>f.status==="pendente"&&f.de!==MAIL.uid);if(!p||FR.shown===p.id||(!$("#sheet").hidden)||miniOpen)return;FR.shown=p.id;sfx("door");
+  openSheet("Pedido de amizade",el("p",{},el("b",{text:p.nick}),document.createTextNode(" quer ser seu amigo no jogo.")),
+    el("p",{text:"Amigos aparecem andando no bairro um do outro. Só aceite quem você conhece de verdade."}),
+    el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn green",onclick:()=>answerFriend(p,true)},"Aceitar"),el("button",{class:"btn ghost",onclick:()=>answerFriend(p,false)},"Recusar")))}
+async function answerFriend(p,ok){closeSheet();try{if(ok){await MAIL.db.doc("amigos/"+p.id).update({status:"aceito",["nicks."+MAIL.uid]:S.nick});toast("Agora você e "+p.nick+" são amigos!")}
+  else{await MAIL.db.doc("amigos/"+p.id).delete();toast("Pedido recusado.")}}catch(e){toast("Não deu agora. Tente de novo.")}}
+async function addFriend(code,err){code=String(code||"").trim().toUpperCase();if(!/^JLA-[A-Z0-9]{3,12}$/.test(code))return err.textContent="Digite o código do amigo, no formato JLA-XXXX.";
+  if(code===S.code)return err.textContent="Esse é o seu próprio código!";if(!online())return err.textContent="Abra o jogo pelo link bairroemjogo.web.app com internet.";
+  err.textContent="Procurando...";try{const s=await MAIL.db.collection("jogadores").where("code","==",code).limit(3).get();const d=s.docs.find(x=>x.id!==MAIL.uid);
+    if(!d)return err.textContent="Não achei ninguém com esse código. A pessoa precisa abrir o jogo uma vez pelo link bairroemjogo.web.app.";
+    const other=d.id,nick=String((d.data()||{}).nick||"Morador").slice(0,16),id=pairId(MAIL.uid,other),ref=MAIL.db.doc("amigos/"+id);let ex=null;try{const g=await ref.get();ex=g.exists?g.data():null}catch(e){}
+    if(ex&&ex.status==="aceito")return err.textContent="Vocês já são amigos!";if(ex&&ex.de===other){await ref.update({status:"aceito",["nicks."+MAIL.uid]:S.nick});err.textContent="";toast("Agora você e "+nick+" são amigos!");return openFriends()}
+    if(ex)return err.textContent="Você já mandou o pedido. Espere "+nick+" aceitar.";
+    await ref.set({membros:[MAIL.uid,other],nicks:{[MAIL.uid]:S.nick,[other]:nick},de:MAIL.uid,status:"pendente",ts:Date.now()});err.textContent="";toast("Pedido de amizade enviado para "+nick+"!");openFriends()}
+  catch(e){err.textContent="Não deu agora. Confira a internet e tente de novo."}}
+function openFriends(){const inp=el("input",{class:"inp",placeholder:"Código do amigo: JLA-XXXX",maxlength:"16",style:"text-transform:uppercase"});const err=el("div",{class:"err"});const list=el("div",{class:"list"});
+  const acc=FR.list.filter(f=>f.status==="aceito"),pin=FR.list.filter(f=>f.status==="pendente"&&f.de!==MAIL.uid),pout=FR.list.filter(f=>f.status==="pendente"&&f.de===MAIL.uid);
+  const sb={style:"min-height:34px;padding:5px 10px;font-size:13px"};
+  for(const f of pin)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:"quer ser seu amigo"})),el("button",Object.assign({class:"btn green",onclick:()=>answerFriend(f,true).then(openFriends)},sb),"Aceitar"),el("button",Object.assign({class:"btn ghost",onclick:()=>answerFriend(f,false).then(openFriends)},sb),"Recusar")));
+  for(const f of acc){const o=OTHERS[f.other],on=o&&Date.now()-o.ts<90000;list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:on?"jogando agora":"amigo"})),
+    on?el("button",Object.assign({class:"btn blue",onclick:()=>{closeSheet();setWaypoint({x:o.x,y:o.y,label:f.nick})}},sb),"Ir até"):null,
+    el("button",Object.assign({class:"btn ghost",onclick:async()=>{try{await MAIL.db.doc("amigos/"+f.id).delete();toast(f.nick+" saiu da sua lista de amigos.")}catch(e){}setTimeout(openFriends,400)}},sb),"Desfazer")))}
+  for(const f of pout)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:"pedido enviado, esperando aceitar"}))));
+  if(!FR.list.length)list.append(el("p",{class:"muted",text:"Você ainda não tem amigos no jogo. Passe seu código para quem você conhece!"}));
+  openSheet("Amigos no jogo",!online()?el("p",{class:"err",text:"Amigos funcionam quando o jogo é aberto pelo link bairroemjogo.web.app, com internet."}):null,
+    el("p",{text:"Seu código de amigo:"}),el("div",{class:"code",text:S.code}),
+    el("p",{style:"margin:10px 0 4px;font-size:14px",text:"Amigos e quem mora com você aparecem andando no seu bairro. Ninguém mais vê onde você está."}),
+    inp,err,el("button",{class:"btn",style:"margin-top:6px",onclick:()=>addFriend(inp.value,err)},"Adicionar amigo"),el("div",{style:"margin-top:12px"},list),
+    el("p",{class:"muted",style:"margin-top:10px",text:"Só adicione quem você conhece de verdade. Recebeu pedido de quem não conhece? Recuse."}))}
+/* posição: só quem está na lista "ver" (amigos aceitos e moradores da mesma casa) consegue ler */
+let lastPos={x:0,y:0,t:0};
+function posVer(){const v=new Set(friendUids());if(CASA&&CASA.d&&CASA.i===S.home)(CASA.d.membros||[]).forEach(u=>{if(u!==MAIL.uid)v.add(u)});return[...v].slice(0,50)}
+function pushPos(force){if(!online()||!S||startMode)return;const ver=posVer();const now=Date.now();const moved=Math.hypot(player.x-lastPos.x,player.y-lastPos.y);
+  if(!ver.length){if(lastPos.t){lastPos.t=0;MAIL.db.doc("pos/"+MAIL.uid).set({ts:0,ver:[]}).catch(()=>{})}return}
+  if(!force&&moved<2&&now-lastPos.t<60000)return;lastPos={x:player.x,y:player.y,t:now};
+  MAIL.db.doc("pos/"+MAIL.uid).set({x:Math.round(player.x*10)/10,y:Math.round(player.y*10)/10,face:Math.round(player.face*100)/100,nick:S.nick,look:currentLook(S.avatar),ride:riding||null,ts:now,ver}).catch(()=>{})}
+var OTHERS={};
+function watchPos(){MAIL.db.collection("pos").where("ver","array-contains",MAIL.uid).onSnapshot(s=>{const seen=new Set();
+    s.docs.forEach(d=>{if(d.id===MAIL.uid)return;const x=d.data()||{};seen.add(d.id);let o=OTHERS[d.id];
+      if(!x.ts||Date.now()-x.ts>120000||x.x==null){if(o){scene.remove(o.c.g);delete OTHERS[d.id]}return}
+      if(!o){const c=makeChar(Object.assign({},x.look||{}));const lab=evLabel(String(x.nick||"Amigo").slice(0,16),"#008CE3");lab.position.y=3.1;c.g.add(lab);scene.add(c.g);o=OTHERS[d.id]={c,x:x.x,y:x.y,face:x.face||0,ph:0}}
+      Object.assign(o,{tx:x.x,ty:x.y,tf:x.face||0,ts:x.ts,nick:x.nick,ride:x.ride})});
+    for(const k of Object.keys(OTHERS))if(!seen.has(k)){scene.remove(OTHERS[k].c.g);delete OTHERS[k]}},()=>{})}
+function updateOthers(dt){for(const [k,o] of Object.entries(OTHERS)){if(Date.now()-o.ts>150000){scene.remove(o.c.g);delete OTHERS[k];continue}
+  const dx=o.tx-o.x,dy=o.ty-o.y,d=Math.hypot(dx,dy);if(d>80){o.x=o.tx;o.y=o.ty}else if(d>0.3){const sp=Math.min(d*0.6,o.ride?30:9);o.x+=dx/d*sp*dt;o.y+=dy/d*sp*dt;o.face=Math.atan2(dx,dy)}else{let df=o.tf-o.face;df=Math.atan2(Math.sin(df),Math.cos(df));o.face+=df*Math.min(1,dt*3)}
+  const mv=d>0.3;o.ph+=dt*(mv?9:0);const sw=mv?Math.sin(o.ph)*0.6:0;if(o.c.legs){o.c.legs[0].rotation.x=sw;o.c.legs[1].rotation.x=-sw}
+  const [X,Z]=W3(o.x,o.y);o.c.g.position.set(X,0.38,Z);o.c.g.rotation.y=o.face}}
 /* ----- ranking do mês de verdade ----- */
 function monthKey(){return new Date().toISOString().slice(0,7)}
 let rankT=null,rankSig="";
@@ -1202,7 +1258,13 @@ function petOutfit(p,o){const k=p.outfit||0,{add,head,g,dog}=o;
   else if(k===5){add(new THREE.CylinderGeometry(0.035,0.035,0.012,12),"#ffd23f",0,-0.27,0.15,head,true).rotation.x=Math.PI/2}}
 function petHunger(p){return (Date.now()-p.fed)/(24*3600e3)}
 function spawnPets(){for(const e of petEnts)scene.remove(e.g);petEnts=(S.pets||[]).map((p,i)=>{const e=makePet(p);const a=player.face+Math.PI+(i?0.5:-0.5);e.x=player.x+Math.sin(a)*2.5;e.y=player.y+Math.cos(a)*2.5;scene.add(e.g);return e})}
-function updatePets(dt){petEnts.forEach((e,i)=>{let tx,ty;if(e.p.home){[tx,ty]=homeYard(i)}else{const ang=player.face+(i?1.75:-1.75);const r=riding==="car"?3.2:riding?2.2:1.8;tx=player.x+Math.sin(ang)*r;ty=player.y+Math.cos(ang)*r}
+function updatePets(dt){let rideSlot=0;petEnts.forEach((e,i)=>{if(e.bs==null)e.bs=e.g.scale.x;
+  /* andando de veículo: os bichinhos sobem junto (no carro vão dentro; na bike, patinete e moto vão na garupa) */
+  if(riding&&!e.p.home&&!e.p.lost){e.x=player.x;e.y=player.y;e.face=player.face;const slot=rideSlot++;
+    if(riding==="car"||slot>1){e.g.visible=false;return}e.g.visible=true;const back=-0.75-slot*0.55;const [X,Z]=W3(player.x+Math.sin(player.face)*back,player.y+Math.cos(player.face)*back);
+    e.g.position.set(X,1.0+slot*0.05,Z);e.g.rotation.y=player.face;e.g.scale.setScalar(e.bs*0.7);e.legs.forEach(l=>l.rotation.x=0.8);e.tail.rotation.y=Math.sin(clockT*8)*0.5;return}
+  if(!e.g.visible)e.g.visible=true;if(e.g.scale.x!==e.bs)e.g.scale.setScalar(e.bs);
+  let tx,ty;if(e.p.home){[tx,ty]=homeYard(i)}else{const ang=player.face+(i?1.75:-1.75);const r=riding==="car"?3.2:riding?2.2:1.8;tx=player.x+Math.sin(ang)*r;ty=player.y+Math.cos(ang)*r}
   if(e.p.lost)[tx,ty]=abrigoSpot(i);const hunt=e.p.lost?null:catHunt(e,dt);if(hunt)[tx,ty]=hunt;
   let dx=tx-e.x,dy=ty-e.y;let d=Math.hypot(dx,dy);if(d>45){e.x=tx;e.y=ty;d=0}
   const hungry=petHunger(e.p)>=1;const maxS=hunt?8:(e.p.home||e.p.lost)?2.2:Math.max(11,player.speed*1.15)*(hungry?0.75:1);let sp=0;
@@ -1333,7 +1395,7 @@ function buildViaduct(){const V=VIA,ux=V.ux,uy=V.uy,hw=V.w/2,T=V.half+V.ramp;
   // placa de boas-vindas
   {const [x,z]=P(-V.half-2,hw+6);const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=Math.atan2(uy,-ux);
     box(g,0.15,3.2,0.15,0x8d9aa5,-1.8,0,0);box(g,0.15,3.2,0.15,0x8d9aa5,1.8,0,0);
-    const t=textTex("BEM-VINDO AO JARDIM LOS ANGELES",{w:1024,h:200,bg:"#0A2240",fg:"#fff",border:"#F57E20"});const pm=new THREE.Mesh(new THREE.PlaneGeometry(4.4,0.86),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));pm.position.y=2.75;g.add(pm);scene.add(g)}
+    const t=textTex("BEM-VINDO AO JARDIM LOS ANGELES",{w:1024,h:200,bg:"#0A2240",fg:"#fff",border:"#F57E20"});const pm=new THREE.Mesh(new THREE.PlaneGeometry(4.4,0.86),new THREE.MeshLambertMaterial({map:t}));pm.position.set(0,2.75,0.015);g.add(pm);const pb=pm.clone();pb.position.z=-0.015;pb.rotation.y=Math.PI;g.add(pb);scene.add(g)}
 }
 function gameCollect2(title,intro,word,bg,cols,cb){let got=0,time=15;const N=9;const box_=el("div",{class:"game"});const f=el("div",{class:"field",style:`background:${bg}`});const msg=()=>`${intro} Faltam ${N-got}. Tempo: ${time}s`;const info=el("p",{text:msg()});
   for(let i=0;i<N;i++){const t=el("button",{class:"trash","aria-label":word,style:`left:${5+Math.random()*82}%;top:${5+Math.random()*78}%;background:${cols[i%cols.length]}`});t.addEventListener("click",()=>{t.remove();got++;info.textContent=msg();if(got===N){clearInterval(iv);setTimeout(()=>cb(true),300)}});f.append(t)}
@@ -1359,15 +1421,24 @@ function buildHome(){const h=homeHouse();if(h.x3==null)return;hideHouseInstance(
   for(const lx of[-w*0.3,w*0.3]){box(g,1.3,1.0,0.12,0x2a4766,lx,1.05,fz,{emissive:0x0d1b2a});if(lv>=2)box(g,1.3,1.0,0.12,0x2a4766,lx,3.9,fz,{emissive:0x0d1b2a})}
   box(g,0.95,2.1,0.14,0x6e4526,0,0,fz);
   if(lv>=3){box(g,w*0.55,0.15,1.5,0xdddddd,0,2.95,front*(d/2+0.75));box(g,w*0.55,0.9,0.08,0xffffff,0,3.1,front*(d/2+1.5))}
-  const mz=front*(d/2+3.4),mw=(w+3.4)/2-1.6;for(const k of[-1,1])box(g,mw,1.4,0.22,C(H.muro),k*(1.6+mw/2),0,mz);box(g,3.2,1.5,0.1,0x3d4450,0,0,mz);
-  if(H.garage){box(g,4.2,2.8,6,C(H.wall),w/2+2.3,0,0);box(g,3.4,2.2,0.1,0x8e9196,w/2+2.3,0,front*3.05);box(g,4.6,0.3,6.4,C(H.roof),w/2+2.3,2.8,0)}
+  const mz=front*(d/2+3.4),mw=(w+3.4)/2-1.6;
+  /* muro baixo com grade por cima e portão de grade: dá para ver o quintal, o carro e as flores */
+  {const bars=new THREE.InstancedMesh(new THREE.BoxGeometry(0.06,1,0.06),lam(0x2b2f36),400);let nb=0;const M=new THREE.Matrix4();
+    const bar=(x,y0,h)=>{if(nb>=400)return;M.makeScale(1,h,1);M.setPosition(x,y0+h/2,mz);bars.setMatrixAt(nb++,M)};
+    for(const k of[-1,1]){const cx=k*(1.6+mw/2);box(g,mw,0.5,0.26,C(H.muro),cx,0,mz);box(g,0.3,1.7,0.3,C(H.muro),k*(1.6+mw),0,mz);box(g,0.3,1.7,0.3,C(H.muro),k*1.6,0,mz);
+      box(g,mw,0.06,0.07,0x2b2f36,cx,1.55,mz);for(let x=cx-mw/2+0.18;x<cx+mw/2-0.1;x+=0.2)bar(x,0.5,1.08)}
+    box(g,3.0,0.07,0.08,0x2b2f36,0,0.12,mz);box(g,3.0,0.07,0.08,0x2b2f36,0,1.62,mz);box(g,0.08,1.6,0.08,0x2b2f36,0,0.08,mz);
+    for(let x=-1.42;x<=1.42;x+=0.17)bar(x,0.12,1.5);bars.count=nb;bars.castShadow=!lowQ;bars.instanceMatrix.needsUpdate=true;g.add(bars)}
+  if(H.garage){const gx=w/2+2.3;for(const sx of[-1,1])box(g,0.2,2.8,6,C(H.wall),gx+sx*2.0,0,0);box(g,4.2,2.8,0.2,C(H.wall),gx,0,-front*2.9);box(g,3.8,0.05,5.8,0x9a9a9a,gx,0.02,0);
+    box(g,3.4,0.5,0.1,0x8e9196,gx,2.25,front*3.0);box(g,4.6,0.3,6.4,C(H.roof),gx,2.8,0)}
   if(H.pool){const pz=h.side*(d/2+3.6);box(g,6,0.25,3.6,0xf4f1e6,0,0,pz);const wt=new THREE.Mesh(new THREE.PlaneGeometry(5.2,2.8),new THREE.MeshLambertMaterial({color:0x3fb6ff,emissive:0x0a4a7a}));wt.rotation.x=-Math.PI/2;wt.position.set(0,0.27,pz);g.add(wt)}
   if(H.doghouse){box(g,1.3,1.0,1.3,0xe2483d,-w/2+0.8,0,front*(d/2+1.8));const rr=new THREE.Mesh(prismGeo(),lam(0x5b6470));rr.scale.set(1.6,0.7,1.6);rr.position.set(-w/2+0.8,1.0,front*(d/2+1.8));g.add(rr)}
   if(H.garden){const cols=[0xe2483d,0xffd23f,0xF57E20,0xffffff,0xc04fd0];for(let i=0;i<10;i++){const x=-w/2+0.4+i*(w-0.8)/9;box(g,0.35,0.5,0.35,0x3f7d32,x,0,front*(d/2+2.9));box(g,0.3,0.25,0.3,cols[i%5],x,0.5,front*(d/2+2.9))}}
   if(H.solar){for(let i=0;i<3;i++){const p=box(g,1.4,0.08,1.0,0x1d2f55,(i-1)*1.6,ht+0.75,h.side*(d/4));p.rotation.x=h.side*0.45}}
   {const mx=-2.6,mzz=mz+front*0.55;box(g,0.14,1.0,0.14,0x5b3a22,mx,0,mzz);box(g,0.55,0.45,0.75,0x008CE3,mx,1.0,mzz);box(g,0.57,0.06,0.77,0x0A2240,mx,1.45,mzz);
     mailFlag=box(g,0.05,0.4,0.05,0xe2483d,mx+0.32,1.2,mzz);mailFlag.add(new THREE.Mesh(new THREE.BoxGeometry(0.03,0.18,0.26),lam(0xe2483d)));mailFlag.children[0].position.set(0,0.12,front*0.12);mailFlag.visible=mailUnread()>0}
-  {let xc=w/2-0.4;for(const k of Object.keys(S.plug||{})){if(!VEH[k]||riding===k)continue;const len=k==="car"?4.5:1.5;const vx=xc-len/2;if(vx-len/2<-w/2-1)break;
+  if(H.garage&&(S.vehicles||[]).includes("car")&&riding!=="car"){const vm=makeVehicle("car");vm.position.set(w/2+2.3,0,front*0.2);vm.rotation.y=front>0?0:Math.PI;g.add(vm)}
+  {let xc=w/2-0.4;for(const k of Object.keys(S.plug||{})){if(!VEH[k]||riding===k||(k==="car"&&H.garage))continue;const len=k==="car"?4.5:1.5;const vx=xc-len/2;if(vx-len/2<-w/2-1)break;
     const vm=makeVehicle(k);vm.position.set(vx,0,front*(d/2+(k==="car"?2.0:1.6)));vm.rotation.y=Math.PI/2;g.add(vm);
     box(g,0.42,0.6,0.16,0x2b3440,vx,0.9,fz+front*0.09);box(g,0.12,0.12,0.04,0x5fe36a,vx,1.3,fz+front*0.18,{emissive:0x2f9f2f});xc-=len+0.5}}
   homeGroup=g;scene.add(g)}
@@ -1647,8 +1718,8 @@ function charHair(av,add,head){const hs=av.hs||0,hc=av.hair;const S_=(r)=>new TH
   if(hs===9){cap(0.478,0.5);add(S_(0.22),hc,0,0.42,0.2,head,true,[1.25,0.75,1.05]);add(S_(0.15),hc,0.04,0.5,0.32,head,false,[1.1,0.6,0.9]);return}
   if(hs===8){cap(0.49,0.56);for(let k=0;k<26;k++){const t=0.15+(k%5)*0.11,p=k*2.4;const r=0.5;const x=Math.sin(t*Math.PI)*Math.sin(p)*r,y=Math.cos(t*Math.PI)*r+0.03,z=Math.sin(t*Math.PI)*Math.cos(p)*r-0.05;if(z>0.28&&y<0.25)continue;add(S_(0.11),hc,x,y,z,head,false)}bangs();return}
   cap();bangs(hs===1||hs===7?1:0);
-  if(hs===1){add(S_(0.46),hc,0,-0.3,-0.3,head,true,[1.06,1.35,0.5],1.03);for(const s of[-1,1])add(S_(0.13),hc,s*0.45,-0.22,-0.12,head,false,[0.5,2.0,0.8])}
-  if(hs===3){add(new THREE.TorusGeometry(0.07,0.03,8,14),av.capColor||"#e2483d",0,0.12,-0.48,head,false);add(S_(0.15),hc,0,0.02,-0.56,head,true,[0.95,1.2,0.95]);add(S_(0.12),hc,0,-0.22,-0.6,head,true,[0.9,1.5,0.9]);add(S_(0.08),hc,0,-0.43,-0.57,head,false)}
+  if(hs===1){add(S_(0.46),hc,0,-0.06,-0.32,head,true,[1.06,1.0,0.5],1.03);for(const s of[-1,1]){add(S_(0.24),hc,s*0.34,-0.52,-0.3,head,true,[0.7,1.45,0.45],1.03);add(S_(0.12),hc,s*0.46,-0.2,-0.14,head,false,[0.5,1.7,0.75])}}
+  if(hs===3){add(new THREE.TorusGeometry(0.07,0.03,8,14),av.capColor||"#e2483d",0,0.12,-0.48,head,false);add(S_(0.15),hc,0,0.02,-0.56,head,true,[0.95,1.2,0.95]);add(S_(0.12),hc,0,-0.16,-0.62,head,true,[0.9,1.3,0.9]);add(S_(0.08),hc,0,-0.33,-0.62,head,false)}
   if(hs===5){add(S_(0.2),hc,0,0.52,-0.12,head,true);add(new THREE.TorusGeometry(0.13,0.03,8,16),av.capColor||"#e2483d",0,0.4,-0.1,head,false).rotation.x=Math.PI/2}
   if(hs===6)for(const s of[-1,1]){add(S_(0.17),hc,s*0.52,0.08,-0.14,head,true,[0.75,1.35,0.8]);add(S_(0.06),av.capColor||"#e2483d",s*0.46,0.24,-0.12,head,false)}
   if(hs===7)for(const s of[-1,1]){for(let k=0;k<5;k++)add(S_(0.085-k*0.006),hc,s*(0.44+k*0.01),-0.18-k*0.13,-0.1-k*0.01,head,k===0);add(S_(0.04),av.capColor||"#e2483d",s*0.48,-0.84,-0.15,head,false)}}
@@ -2161,7 +2232,7 @@ function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
   for(const m of markers){const d=Math.hypot(m.sp.position.x-camera.position.x,m.sp.position.z-camera.position.z);m.sp.visible=d<(lowQ?220:320);const k=Math.max(1,d/45)*0.55;m.sp.scale.set(12*k,1.9*k,1)}
   animEverton();
   if(beam.visible)beam.material.opacity=0.28+Math.sin(clockT*3)*0.1;
-  updateDayNight(dt);updateRain(dt);if(!startMode)updateBirds(dt);updateStreetEv(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
+  updateDayNight(dt);updateRain(dt);if(!startMode)updateBirds(dt);updateStreetEv(dt);if(!startMode)updateOthers(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
 function update(dt){if(miniOpen)return;
   let mx=0,my=0;if(keys.a||keys.arrowleft)mx-=1;if(keys.d||keys.arrowright)mx+=1;if(keys.w||keys.arrowup)my+=1;if(keys.s||keys.arrowdown)my-=1;
   if(joyV){mx+=joyV[0];my+=joyV[1]}
@@ -2805,7 +2876,7 @@ function placeActions(p){const out=[];
 
 /* ============ sheets & minigames ============ */
 let stopGame=null;
-function openSheet(title,...content){$("#sheet").classList.remove("side");profileView=false;const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null;keys={};joyV=null}
+function openSheet(title,...content){content=content.filter(x=>x!=null&&x!==false);$("#sheet").classList.remove("side");profileView=false;const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null;keys={};joyV=null}
 function closeSheet(){$("#sheet").hidden=true;$("#sheet").classList.remove("side");profileView=false;if(stopGame){stopGame();stopGame=null}document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("on"))}
 function spend(m){if(!m.cost)return true;regen();if(S.energy<m.cost){openSheet("Sem energia",el("p",{text:"Sua energia acabou. Ela volta sozinha (1 coração a cada 20 minutos), ou você pode passar na sede da Associação ou trabalhar em uma empresa do bairro."}),el("button",{class:"btn",onclick:()=>{closeSheet();goTo("assoc")}},"Ir até a sede"));return false}S.energy-=m.cost;if(S.energy===ENERGY_MAX-1)S.energyTs=Date.now();save();updateHUD();return true}
 function result(ok,title,okMsg,failMsg,onOk){openSheet(title,el("div",{class:"game"},el("div",{class:"big",text:ok?"Muito bem!":"Quase lá"}),el("p",{text:ok?okMsg:failMsg})),el("button",{class:"btn",onclick:closeSheet},"Voltar ao bairro"));if(ok&&onOk)onOk()}
@@ -2972,7 +3043,7 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
   if(tab==="convidar"){syncInvites();const msg=`Entra no JLA: Bairro em Jogo, o jogo da nossa Associação de Moradores! Joga pelo link: https://bairroemjogo.web.app/#${S.code} (meu código: ${S.code})`;
     const pre=el("p",{style:"background:#fff;border:2px solid #d9d2c0;border-radius:10px;padding:10px;user-select:text",text:msg});
     const copy=el("button",{class:"btn blue",onclick:async()=>{try{await navigator.clipboard.writeText(msg);toast("Mensagem copiada")}catch(e){const r=document.createRange();r.selectNodeContents(pre);const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Mensagem selecionada: copie com o dedo")}}},"Copiar mensagem");
-    openSheet("Convide um vizinho",el("p",{text:"Seu código de convite:"}),el("div",{class:"code",text:S.code}),el("p",{style:"margin-top:12px",text:"Cada vizinho que entrar com o seu código vale +20 pontos, e +10 extra quando ele cumprir a primeira missão. Você entra no ranking de Embaixadores do Bairro."}),pre,
+    openSheet("Convide um vizinho",el("button",{class:"btn blue",style:"width:100%;margin-bottom:12px",onclick:openFriends},"Amigos no jogo"+(FR.list.some(f=>f.status==="pendente"&&f.de!==MAIL.uid)?" (pedido novo!)":"")),el("p",{text:"Seu código (serve para convite e para amizade):"}),el("div",{class:"code",text:S.code}),el("p",{style:"margin-top:12px",text:"Cada vizinho que entrar com o seu código vale +20 pontos, e +10 extra quando ele cumprir a primeira missão. Você entra no ranking de Embaixadores do Bairro."}),pre,
       el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("a",{class:"btn green",href:"https://wa.me/?text="+encodeURIComponent(msg),target:"_blank",rel:"noopener"},"Enviar no WhatsApp"),copy),
       el("p",{class:"muted",style:"margin-top:12px",text:"Limite de 10 convites pontuados por semana, para evitar cadastros falsos. Os pontos entram sozinhos quando o vizinho abre o jogo pelo seu link ou com o seu código. Vizinhos que entraram com seu código: "+(S.invites||0)+"."}))}
   if(tab==="assoc"){openSheet("Associação de Moradores",el("img",{src:LOGO_URI,alt:"Logo da Associação",style:"width:110px;float:right;margin:0 0 8px 12px;border-radius:12px"}),el("p",{},el("b",{text:"Associação de Moradores do Jardim Los Angeles"})),

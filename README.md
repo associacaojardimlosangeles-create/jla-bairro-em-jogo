@@ -76,6 +76,9 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Celular deitado (interface compacta, tela cheia) | `@media (max-height:500px) and (orientation:landscape)`, `function goFullscreen` |
 | Código da casa para morar junto | `function houseCode`, `function joinByCode` |
 | Escolher o veículo | `function openRidePick` |
+| Amigos e jogadores andando no bairro (só amigos e quem mora junto) | `function openFriends`, `function addFriend`, `function pushPos`, `function watchPos`, `function updateOthers` |
+| Muro com grade e portão, carro na garagem | `function buildHome` |
+| Bichinhos sobem no veículo | começo de `function updatePets` |
 
 ### Como colocar um comércio novo
 
