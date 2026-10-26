@@ -165,6 +165,13 @@ body.inside #joy,body.inside #me,body.inside #hudbat,body.inside #mm,body.inside
 #inside .inbar.inbar-r{left:auto;right:max(12px,env(safe-area-inset-right,0px));justify-content:flex-end}
 #injoy{position:absolute;left:28px;bottom:calc(28px + env(safe-area-inset-bottom,0px));width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.35);pointer-events:none}
 #injoy>div{position:absolute;left:30px;top:30px;width:44px;height:44px;border-radius:50%;background:#F57E20;border:3px solid #fff}
+/* estilo de botão do Kenney UI Pack: brilho em cima, sombra de profundidade embaixo */
+.btn:not(.ghost){background-image:linear-gradient(180deg,rgba(255,255,255,.28) 0,rgba(255,255,255,.12) 46%,rgba(0,0,0,0) 47%,rgba(0,0,0,.06) 100%);border-radius:12px;border:2px solid rgba(0,0,0,.18);text-shadow:0 2px 0 rgba(0,0,0,.25);letter-spacing:.2px}
+.btn:not(.ghost):active{filter:brightness(.95)}
+.btn.ghost{border-radius:12px;background:#ffffffe6;color:#0A2240;border-color:#0A2240;box-shadow:0 3px 0 rgba(0,0,0,.18)}
+.round{background-image:linear-gradient(180deg,rgba(255,255,255,.25) 0,rgba(255,255,255,.08) 48%,rgba(0,0,0,0) 49%);box-shadow:0 5px 0 #04101fbb,inset 0 -3px 0 rgba(0,0,0,.25);text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.round:active{transform:translateY(3px);box-shadow:0 2px 0 #04101fbb,inset 0 -2px 0 rgba(0,0,0,.25)}
+#tabs button.on{background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0))}
 </style>
 
 <div id="app">
@@ -808,7 +815,8 @@ function buildPOIs(){
     let px=p.x,py=p.y;if(p.type==="bus"){const need=RW[nr.k]/2+3.2;if(nr.d<need){px=nr.qx-fx*need;py=nr.qy-fy*need}}
     p.x=px;p.y=py;p.fx=fx;p.fy=fy;p.depth=depth;const [X,Z]=W3(px,py);g.position.set(X,0,Z);g.rotation.y=Math.atan2(fx,fy);
     ({assoc:mkAssoc,school:mkSchool,shop:mkShop,fuel:mkFuel,factory:mkFactory,yard:mkYard,bus:mkBus,vshop:mkVShop,shelter:mkShelter,garage:mkGarage,correio:mkCorreio,horta:mkHorta,igreja:mkIgreja,fazenda:mkFazenda})[p.type](g,p);
-    scene.add(g);if(p.type!=="bus")addCol(px,py,rad*0.8);p.mh=h;
+    const SCL={hubner:2,scheffer:1.6,rodaviva:1.6,ibera:2,balena:1.15,agua:1.5}[p.id]||1;p.sc=SCL;if(SCL!==1){g.scale.setScalar(SCL);industryProps(g,p)}
+    scene.add(g);if(p.type!=="bus")addCol(px,py,rad*0.8*SCL);p.mh=h*SCL;
   }
   for(const p of POIS){const t=textTex(p.name,{w:768,h:120,bg:p.type==="bus"?"#008CE3":(p.type==="vshop"||p.type==="shelter"||p.id==="petshop")?"#319B27":p.type==="correio"?"#008CE3":p.type==="horta"||p.type==="fazenda"?"#319B27":p.type==="igreja"?"#9c2f22":p.type==="garage"?"#2b2f36":p.type==="assoc"||p.type==="campo"||p.type==="school"||p.type==="viaduto"?"#F57E20":"#0A2240",fg:"#fff",round:56});
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true,fog:false}));sp.renderOrder=10;const [X,Z]=W3(p.x,p.y);sp.position.set(X,(p.mh||6)+5,Z);sp.scale.set(12,1.9,1);scene.add(sp);markers.push({sp,p})}
@@ -847,6 +855,12 @@ function mkFactory(g,p){box(g,44,10,28,0x9fa3aa,0,0,0);for(let i=0;i<6;i++){cons
   const ch=new THREE.Mesh(new THREE.CylinderGeometry(1,1.3,22,12),lam(0x8a5a44));ch.position.set(16,11,-8);ch.castShadow=!lowQ;g.add(ch);
   box(g,8,6,0.2,0x4a4d55,-8,0,14.05);box(g,8,6,0.2,0x4a4d55,6,0,14.05);plane(g,22,2.4,textTex(p.sign,{w:1024,h:120,bg:"#0A2240",fg:"#fff"}),0,8.2,14.12);
   for(let i=0;i<4;i++)box(g,2.2,2,2.2,i%2?0x8b6b3d:0x3f6fae,-18+i*2.6,0,18)}
+/* detalhes 3D nas indústrias maiores (Kenney City Kit Industrial): tanques, contêineres, chaminés */
+function industryProps(g,p){const add=(f,x,z,o,ry=0)=>{const h=new THREE.Group();h.position.set(x,0,z);h.rotation.y=ry;g.add(h);swapModel(h,f,Object.assign({color:0xd0d0d0},o))};
+  if(p.type==="factory"){add("industrial/chimney-large.glb",-17,-8,{height:16});add("industrial/detail-tank-large.glb",-26,4,{length:8});add("industrial/detail-tank.glb",-26,-6,{length:5});
+    if(p.id==="scheffer"||p.id==="agua"){for(let i=0;i<4;i++)add("industrial/shipping-container-"+"abc"[i%3]+".glb",27,-10+i*4.4,{length:7.5},Math.PI/2)}
+    else{add("industrial/shipping-container-a.glb",26,-6,{length:7.5},Math.PI/2);add("industrial/water-tower.glb",26,8,{height:13})}}
+  else if(p.type==="yard"){add("industrial/shipping-container-c.glb",-9,-6,{length:7},0.3);add("roads/dumpster.glb",8,-5,{length:3})}}
 function mkYard(g,p){const r=mulberry(9);for(let i=0;i<40;i++){const c=[0x7d7f86,0x6b4a3a,0x8e8f8b,0xa86b3a,0x55585f][(r()*5)|0];const m=box(g,1+r()*3,0.4+r()*1.5,1+r()*3,c,(r()-.5)*22,0,(r()-.5)*16);m.rotation.y=r()*3}
   for(const s of[-1,1]){box(g,26,2.2,0.12,0x8b9096,0,0,s*10);box(g,0.12,2.2,20,0x8b9096,s*13,0,0)}
   plane(g,10,1.5,textTex("FERRO VELHO RODA VIVA",{w:1024,h:150,bg:"#319B27",fg:"#fff"}),0,3.2,10.1)}
@@ -2517,7 +2531,7 @@ function homeHouse(){return houses[S.home]}
 function checkPlace(){
   let best=null,bd=30;for(const sg of roadSegs){const d=segProj(player.x,player.y,sg.ax,sg.ay,sg.cx,sg.cy).d;if(d<bd){bd=d;best=sg.name}}
   const b=bairroAt(player.x,player.y);const w=$("#where");w.innerHTML="";w.append(document.createTextNode(best||"Fora das ruas"),el("small",{text:(b||"Ponta Grossa")+" · "+hourTxt()}));
-  let near=null;for(const p of POIS){if(Math.hypot(p.x-player.x,p.y-player.y)<(p.type==="factory"?26:p.type==="school"?20:p.type==="campo"?24:p.type==="viaduto"?26:p.type==="fazenda"?28:p.type==="horta"?22:p.type==="igreja"?16:12)){near={kind:"poi",p};break}}
+  let near=null;for(const p of POIS){if(Math.hypot(p.x-player.x,p.y-player.y)<(p.type==="factory"?26:p.type==="school"?20:p.type==="campo"?24:p.type==="viaduto"?26:p.type==="fazenda"?28:p.type==="horta"?22:p.type==="igreja"?16:12)*(p.sc||1)){near={kind:"poi",p};break}}
   if(!near){const h=homeHouse();if(Math.hypot(h.fx-player.x,h.fy-player.y)<(riding?16:6))near={kind:"home"}}
   if(streetEv){const en=evNear();if(en)near={kind:"ev",en}}
   if(!near||near.kind!=="ev"){const hn=horseNear();if(hn)near={kind:"ev",en:hn}}
@@ -3240,7 +3254,7 @@ function renderInterior(){const c=IN.cam;c.aspect=innerWidth/innerHeight;c.updat
 /* cercados com bichos: cada um tem animais que andam, pastam e às vezes fogem */
 const PENS=[{x:1098,y:1366,w:30,d:20,name:"Terreno dos Cavalos",col:"#8a5a33",dirt:0x9b8a55,
     animals:[{n:"Trovão",f:"Horse",c:"#5a3a22",h:2.5,k:"o cavalo"},{n:"Estrela",f:"Horse",c:"#efe9df",h:2.5,k:"a égua"},{n:"Canela",f:"Horse",c:"#b4703a",h:2.5,k:"a égua"},{n:"Pé de Pano",f:"Horse",c:"#2a2522",h:2.5,k:"o cavalo"}]},
-  {x:1034,y:150,w:26,d:22,name:"Bichos da Fazenda",col:"#319B27",dirt:0x8fae55,
+  {x:992,y:150,w:26,d:22,name:"Bichos da Fazenda",col:"#319B27",dirt:0x8fae55,
     animals:[{n:"Mimosa",f:"Cow",h:2.3,k:"a vaca"},{n:"Malhada",f:"Cow",h:2.2,k:"a vaca"},{n:"Toicinho",f:"Pig",h:1.15,k:"o porquinho"},{n:"Nuvem",f:"Sheep",h:1.4,k:"a ovelha"},{n:"Algodão",f:"Sheep",h:1.3,k:"a ovelha"},{n:"Dalila",f:"Llama",h:2.6,k:"a lhama"}]}];
 const HZ=[];let horseEsc=240+Math.random()*240,PASTO=PENS[0];
 function inPasto(x,y,m=0,P=PASTO){return Math.abs(x-P.x)<P.w/2-m&&Math.abs(y-P.y)<P.d/2-m}
