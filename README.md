@@ -73,6 +73,9 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Pizzaria Ilse (montar pizza, forno, entregas, horta) | `PZ_REC`, `function MG_MONTA`, `function MG_FORNO`, `function openIlseJobs`, `function startPizzaRoute`, `function startFetch` |
 | Tela de carregamento (logo, barra, dicas, aviso de erro) | `<div id="loading">` e `loadStep` no começo do arquivo |
 | Limite de bichinhos por casa (3 gatos, 2 cachorros) | `PET_LIM`, `function houseHasPets` |
+| Celular deitado (interface compacta, tela cheia) | `@media (max-height:500px) and (orientation:landscape)`, `function goFullscreen` |
+| Código da casa para morar junto | `function houseCode`, `function joinByCode` |
+| Escolher o veículo | `function openRidePick` |
 
 ### Como colocar um comércio novo
 

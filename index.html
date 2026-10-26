@@ -137,6 +137,19 @@ label.f{display:block;font-weight:900;font-size:13px;margin:12px 0 6px}
 [hidden]{display:none!important}
 @keyframes lgpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 #loading small{font-family:var(--body);font-size:14px;color:var(--muted);font-weight:700}
+/* celular deitado: interface compacta para sobrar mais tela para o jogo */
+@media (max-height:500px) and (orientation:landscape){
+  #me{padding:4px 8px;gap:7px;max-width:240px}#me .face{width:28px;height:28px;font-size:15px;border-width:1.5px}#me .nick{font-size:14px}#me .lvl{display:none}#me .row1{margin-top:2px;gap:6px;font-size:12px}#me .ed{display:none}
+  #mm,#mm .wrap{width:96px}#mm .wrap{height:96px;border-width:2px}#mm .n{font-size:10px}#where{display:none}#track{font-size:10px;padding:4px 6px;margin-top:4px}#track b{font-size:12px}
+  #zoomc{top:calc(8px + env(safe-area-inset-top,0px));bottom:auto;right:calc(max(10px,env(safe-area-inset-right,0px)) + 104px);flex-direction:row;gap:6px}
+  #zoomc .round.small{width:38px;height:38px;font-size:16px;border-width:2px}#zoomc #bsnd,#zoomc #bhome{font-size:9px!important}
+  #tabs button{padding:5px 2px 6px;font-size:11px;flex-direction:row;justify-content:center;gap:5px}#tabs button .d{width:6px;height:6px}
+  #acts{bottom:calc(40px + env(safe-area-inset-bottom,0px));gap:8px}#acts .round{width:50px;height:50px;font-size:10px!important;border-width:2px}#bjump{width:62px!important;height:62px!important;font-size:13px!important}
+  #place{left:max(10px,env(safe-area-inset-left,0px));transform:none;bottom:calc(38px + env(safe-area-inset-bottom,0px));width:min(430px,calc(100% - 300px));padding:6px 10px;gap:6px;border-width:2px;box-shadow:0 3px 0 #04101f}
+  #place h3{font-size:15px}#place p{font-size:11px}#place .acts{gap:5px}#place .btn{min-height:32px;padding:4px 10px;font-size:12px}
+  #toast{top:calc(8px + env(safe-area-inset-top,0px));bottom:auto;max-width:calc(100% - 520px);min-width:160px;font-size:12px;padding:6px 10px}
+  #hint{display:none}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (max-width:520px){#acts .round{width:56px;height:56px;font-size:11px}#bjump{width:66px!important;height:66px!important}#mm,#mm .wrap{width:124px}#mm .wrap{height:124px}#me{max-width:calc(100% - 156px)}#track{font-size:11px}}
 </style>
@@ -1011,6 +1024,15 @@ function watchHouse(i){if(CASA.unsub)CASA.unsub();CASA.i=i;
     if(lastPlace==="home"){lastPlace="";checkPlace()}},()=>{})}
 function pushHouseStyle(){if(!online()||!CASA.d||CASA.i!==S.home)return;const sig=JSON.stringify(S.house||{});if(sig===CASA.styleSig)return;CASA.styleSig=sig;casaRef(S.home).update({style:S.house}).catch(()=>{})}
 function houseMates(){if(!CASA.d)return[];const n=CASA.d.nicks||{};return(CASA.d.membros||[]).filter(u=>u!==MAIL.uid).map(u=>({uid:u,nick:String(n[u]||"Morador").slice(0,16),dono:u===CASA.d.dono}))}
+/* código da casa: quem quer morar junto digita o código que o dono passou (não mostra endereço) */
+function houseCode(i){const n=i*7+13;let ck=0;for(const ch of String(n))ck+=+ch;return"CASA-"+n.toString(36).toUpperCase()+(ck%10)}
+function parseHouseCode(t){const m=String(t||"").trim().toUpperCase().replace(/\s/g,"").match(/^(CASA-?)?([0-9A-Z]+)([0-9])$/);if(!m)return null;const n=parseInt(m[2],36);if(!isFinite(n))return null;let ck=0;for(const ch of String(n))ck+=+ch;if(ck%10!==+m[3])return null;const i=(n-13)/7;return Number.isInteger(i)&&i>=0&&i<houses.length?i:null}
+async function joinByCode(code,err){const i=parseHouseCode(code);if(i==null)return err.textContent="Código não encontrado. Confira com quem mora na casa (ex.: CASA-AB12).";
+  if(i===S.home)return err.textContent="Esse é o código da sua própria casa!";if(!online())return err.textContent="Para morar junto, abra o jogo pelo link bairroemjogo.web.app com internet.";
+  err.textContent="Procurando a casa...";try{const sn=await casaRef(i).get();const d=sn.exists?sn.data()||{}:null;
+    if(!d){err.textContent="Essa casa ainda não tem morador no jogo. Peça para a pessoa abrir o jogo uma vez e tente de novo.";return}
+    if((d.membros||[]).includes(MAIL.uid))return err.textContent="Você já mora nessa casa.";
+    await sendHouseReq(i,d,{rua:houses[i].street})}catch(e){err.textContent="Não deu agora. Confira a internet e tente de novo."}}
 async function leaveHouse(i){if(!online())return;const uid=MAIL.uid;if(CASA.i===i&&CASA.unsub){CASA.unsub();CASA.unsub=null;CASA.d=null;CASA.i=null}
   try{const s=await casaRef(i).get();if(!s.exists)return;const d=s.data()||{};if(!(d.membros||[]).includes(uid))return;const others=(d.membros||[]).filter(u=>u!==uid);
     if(d.dono===uid){if(others.length){const nicks=Object.assign({},d.nicks||{}),pets=Object.assign({},d.pets||{});delete nicks[uid];delete pets[uid];await casaRef(i).update({dono:others[0],membros:others,nicks,pets})}else await casaRef(i).delete()}
@@ -1050,10 +1072,15 @@ async function answerReq(p,ok){reqShown=null;closeSheet();
   reqQueue=reqQueue.filter(x=>x.id!==p.id);setTimeout(showNextReq,600)}
 function openHouseMates(){const mates=houseMates();const list=el("div",{class:"list"});const iAmOwner=CASA.d&&CASA.d.dono===MAIL.uid;
   if(!online())list.append(el("p",{class:"muted",text:"Morar junto funciona quando o jogo é aberto pelo site oficial da Associação, com internet."}));
-  else if(!mates.length)list.append(el("p",{class:"muted",text:"Só você mora aqui por enquanto. Quem quiser morar junto escolhe esta casa em Mudar de casa e manda um pedido para você."}));
+  else if(!mates.length)list.append(el("p",{class:"muted",text:"Só você mora aqui por enquanto. Para alguém morar junto, passe o código abaixo: a pessoa digita em Mudar de casa e o pedido chega para você aceitar."}));
   for(const m of mates)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:m.nick}),el("span",{text:m.dono?"dono da casa":"mora junto"})),
     iAmOwner?el("button",{class:"btn ghost",style:"min-height:34px;padding:5px 10px;font-size:13px",onclick:async()=>{try{const nicks=Object.assign({},CASA.d.nicks||{}),pets=Object.assign({},CASA.d.pets||{});delete nicks[m.uid];delete pets[m.uid];await casaRef(S.home).update({membros:firebase.firestore.FieldValue.arrayRemove(m.uid),nicks,pets});toast(m.nick+" não mora mais aqui.");setTimeout(openHouseMates,500)}catch(e){toast("Não deu agora.")}}},"Tirar da casa"):null));
-  openSheet("Quem mora aqui",el("p",{text:iAmOwner||!CASA.d?"Você é o dono desta casa.":"Você mora junto nesta casa."}),list,
+  const hc=houseCode(S.home),hmsg="Vem morar comigo no JLA: Bairro em Jogo! Abra bairroemjogo.web.app, vá em Sua casa → Mudar de casa e use o código "+hc;
+  const codeBox=online()?el("div",{class:"row",style:"display:block;background:#fff3e8;border-color:#F57E20;margin:10px 0"},el("b",{text:"Código da sua casa: "+hc}),
+      el("p",{style:"margin:4px 0 8px;font-size:13px",text:"Passe esse código só para quem mora com você de verdade. A pessoa digita em Mudar de casa e você aceita o pedido."}),
+      el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("a",{class:"btn green",href:"https://wa.me/?text="+encodeURIComponent(hmsg),target:"_blank",rel:"noopener"},"Mandar no WhatsApp"),
+        el("button",{class:"btn ghost",onclick:async()=>{try{await navigator.clipboard.writeText(hc);toast("Código copiado: "+hc)}catch(e){toast("Código: "+hc)}}},"Copiar código"))):null;
+  openSheet("Quem mora aqui",el("p",{text:iAmOwner||!CASA.d?"Você é o dono desta casa.":"Você mora junto nesta casa."}),list,codeBox,
     S.casaReq?el("p",{class:"muted",style:"margin-top:10px",text:"Você mandou um pedido para morar em outra casa e está esperando a resposta."}):null,
     el("button",{class:"btn ghost",style:"margin-top:10px",onclick:openMove},"Mudar de casa"))}
 function mailList(){const bl=S.mailBlock||[];return [MAIL_WELCOME,...MAIL.inbox.filter(r=>!bl.includes(r.from))]}
@@ -1475,7 +1502,11 @@ function streetPoint(name,meters){let left=meters;let lastPt=null;for(const r of
 function openMove(){const streets=[...new Set(houses.map(h=>h.street))].sort((a,b)=>a.localeCompare(b,"pt"));
   const sel=el("select",{class:"inp",id:"movestreet"},...streets.map(n=>el("option",{value:n,text:n})));sel.value=S.rua;
   const num=el("input",{class:"inp",id:"movenum",inputmode:"numeric",maxlength:"5",placeholder:"Ex.: 345"});const err=el("div",{class:"err"});
-  openSheet("Mudar de casa",el("p",{text:"Escolha a rua e, se quiser, o número. O jogo coloca você na casa mais perto desse número. O número fica salvo só neste aparelho e ninguém vê."}),
+  const ccode=el("input",{class:"inp",placeholder:"Ex.: CASA-AB12",maxlength:"12",style:"text-transform:uppercase"});const cerr=el("div",{class:"err"});
+  openSheet("Mudar de casa",el("div",{class:"row",style:"display:block;background:#e8f3fc;border-color:#008CE3;margin-bottom:12px"},el("b",{text:"Vai morar junto com alguém do jogo?"}),
+      el("p",{style:"margin:4px 0 6px;font-size:14px",text:"Peça o código da casa para quem já mora lá (fica em Sua casa → Quem mora aqui) e digite aqui. A pessoa recebe o pedido para aceitar."}),
+      ccode,cerr,el("button",{class:"btn blue",style:"margin-top:6px",onclick:()=>joinByCode(ccode.value,cerr)},"Pedir para morar junto")),
+    el("p",{style:"font-weight:800;margin:6px 0 2px",text:"Ou escolha uma casa nova:"}),el("p",{text:"Escolha a rua e, se quiser, o número. O jogo coloca você na casa mais perto desse número. O número fica salvo só neste aparelho e ninguém vê."}),
     el("label",{class:"f",for:"movestreet",text:"Rua"}),sel,el("label",{class:"f",for:"movenum",text:"Número (opcional)"}),num,err,
     el("button",{class:"btn green",style:"margin-top:8px",onclick:()=>{const st=sel.value;const n=parseInt(num.value,10);const cand=houses.map((h,i)=>[h,i]).filter(([h])=>h.street===st);if(!cand.length)return err.textContent="Essa rua não tem casas no mapa.";
       let pick;if(n>0){const pt=streetPoint(st,n);pick=cand.sort((a,b)=>Math.hypot(a[0].wx-pt[0],a[0].wy-pt[1])-Math.hypot(b[0].wx-pt[0],b[0].wy-pt[1]))[0]}else pick=cand[Math.floor(Math.random()*cand.length)];
@@ -2266,7 +2297,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
   let queue=[mkCust(),mkCust()],arrived=2,served=0,wrong=0,lost=0,plate=[],drink=null,t0=performance.now(),started=false,over=false,msg="",msgT=0,coins=[],spawnT=0,ended=false;
   let btns=[];
   const say=(m)=>{msg=m;msgT=1.6};
-  function layout(){const top=50,cTop=H*0.5,work=H*0.5+H*0.05;const bArea=H*0.73;const n=cfg.items.length;const cols=n>8?5:Math.min(n,5);const rows=Math.ceil(n/cols);const pad=8;
+  function layout(){const land=W>H*1.3;const top=land?40:50,cTop=H*0.5,work=H*0.5+H*0.05;const bArea=H*(land?0.75:0.73);const n=cfg.items.length;const cols=land?n:n>8?5:Math.min(n,5);const rows=Math.ceil(n/cols);const pad=8;
     const bw=Math.min(110,(W-pad*(cols+1))/cols),bh=Math.min(78,(H-bArea-pad*(rows+1)-8)/rows);const ox=(W-(cols*bw+(cols-1)*pad))/2;
     btns=cfg.items.map((id,i)=>({id,x:ox+(i%cols)*(bw+pad),y:bArea+pad+Math.floor(i/cols)*(bh+pad),w:bw,h:bh}));
     const aw=Math.min(150,W*0.28);btns.push({id:"_lixo",x:10,y:work+4,w:aw*0.75,h:44},{id:"_ok",x:W-aw-10,y:work+4,w:aw,h:52});return{top,cTop,work,bArea}}
@@ -2292,7 +2323,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
     c.fillStyle=cfg.trim;c.fillRect(0,L.top+6,W,8);c.fillStyle="#fff";c.font="900 "+Math.min(34,W*0.06)+"px "+getComputedStyle(document.body).getPropertyValue("--display");c.textAlign="center";c.fillText(cfg.title.toUpperCase(),W/2,L.top+46);
     /* clientes */
     const vis=queue.slice(0,4);vis.forEach((cu,i)=>{const tx=i===0?0.3:0.56+i*0.13;cu.x+=(tx-cu.x)*Math.min(1,dt*5);const s=i===0?Math.min(1.05,H/620):Math.min(0.72,H/900);drawCust(cu,W*cu.x,L.cTop-(i===0?40:70)*s,s)});
-    if(queue[0]&&queue[0].x<0.4)drawBubble(queue[0],W*0.3+70*Math.min(1.05,H/620),L.cTop-150*Math.min(1.05,H/620));
+    if(queue[0]&&queue[0].x<0.4){const bs=Math.min(1,H/560);c.save();const bx=W*0.3+70*Math.min(1.05,H/620),by=W>H*1.3?L.cTop-8:L.cTop-150*Math.min(1.05,H/620);c.translate(bx,by);c.scale(bs,bs);drawBubble(queue[0],0,0);c.restore()}
     if(queue.length>1){c.fillStyle="rgba(0,0,0,.35)";RR(c,W*0.62,L.cTop-24,W*0.34,22,11);c.fill();c.fillStyle="#fff";c.font="800 13px system-ui,sans-serif";c.fillText((queue.length-1)+" aguardando na fila",W*0.79,L.cTop-8)}
     /* balcão e área de trabalho */
     c.fillStyle="#d8d2c4";c.fillRect(0,L.cTop,W,H*0.05);c.fillStyle="#b9b2a2";c.fillRect(0,L.cTop+H*0.05-6,W,6);
@@ -2304,7 +2335,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
     /* botões */
     {const GG={font:(px,w=800)=>c.font=w+" "+px+"px 'Nunito',system-ui,sans-serif",text:(t,x,y,col)=>{c.fillStyle=col;c.textAlign="center";c.fillText(t,x,y)}};
     for(const b of btns){const sp=b.id[0]==="_";if(sp)btn3d(c,{x:b.x,y:b.y,w:b.w,h:b.h,col:b.id==="_ok"?"#319B27":"#e2483d",label:b.id==="_ok"?"ENTREGAR":"Jogar fora",fs:b.id==="_ok"?18:15},false,null,GG);
-      else btn3d(c,{x:b.x,y:b.y,w:b.w,h:b.h,col:"#fff8ec",tc:"#2a2230",label:FOOD[b.id].n,fs:Math.max(10,Math.min(12,b.w/9)),icon:(cc,bb)=>{drawItem(cc,b.id,bb.x+bb.w/2,bb.y+bb.h*0.62,Math.min(bb.w*0.7,bb.h*1.1))}},false,null,GG)}}
+      else btn3d(c,{x:b.x,y:b.y,w:b.w,h:b.h,col:"#fff8ec",tc:"#2a2230",label:FOOD[b.id].n,fs:Math.max(10,Math.min(12,b.w/9)),icon:(cc,bb)=>{const k=bb.h<60;drawItem(cc,b.id,bb.x+bb.w/2,bb.y+bb.h*(k?0.5:0.62),Math.min(bb.w*(k?0.5:0.7),bb.h*(k?0.7:1.1)))}},false,null,GG)}}
     /* topo */
     const left=Math.max(0,TIME-(now-t0)/1000);c.fillStyle="rgba(0,0,0,.45)";RR(c,10,8+(parseInt(getComputedStyle(document.documentElement).getPropertyValue("--sat"))||0),Math.min(330,W-90),36,18);c.fill();c.fillStyle="#fff";c.textAlign="left";c.font="800 15px system-ui,sans-serif";
     c.fillText("Atendidos "+served+"/"+TOTAL+"   Tempo "+Math.ceil(left)+"s",24,31);c.textAlign="center";
@@ -2949,6 +2980,7 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
       el("p",{text:"Projetos: Atleta do Bairro (esporte para crianças e adolescentes), Capoeira Arte Viva, campanhas solidárias e de segurança alimentar, mutirões e eventos."}),
       googleBox(),installBox(),el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
       el("p",{},el("b",{text:"Gráficos: "}),document.createTextNode(lowQ?"modo leve (para celulares mais simples). ":"modo completo, com sombras. "),el("button",{class:"btn ghost",style:"min-height:36px;padding:6px 10px",onclick:()=>{store.set("jla_lowq",!lowQ);location.reload()}},lowQ?"Usar modo completo":"Usar modo leve")),
+      document.fullscreenEnabled?el("p",{},el("b",{text:"Tela cheia no celular: "}),...[[true,"Ligada"],[false,"Desligada"]].map(([k,n])=>el("button",{class:"btn "+(store.get("jla_fs",true)===k?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{store.set("jla_fs",k);if(k)goFullscreen();else if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});openTab("assoc")}},n))):null,
       el("p",{},el("b",{text:"Chuva: "}),...[["auto","Em alguns dias"],["nunca","Nunca"],["chuva","Chover agora"]].map(([k,n])=>el("button",{class:"btn "+(((S.weather||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.weather=k;save();openTab("assoc")}},n))),
       el("p",{},el("b",{text:"Dia e noite: "}),...[["auto","Automático"],["real","Hora do celular"],["dia","Sempre dia"],["noite","Sempre noite"]].map(([k,n])=>el("button",{class:"btn "+(((S.dayMode||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.dayMode=k;save();lastDayK=-1;openTab("assoc")}},n))),
       online()?el("p",{class:"muted",style:"font-size:11px",text:"Código do jogador (só para a diretoria liberar acesso de administrador): "+MAIL.uid}):null,el("p",{class:"muted",text:"Mapa: dados © colaboradores do OpenStreetMap (ODbL), em 3D. As empresas aparecem porque estão no mapa público; antes do lançamento, a Associação vai pedir autorização a cada uma. Os pontos de ônibus estão em local aproximado."}),
@@ -3001,7 +3033,11 @@ function enterGame(first){startMode=false;S.coins??=30;S.vehicles??=[];S.pets??=
 
 /* ============ input ============ */
 const cv=$("#gl");let joy=null,drag=null;
-cv.addEventListener("pointerdown",e=>{if(startMode)return;cv.focus();const left=e.pointerType!=="mouse"&&e.clientX<innerWidth*0.45;
+/* tela cheia no celular: some a barra de endereço (no iPhone, só instalando o jogo na tela de início) */
+let fsTried=false;
+function wantFullscreen(){try{return matchMedia("(pointer:coarse)").matches&&!isStandalone()&&store.get("jla_fs",true)&&document.fullscreenEnabled&&!document.fullscreenElement}catch(e){return false}}
+function goFullscreen(){try{const r=document.documentElement.requestFullscreen({navigationUI:"hide"});if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+cv.addEventListener("pointerdown",e=>{if(startMode)return;if(!fsTried&&wantFullscreen()){fsTried=true;goFullscreen()}cv.focus();const left=e.pointerType!=="mouse"&&e.clientX<innerWidth*0.45;
   if(left&&!joy){joy={id:e.pointerId,x:e.clientX,y:e.clientY};const j=$("#joy");j.hidden=false;j.style.left=e.clientX+"px";j.style.top=e.clientY+"px";j.firstElementChild.style.transform="translate(-50%,-50%)"}
   else if(!drag)drag={id:e.pointerId,x:e.clientX,y:e.clientY};
   try{cv.setPointerCapture(e.pointerId)}catch(_){}});
@@ -3018,7 +3054,12 @@ $("#bjump").addEventListener("pointerdown",e=>{e.preventDefault();jump()});
 $("#bsprint").addEventListener("click",()=>{sprint=!sprint;$("#bsprint").classList.toggle("on",sprint)});
 $("#zin").onclick=()=>camDist=Math.max(4,camDist*0.8);$("#zout").onclick=()=>camDist=Math.min(40,camDist*1.25);
 $("#mmwrap").addEventListener("click",()=>openTab("mapa"));
-$("#bride").addEventListener("click",()=>{if(riding){setRide(null);return}const own=(S.vehicles||[]);if(!own.length){toast("Compre um veículo na Loja de Bikes e Veículos");goTo("loja");return}setRide(own.includes(S.lastRide)?S.lastRide:own[own.length-1])});
+function openRidePick(){const own=(S.vehicles||[]).filter(k=>VEH[k]);
+  openSheet("Escolha o veículo",el("p",{text:"Qual você quer usar agora?"}),el("div",{class:"list"},...own.map(k=>{const v=VEH[k],b=Math.round(batOf(k)),pl=(S.plug||{})[k];
+    return el("div",{class:"row",style:"cursor:pointer"+(k===S.lastRide?";border-color:#F57E20;background:#fff3e8":""),tabindex:"0",onclick:()=>{closeSheet();setRide(k)}},
+      el("div",{class:"t"},el("b",{text:v.name}),el("span",{text:v.elec?("Bateria "+b+"%"+(pl?" · carregando na tomada":"")):"Não precisa carregar"})),el("span",{class:"tag",text:"Usar"}))})),
+    el("p",{class:"muted",style:"margin-top:8px",text:"Os elétricos carregam na tomada da sua casa (Sua casa → Carregar veículos)."}))}
+$("#bride").addEventListener("click",()=>{if(riding){setRide(null);return}const own=(S.vehicles||[]).filter(k=>VEH[k]);if(!own.length){toast("Compre um veículo na Loja de Bikes e Veículos");goTo("loja");return}if(own.length===1)return setRide(own[0]);openRidePick()});
 $("#bpets").addEventListener("click",()=>openPets());
 $("#bhome").addEventListener("click",goHome);$("#bsnd").addEventListener("click",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume();S.snd=((S.snd??2)+2)%3;save();applySound();toast(["Som desligado","Só os efeitos (sem música)","Música e efeitos ligados"][S.snd])});
 $("#me").addEventListener("click",()=>{if(S)openProfile()});$("#me").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&S){e.preventDefault();openProfile()}});
