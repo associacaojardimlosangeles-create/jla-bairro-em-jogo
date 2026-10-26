@@ -910,7 +910,7 @@ async function initMail(){
     if(!MAIL.first&&fresh.length)toast("Chegou recado de "+fresh[0].fromNick+"! Veja na caixa de correio da sua casa.");MAIL.first=false;mailChanged()},()=>{});
   if(MAIL.owner)db.collection("recados").where("to","==","assoc").limit(80).onSnapshot(s=>{MAIL.assoc=s.docs.map(d=>Object.assign({id:d.id},d.data())).sort(byTs);mailChanged()},()=>{});
   mailChanged();
-  if(MAIL.kind==="fb"){setTimeout(watchFriends,1500);if(await pullCloud()){toast("Achei um jogo mais novo na sua conta Google. Carregando...");setTimeout(()=>location.reload(),1200);return}pushCloud(true);pushRank(true);syncInvites();claimHouse();watchRequests()}}
+  if(MAIL.kind==="fb"){setTimeout(watchFriends,1500);if(!isGoogle())setTimeout(forceGoogle,2500);if(await pullCloud()){toast("Achei um jogo mais novo na sua conta Google. Carregando...");setTimeout(()=>location.reload(),1200);return}pushCloud(true);pushRank(true);syncInvites();claimHouse();watchRequests()}}
 function registerMorador(){if(!MAIL.db||!S)return;const sig=S.nick+"|"+S.rua+"|"+S.bairro+"|"+S.code+"|nl";if(sig===MAIL.sig)return;MAIL.sig=sig;
   MAIL.db.doc(MAIL.pcol+"/"+MAIL.uid).set(Object.assign({nick:S.nick,rua:S.rua,bairro:S.bairro,ts:Date.now()},MAIL.kind==="fb"?{code:S.code,nl:normNick(S.nick)}:{})).catch(()=>{MAIL.sig=""})}
 function online(){return MAIL.kind==="fb"&&!!MAIL.db}
@@ -948,25 +948,46 @@ function pushCloud(now){if(!isGoogle()||!S)return;if(cloudT&&!now)return;clearTi
   MAIL.db.doc("saves/"+MAIL.uid).set({s:JSON.stringify(S),ts:S.savedTs||Date.now()}).catch(()=>{})},now?200:20000)}
 async function pullCloud(){if(!isGoogle())return false;try{const d=await MAIL.db.doc("saves/"+MAIL.uid).get();if(!d.exists)return false;const c=d.data()||{};
     if(S&&(c.ts||0)<=(S.savedTs||0)+3000)return false;const ns=JSON.parse(c.s);if(!ns||!ns.nick)return false;store.set("jla_state3d",ns);return true}catch(e){return false}}
-async function googleLogin(){let pre=null;
-  try{if(!online()){toast("Conectando ao servidor...");const r=await initFirebase();MAIL.db=r.db;MAIL.uid=r.uid;MAIL.kind="fb";MAIL.pcol="jogadores";pre=true}}
-  catch(e){return toast("Sem conexão com o servidor agora. Tente de novo com internet.")}
+async function fbConnect(){if(online())return true;try{const r=await initFirebase();MAIL.db=r.db;MAIL.uid=r.uid;MAIL.kind="fb";MAIL.pcol="jogadores";return true}catch(e){return false}}
+/* depois de entrar com Google: carrega o jogo salvo da conta ou libera o cadastro */
+async function afterGoogle(){MAIL.uid=firebase.auth().currentUser.uid;unlockSheet();
+  try{const d=await MAIL.db.doc("saves/"+MAIL.uid).get();if(d.exists){const ns=JSON.parse((d.data()||{}).s||"null");
+    if(ns&&ns.nick&&(!S||(ns.savedTs||0)>(S.savedTs||0)+3000)){store.set("jla_state3d",ns);toast("Bem-vindo de volta, "+ns.nick+"! Carregando seu jogo...");setTimeout(()=>location.reload(),900);return}}}catch(e){}
+  if(S){S.savedTs=Date.now();store.set("jla_state3d",S);pushCloud(true);closeSheet();toast("Pronto! Seu jogo fica salvo na conta "+googleName()+".");MAIL.sig="";registerMorador();return}
+  gateDone()}
+async function googleLogin(){const btns=document.querySelectorAll(".gbtn");btns.forEach(b=>b.disabled=true);const done=()=>btns.forEach(b=>b.disabled=false);
+  if(!(await fbConnect())){done();return toast("Sem conexão com o servidor agora. Confira a internet e tente de novo.")}
   const auth=firebase.auth(),prov=new firebase.auth.GoogleAuthProvider();prov.setCustomParameters({prompt:"select_account"});
-  try{await auth.currentUser.linkWithPopup(prov);MAIL.uid=auth.currentUser.uid;
-    if(S){S.savedTs=Date.now();store.set("jla_state3d",S);pushCloud(true);toast("Pronto! Seu jogo agora fica salvo na conta "+googleName()+".");closeSheet()}
-    else{toast("Conta conectada! Agora crie seu personagem: ele fica salvo nessa conta.")}}
-  catch(e){
+  if(isGoogle()){done();return afterGoogle()}
+  try{await auth.currentUser.linkWithPopup(prov);done();return afterGoogle()}
+  catch(e){done();
     if(e&&(e.code==="auth/credential-already-in-use"||e.code==="auth/email-already-in-use")){
       const cred=firebase.auth.GoogleAuthProvider.credentialFromError?firebase.auth.GoogleAuthProvider.credentialFromError(e):e.credential;
-      try{await auth.signInWithCredential(cred);MAIL.uid=auth.currentUser.uid;
-        const d=await MAIL.db.doc("saves/"+MAIL.uid).get();
-        if(d.exists){const ns=JSON.parse((d.data()||{}).s||"null");if(ns&&ns.nick){store.set("jla_state3d",ns);toast("Bem-vindo de volta, "+ns.nick+"! Carregando seu jogo...");setTimeout(()=>location.reload(),900);return}}
-        if(S){S.savedTs=Date.now();store.set("jla_state3d",S);pushCloud(true);toast("Conta conectada! Seu jogo agora fica salvo nela.");setTimeout(()=>location.reload(),900)}
-        else toast("Conta conectada! Crie seu personagem: ele fica salvo nessa conta.")}
-      catch(e2){toast("Não deu para entrar com essa conta agora. Tente de novo.")}}
-    else if(e&&(e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment"))toast("O navegador bloqueou a janela do Google. Abra o jogo pelo link do site da Associação e tente de novo.");
-    else if(e&&e.code==="auth/popup-closed-by-user"||e&&e.code==="auth/cancelled-popup-request")toast("Login cancelado.");
-    else toast("Não deu para entrar com o Google agora ("+((e&&e.code)||"erro")+").")}}
+      try{await auth.signInWithCredential(cred);return afterGoogle()}catch(e2){return toast("Não deu para entrar com essa conta agora. Tente de novo.")}}
+    if(e&&(e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment")){try{store.set("jla_gredir",1);await auth.currentUser.linkWithRedirect(prov);return}catch(e3){return toast("O navegador bloqueou a janela do Google. Abra o jogo pelo link bairroemjogo.web.app no Chrome e tente de novo.")}}
+    if(e&&(e.code==="auth/popup-closed-by-user"||e.code==="auth/cancelled-popup-request"))return toast("Login cancelado. Toque de novo em Entrar com Google.");
+    toast("Não deu para entrar com o Google agora ("+((e&&e.code)||"erro")+").")}}
+/* volta do login por redirecionamento (quando o navegador bloqueia a janela) */
+async function checkRedirect(){if(!store.get("jla_gredir",0))return;store.set("jla_gredir",0);if(!(await fbConnect()))return;const auth=firebase.auth();
+  try{await auth.getRedirectResult();if(isGoogle())afterGoogle()}catch(e){if(e&&(e.code==="auth/credential-already-in-use"||e.code==="auth/email-already-in-use")){try{await auth.signInWithCredential(firebase.auth.GoogleAuthProvider.credentialFromError(e));afterGoogle()}catch(e2){}}}}
+/* tela de início: primeiro entra com Google, depois cria o personagem */
+function setupGate(){const card=$("#start .card");if(!card||$("#ggate"))return;const kids=[...card.children];kids.forEach(k=>k.dataset.gh=k.hidden?"1":"0");
+  const err=el("div",{class:"err"});const local=el("button",{class:"btn ghost",type:"button",hidden:true,style:"width:100%;margin-top:8px",onclick:()=>{local.dataset.ok=1;gateDone(true)}},"Jogar sem conta (fica salvo só neste aparelho)");
+  const gate=el("div",{id:"ggate"},el("p",{style:"margin:0 0 10px;font-weight:800;font-size:16px",text:"Para começar, entre com sua conta Google. Assim seu jogo fica salvo e você joga em qualquer celular ou computador."}),
+    el("button",{class:"btn blue gbtn",type:"button",style:"width:100%;font-size:18px;min-height:56px",onclick:googleLogin},"Entrar com Google"),err,
+    el("p",{class:"muted",style:"margin:10px 0 0;font-size:13px",text:"Menores de 13 anos: peça para um adulto da família entrar com a conta dele. O jogo só mostra seu apelido, nunca seu nome ou e-mail."}),local);
+  kids.forEach(k=>k.hidden=true);card.prepend(gate);
+  fbConnect().then(ok=>{if(!ok){err.textContent="Sem conexão com o servidor do jogo.";local.hidden=false;return}if(isGoogle())afterGoogle();else checkRedirect()})}
+function gateDone(local){const card=$("#start .card"),g=$("#ggate");if(!card||!g)return;g.remove();[...card.children].forEach(k=>{k.hidden=k.dataset.gh==="1"});const fb=$("#fgoogle");if(fb)fb.hidden=true;
+  if(!local)toast("Conta conectada! Agora crie seu personagem.");try{$("#fnick").focus()}catch(e){}}
+/* quem já jogava sem conta precisa entrar com Google (uma vez) */
+var sheetLock=false;
+function unlockSheet(){sheetLock=false}
+function forceGoogle(){if(isGoogle()||sheetLock)return;sheetLock=false;
+  openSheet("Salve seu jogo",el("p",{text:"Agora o jogo fica salvo na sua conta Google. Entre uma vez e continue de onde parou, em qualquer celular ou computador."}),
+    el("button",{class:"btn blue gbtn",style:"width:100%;font-size:17px;min-height:54px",onclick:googleLogin},"Entrar com Google"),
+    el("p",{class:"muted",style:"margin-top:10px",text:"Seus pontos, moedas, casa e bichinhos continuam iguais. Menores de 13 anos: peça para um adulto entrar."}));
+  sheetLock=true;const x=$("#sheetbox .x");if(x)x.remove()}
 function googleBox(){if(isGoogle())return el("div",{class:"row",style:"background:#e9f6ec;border-color:#319B27;margin:6px 0 12px"},el("div",{class:"t"},el("b",{text:"Jogo salvo na conta Google"}),el("span",{text:googleName()+" · abre em qualquer aparelho"})));
   return el("div",{class:"row",style:"background:#fff3e8;border-color:#F57E20;margin:6px 0 12px;display:block"},el("b",{text:"Não perca seu jogo!"}),
     el("p",{style:"margin:4px 0 8px;font-size:14px",text:"Entre com sua conta Google para salvar o progresso e continuar em outro celular. Menores de 13 anos: peça para um adulto."}),
@@ -2889,8 +2910,8 @@ function placeActions(p){const out=[];
 
 /* ============ sheets & minigames ============ */
 let stopGame=null;
-function openSheet(title,...content){content=content.filter(x=>x!=null&&x!==false);$("#sheet").classList.remove("side");profileView=false;const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null;keys={};joyV=null}
-function closeSheet(){$("#sheet").hidden=true;$("#sheet").classList.remove("side");profileView=false;if(stopGame){stopGame();stopGame=null}document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("on"))}
+function openSheet(title,...content){if(sheetLock)return;content=content.filter(x=>x!=null&&x!==false);$("#sheet").classList.remove("side");profileView=false;const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null;keys={};joyV=null}
+function closeSheet(){if(sheetLock)return;$("#sheet").hidden=true;$("#sheet").classList.remove("side");profileView=false;if(stopGame){stopGame();stopGame=null}document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("on"))}
 function spend(m){if(!m.cost)return true;regen();if(S.energy<m.cost){openSheet("Sem energia",el("p",{text:"Sua energia acabou. Ela volta sozinha (1 coração a cada 20 minutos), ou você pode passar na sede da Associação ou trabalhar em uma empresa do bairro."}),el("button",{class:"btn",onclick:()=>{closeSheet();goTo("assoc")}},"Ir até a sede"));return false}S.energy-=m.cost;if(S.energy===ENERGY_MAX-1)S.energyTs=Date.now();save();updateHUD();return true}
 function result(ok,title,okMsg,failMsg,onOk){openSheet(title,el("div",{class:"game"},el("div",{class:"big",text:ok?"Muito bem!":"Quase lá"}),el("p",{text:ok?okMsg:failMsg})),el("button",{class:"btn",onclick:closeSheet},"Voltar ao bairro"));if(ok&&onOk)onOk()}
 function startMission(id){const m=MS(id);if(mDone(m))return toast("Missão de hoje já cumprida. Volte amanhã!");
@@ -3098,7 +3119,7 @@ function setupStart(){$("#startlogo").src=LOGO_URI;const sel=$("#fbairro");MY_BA
   const fg=$("#fgen");const drawGen=()=>{fg.innerHTML="";GENS.forEach(([k,n])=>fg.append(el("button",{type:"button",class:"btn "+(chosenGen===k?"":"ghost"),style:"flex:1;min-height:40px;padding:6px 8px","aria-pressed":chosenGen===k?"true":"false",onclick:()=>{chosenGen=k;drawGen();setAvatar(chosenAv)}},n)))};drawGen();
   const avs=$("#favs");AVATARS.forEach((a,i)=>{const b=el("button",{class:"av"+(i===0?" on":""),"aria-label":"Personagem "+(i+1),style:`background:linear-gradient(${a.hair} 0 18%,${a.skin} 18% 46%,${a.shirt} 46% 78%,${a.pants} 78%)`,onclick:()=>{chosenAv=i;avs.querySelectorAll(".av").forEach((x,k)=>x.classList.toggle("on",k===i));setAvatar(i)}});avs.append(b)});
   const inv=(location.hash||"").replace("#","");if(/^JLA-[A-Z0-9]{3,12}$/i.test(inv)){const t=$("#invitedBy");t.hidden=false;t.textContent="Convite do código "+inv.toUpperCase()}
-  $("#fgoogle").addEventListener("click",()=>googleLogin());$("#finstall").addEventListener("click",doInstall);refreshInstallBtn();$("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
+  $("#fgoogle").hidden=true;setupGate();$("#finstall").addEventListener("click",doInstall);refreshInstallBtn();$("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
     if(nick.length<2)return err.textContent="Escolha um apelido com pelo menos 2 letras.";if(!$("#frua").value)return err.textContent="Escolha sua rua.";if(!$("#fage").checked)return err.textContent="Confirme a idade ou que está jogando com um adulto.";
     const rua=$("#frua").value;const hs=houses.map((h,i)=>[h,i]).filter(([h])=>h.street===rua);const home=hs[hashStr(nick)%hs.length][1];
     const code="JLA-"+(nick.normalize("NFD").replace(/[^A-Za-z]/g,"").toUpperCase().slice(0,5)||"VIZ")+(hashStr(nick+rua)%90+10);
