@@ -677,7 +677,7 @@ function buildWorld(){
   const add=(B,mat)=>{const m=new THREE.Mesh(B.build(),mat);m.receiveShadow=true;scene.add(m);return m};
   add(SB,lam(0xb3ad9f,{side:THREE.DoubleSide}));add(AB,lam(0x585b63,{side:THREE.DoubleSide}));add(KB,lam(0x45484f,{side:THREE.DoubleSide}));
   add(DB,lam(0xa8865a,{side:THREE.DoubleSide}));add(LB,lam(0xf2cf45,{side:THREE.DoubleSide}));add(EB,lam(0xf1efe8,{side:THREE.DoubleSide}));
-  buildHouses();buildTrees(R);buildSigns();buildPOIs();buildPoles();placeEverton();
+  buildHouses();buildTrees(R);buildSigns();buildPOIs();buildPoles();buildPasture();placeEverton();
   const bm=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.38,depthWrite:false,side:THREE.DoubleSide,fog:false});
   beam=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,160,20,1,true),bm);beam.position.y=80;beam.visible=false;scene.add(beam);
   beam2=new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,160,20,1,true),new THREE.MeshBasicMaterial({color:0x5fe36a,transparent:true,opacity:0.38,depthWrite:false,side:THREE.DoubleSide,fog:false}));beam2.position.y=80;beam2.visible=false;scene.add(beam2);
@@ -1025,7 +1025,15 @@ const MODELS=[
   {id:"prot:skaterMaleA",n:"Skatista",f:"prot/protagonist.glb",skin:"prot/skins/skaterMaleA.png"},
   {id:"prot:skaterFemaleA",n:"Skatista (menina)",f:"prot/protagonist.glb",skin:"prot/skins/skaterFemaleA.png"},
   {id:"prot:criminalMaleA",n:"Estiloso",f:"prot/protagonist.glb",skin:"prot/skins/criminalMaleA.png"},
-  {id:"prot:cyborgFemaleA",n:"Ciborgue",f:"prot/protagonist.glb",skin:"prot/skins/cyborgFemaleA.png"}];
+  {id:"prot:cyborgFemaleA",n:"Ciborgue",f:"prot/protagonist.glb",skin:"prot/skins/cyborgFemaleA.png"},
+  /* moradores realistas (Quaternius) */
+  {id:"q:w_Casual",n:"Carla",f:"q/w_Casual.glb",q:1},{id:"q:m_Casual_2",n:"Thiago",f:"q/m_Casual_2.glb",q:1},
+  {id:"q:w_Formal",n:"Patrícia",f:"q/w_Formal.glb",q:1},{id:"q:m_Casual_Hoodie",n:"Mateus",f:"q/m_Casual_Hoodie.glb",q:1},
+  {id:"q:w_Suit",n:"Advogada",f:"q/w_Suit.glb",q:1},{id:"q:m_Suit",n:"Seu Carlos",f:"q/m_Suit.glb",q:1},
+  {id:"q:w_Worker",n:"Pedreira",f:"q/w_Worker.glb",q:1},{id:"q:m_Worker",n:"Pedreiro",f:"q/m_Worker.glb",q:1},
+  {id:"q:w_Punk",n:"Roqueira",f:"q/w_Punk.glb",q:1},{id:"q:m_Punk",n:"Roqueiro",f:"q/m_Punk.glb",q:1},
+  {id:"q:w_Adventurer",n:"Trilheira",f:"q/w_Adventurer.glb",q:1},{id:"q:m_Adventurer",n:"Trilheiro",f:"q/m_Adventurer.glb",q:1},
+  {id:"q:m_Beach",n:"Praiano",f:"q/m_Beach.glb",q:1},{id:"q:m_Farmer",n:"Seu Antônio",f:"q/m_Farmer.glb",q:1}];
 let gltfLib=null;
 function loadGltfLib(){return gltfLib=gltfLib||(async()=>{for(const f of["loaders/GLTFLoader.js","utils/SkeletonUtils.js"])await withTimeout(loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/"+f),20000)})()}
 const MCACHE={},SKINC={};
@@ -1034,10 +1042,12 @@ function getSkin(file){if(!SKINC[file]){SKINC[file]=new THREE.TextureLoader().lo
 const ANIMATED=new Set();
 function attachModel(ch,av){const M=MODELS.find(m=>m.id===av.model);if(!M)return;
   getGltf(M.f).then(gl=>{if(ch.dead)return;const m=THREE.SkeletonUtils.clone(gl.scene);
-    m.traverse(o=>{if(o.isMesh){const old=o.material;const map=M.skin?getSkin(M.skin):old.map;if(map&&map.encoding!==THREE.LinearEncoding){map.encoding=THREE.LinearEncoding;map.needsUpdate=true}o.material=new THREE.MeshToonMaterial({map,color:0xb8b8b8,gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:0x101010});o.castShadow=!lowQ;o.frustumCulled=false}});
-    const box=new THREE.Box3().setFromObject(m);const h=box.max.y-box.min.y||1;const k=2.75/h;m.scale.setScalar(k);m.position.y=-box.min.y*k;
+    m.traverse(o=>{if(o.isMesh){const old=o.material;const map=M.skin?getSkin(M.skin):old.map;if(map&&map.encoding!==THREE.LinearEncoding){map.encoding=THREE.LinearEncoding;map.needsUpdate=true}o.material=map?new THREE.MeshToonMaterial({map,color:0xb8b8b8,gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:0x101010}):new THREE.MeshToonMaterial({color:(old.color||new THREE.Color(0xcccccc)).clone().convertLinearToSRGB().multiplyScalar(0.92),gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:0x0c0c0c});o.castShadow=!lowQ;o.frustumCulled=false}});
+    let box=new THREE.Box3().setFromObject(m);if(M.q){m.updateMatrixWorld(true);const bb=new THREE.Box3(),v=new THREE.Vector3();m.traverse(o=>{if(o.isBone)bb.expandByPoint(o.getWorldPosition(v))});bb.max.y+=(bb.max.y-bb.min.y)*0.1;bb.min.y-=(bb.max.y-bb.min.y)*0.02;box=bb}
+    const h=box.max.y-box.min.y||1;const k=(M.q?2.6:2.75)/h;m.scale.setScalar(k);m.position.y=-box.min.y*k;
     for(const c of ch.g.children)if(c!==ch.label&&!c.isSprite)c.visible=false;ch.g.add(m);ch.model=m;
-    const mixer=new THREE.AnimationMixer(m);const acts={};for(const c of gl.animations)acts[c.name]=mixer.clipAction(c);ch.mixer=mixer;ch.acts=acts;ch.cur=null;ch.lastP=null;playAnim(ch,"idle");ANIMATED.add(ch)}).catch(()=>{});}
+    const mixer=new THREE.AnimationMixer(m);const acts={};for(const c of gl.animations)acts[c.name]=mixer.clipAction(c);
+    if(M.q){const L={idle:"Idle",walk:"Walk",sprint:"Run",run:"Run",drive:"Idle",wave:"Wave"};for(const k in L)if(acts[L[k]])acts[k]=acts[L[k]]}ch.mixer=mixer;ch.acts=acts;ch.cur=null;ch.lastP=null;playAnim(ch,"idle");ANIMATED.add(ch)}).catch(()=>{});}
 function playAnim(ch,name,ts=1){const a=ch.acts[name]||(name==="walk"||name==="sprint"?ch.acts.run:null)||ch.acts.idle;if(!a)return;a.timeScale=ts;if(ch.cur===a)return;a.reset().fadeIn(0.18).play();if(ch.cur)ch.cur.fadeOut(0.18);ch.cur=a}
 function updateModels(dt){for(const ch of ANIMATED){if(ch.dead||!ch.g.parent){if(ch.dead||!ch.g.parent)ANIMATED.delete(ch);continue}
   const p=ch.g.position;let sp=0;if(ch.lastP){sp=Math.hypot(p.x-ch.lastP.x,p.z-ch.lastP.z)/Math.max(dt,0.001)}ch.lastP=ch.lastP||new THREE.Vector3();ch.lastP.copy(p);ch.spd=(ch.spd||0)*0.8+sp*0.2;
@@ -2442,7 +2452,7 @@ function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
   for(const m of markers){const d=Math.hypot(m.sp.position.x-camera.position.x,m.sp.position.z-camera.position.z);m.sp.visible=d<(lowQ?220:320);const k=Math.max(1,d/45)*0.55;m.sp.scale.set(12*k,1.9*k,1)}
   animEverton();
   if(beam.visible)beam.material.opacity=0.28+Math.sin(clockT*3)*0.1;
-  updateDayNight(dt);updateRain(dt);if(!startMode)updateBirds(dt);updateStreetEv(dt);if(!startMode)updateOthers(dt);updateModels(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
+  updateDayNight(dt);updateRain(dt);if(!startMode){updateBirds(dt);updateHorses(dt)}updateStreetEv(dt);if(!startMode)updateOthers(dt);updateModels(dt);audioUpdate(dt);renderer.render(scene,camera);requestAnimationFrame(frame)}
 function update(dt){if(miniOpen)return;
   let mx=0,my=0;if(keys.a||keys.arrowleft)mx-=1;if(keys.d||keys.arrowright)mx+=1;if(keys.w||keys.arrowup)my+=1;if(keys.s||keys.arrowdown)my-=1;
   if(joyV){mx+=joyV[0];my+=joyV[1]}
@@ -2501,6 +2511,7 @@ function checkPlace(){
   let near=null;for(const p of POIS){if(Math.hypot(p.x-player.x,p.y-player.y)<(p.type==="factory"?26:p.type==="school"?20:p.type==="campo"?24:p.type==="viaduto"?26:p.type==="fazenda"?28:p.type==="horta"?22:p.type==="igreja"?16:12)){near={kind:"poi",p};break}}
   if(!near){const h=homeHouse();if(Math.hypot(h.fx-player.x,h.fy-player.y)<(riding?16:6))near={kind:"home"}}
   if(streetEv){const en=evNear();if(en)near={kind:"ev",en}}
+  if(!near||near.kind!=="ev"){const hn=horseNear();if(hn)near={kind:"ev",en:hn}}
   if(!near&&S.route){const hi=routeNear();if(hi!=null)near={kind:"route",hi}}
   if(!near&&S.visit!=null&&!mDone(MS("vizinho"))){const h=houses[S.visit];if(h&&Math.hypot(h.fx-player.x,h.fy-player.y)<6)near={kind:"visit"}}
   if(near&&near.p)track("visit",1,near.p.id);if(S.dm&&S.dm.fresh){S.dm.fresh=false;toast("Missão do dia: "+dailyNow().m.title+". Veja em Missões!")}const key=near?(near.kind+(near.p?near.p.id:"")+(near.hi??"")+(near.en?near.en.btn:"")):"";refreshHorta();if(key!==lastPlace){lastPlace=key;showPlace(near)}
@@ -3176,6 +3187,52 @@ function exitHome(){if(!IN.on)return;IN.on=false;const b=document.getElementById
 function renderInterior(){const c=IN.cam;c.aspect=innerWidth/innerHeight;c.updateProjectionMatrix();const d=IN.dist;
   c.position.set(Math.sin(IN.a)*Math.cos(IN.e)*d,Math.sin(IN.e)*d+0.8,Math.cos(IN.a)*Math.cos(IN.e)*d);c.lookAt(0,0.6,0);
   if(IN.ring.visible)IN.ring.material.opacity=0.6+0.35*Math.abs(Math.sin(clockT*4));renderer.render(IN.scene,c)}
+
+/* ============ terreno dos cavalos (Quaternius Farm Animals) ============ */
+const PASTO={x:1098,y:1366,w:30,d:20};
+const HORSES=[{n:"Trovão",c:"#5a3a22"},{n:"Estrela",c:"#efe9df"},{n:"Canela",c:"#b4703a"},{n:"Pé de Pano",c:"#2a2522"}];
+const HZ=[];let horseEsc=240+Math.random()*240,pastoG=null;
+function inPasto(x,y,m=0){return Math.abs(x-PASTO.x)<PASTO.w/2-m&&Math.abs(y-PASTO.y)<PASTO.d/2-m}
+function pastoRand(){return[PASTO.x+(Math.random()-.5)*(PASTO.w-6),PASTO.y+(Math.random()-.5)*(PASTO.d-6)]}
+function buildPasture(){const g=new THREE.Group();const [X,Z]=W3(PASTO.x,PASTO.y);g.position.set(X,0,Z);scene.add(g);pastoG=g;
+  const W=PASTO.w,D=PASTO.d,wood=lam(0x8a5a33),posts=[],rails=[];const gate=3.2;
+  const side=(ax,az,bx,bz,gap)=>{const L=Math.hypot(bx-ax,bz-az),n=Math.ceil(L/2.5);for(let i=0;i<=n;i++){const t=i/n,x=ax+(bx-ax)*t,z=az+(bz-az)*t;if(gap&&Math.abs(x)<gate/2+0.1)continue;posts.push([x,z])}
+    const segs=gap?[[ax,-gate/2],[gate/2,bx]]:[[0,1]];if(gap){for(const [s0,s1] of segs){const cx=(s0+s1)/2,len=Math.abs(s1-s0);rails.push([cx,az,len,0])}}else rails.push([(ax+bx)/2,(az+bz)/2,L,Math.atan2(bz-az,bx-ax)])};
+  side(-W/2,-D/2,W/2,-D/2);side(W/2,-D/2,W/2,D/2);side(-W/2,-D/2,-W/2,D/2);side(-W/2,D/2,W/2,D/2,true);
+  const pm=new THREE.InstancedMesh(new THREE.BoxGeometry(0.22,1.7,0.22).translate(0,0.85,0),wood,posts.length);const dm=new THREE.Object3D();
+  posts.forEach(([x,z],i)=>{dm.position.set(x,0,z);dm.rotation.set(0,0,0);dm.updateMatrix();pm.setMatrixAt(i,dm.matrix);addCol(PASTO.x+x,PASTO.y+z,0.35)});pm.castShadow=!lowQ;g.add(pm);
+  for(const [cx,cz,len,rot] of rails)for(const h of[0.75,1.35]){const r=new THREE.Mesh(new THREE.BoxGeometry(len,0.14,0.08),wood);r.position.set(cx,h,cz);r.rotation.y=-rot;r.castShadow=!lowQ;g.add(r)}
+  const gt=new THREE.Mesh(new THREE.BoxGeometry(gate*0.9,0.9,0.06),lam(0xa8743f));gt.position.set(gate*0.42,0.95,D/2+0.9);gt.rotation.y=-1.1;g.add(gt);
+  const dirt=new THREE.Mesh(new THREE.PlaneGeometry(W-1,D-1),lam(0x9b8a55));dirt.rotation.x=-Math.PI/2;dirt.position.y=0.03;dirt.receiveShadow=true;g.add(dirt);
+  const tr=new THREE.Mesh(new THREE.BoxGeometry(3,0.6,0.9),lam(0x8d939b));tr.position.set(-W/2+3,0.3,-D/2+2);g.add(tr);const wat=new THREE.Mesh(new THREE.BoxGeometry(2.8,0.05,0.7),lam(0x4aa3df,{emissive:0x0b2a40}));wat.position.set(-W/2+3,0.58,-D/2+2);g.add(wat);
+  for(const [x,z] of[[W/2-3,-D/2+2.5],[W/2-5.2,-D/2+2.2],[W/2-3.8,-D/2+4.3]]){const b=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,1.1,12),lam(0xe4c45a));b.rotation.z=Math.PI/2;b.position.set(x,0.8,z);b.castShadow=!lowQ;g.add(b)}
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:textTex("Terreno dos Cavalos",{w:768,h:120,bg:"#8a5a33",fg:"#fff",round:56}),depthTest:false,transparent:true,fog:false}));sp.renderOrder=10;sp.position.set(X,7,Z);sp.scale.set(11,1.7,1);scene.add(sp);markers.push({sp,p:{x:PASTO.x,y:PASTO.y,name:"Terreno dos Cavalos"}});
+  HORSES.forEach((h,i)=>{const [x,y]=pastoRand();const hz={n:h.n,c:h.c,x,y,face:Math.random()*6,st:"pasta",t:2+Math.random()*6,tx:x,ty:y,g:new THREE.Group()};
+    const lb=evLabel(h.n,"#8a5a33");lb.position.y=3.3;lb.scale.set(2,0.3,1);lb.visible=false;hz.lb=lb;hz.g.add(lb);
+    const ph=new THREE.Mesh(new THREE.BoxGeometry(0.8,1.4,2.2),lam(new THREE.Color(h.c).getHex()));ph.position.y=1.2;hz.g.add(ph);scene.add(hz.g);HZ.push(hz);attachHorse(hz)})}
+function attachHorse(hz){getAsset("farm/Horse.glb").then(gl=>{if(!THREE.SkeletonUtils)return;const m=THREE.SkeletonUtils.clone(gl.scene);let first=true;
+    m.traverse(o=>{if(o.isMesh){const mats=Array.isArray(o.material)?o.material:[o.material];o.material=mats.map(x=>{const c=(x.color||new THREE.Color(0x888888)).clone().convertLinearToSRGB();const dark=c.r+c.g+c.b<0.35;
+        return new THREE.MeshToonMaterial({color:dark?(hz.c==="#2a2522"?new THREE.Color("#efe9df"):c):new THREE.Color(hz.c),gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:0x0a0a0a})});if(o.material.length===1)o.material=o.material[0];o.castShadow=!lowQ;o.frustumCulled=false}});
+    m.updateMatrixWorld(true);const bb=new THREE.Box3(),v=new THREE.Vector3();m.traverse(o=>{if(o.isBone)bb.expandByPoint(o.getWorldPosition(v))});const h=(bb.max.y-bb.min.y)*1.08||1;const k=2.5/h;m.scale.setScalar(k);m.position.y=-bb.min.y*k+0.02;
+    for(const c of hz.g.children)if(c!==hz.lb)c.visible=false;hz.g.add(m);const mixer=new THREE.AnimationMixer(m);const acts={};for(const c of gl.animations)acts[c.name.replace(/^.*\|/,"")]=mixer.clipAction(c);
+    acts.idle=acts.Idle;acts.walk=acts.WalkSlow||acts.Walk;acts.run=acts.Run||acts.Walk;acts.sprint=acts.Run;hz.mixer=mixer;hz.acts=acts;hz.cur=null;hz.lastP=null;playAnim(hz,"idle");ANIMATED.add(hz)}).catch(()=>{})}
+function horseEscape(){const free=HZ.filter(h=>h.st!=="fugiu"&&h.st!=="segue");if(!free.length||HZ.some(h=>h.st==="fugiu"||h.st==="segue"))return;const hz=free[(Math.random()*free.length)|0];
+  for(let i=0;i<20;i++){const a=Math.random()*6.28,r=60+Math.random()*90;const x=PASTO.x+Math.cos(a)*r,y=PASTO.y+Math.sin(a)*r;if(inViaFoot(x,y))continue;hz.st="fugiu";hz.hx=x;hz.hy=y;hz.route=[[PASTO.x,PASTO.y+PASTO.d/2+3],[x,y]];hz.lb.visible=true;break}
+  if(hz.st!=="fugiu")return;sfx("tweet");const near=Math.hypot(player.x-PASTO.x,player.y-PASTO.y)<500;
+  if(near)toast("🐴 Deixaram a porteira aberta e o "+hz.n+" fugiu do Terreno dos Cavalos! Ache ele e leve de volta.");if(near&&!waypoint)setWaypoint({x:hz.hx,y:hz.hy,label:"Cavalo solto: "+hz.n,horse:hz.n})}
+function horseNear(){const d=(x,y)=>Math.hypot(x-player.x,y-player.y);for(const hz of HZ){if(hz.st==="fugiu"&&d(hz.x,hz.y)<5)return{title:"Cavalo solto: "+hz.n,sub:"Fugiu do Terreno dos Cavalos",btn:"Pegar pelo cabresto",fn:()=>{hz.st="segue";setWaypoint({x:PASTO.x,y:PASTO.y+PASTO.d/2,label:"Terreno dos Cavalos",horse:hz.n});sfx("win");toast(hz.n+" vai com você! Leve até o Terreno dos Cavalos (luz amarela).");lastPlace="";checkPlace()}};
+    if(hz.st==="segue"&&d(PASTO.x,PASTO.y+PASTO.d/2)<12)return{title:"Terreno dos Cavalos",sub:"Devolver o "+hz.n,btn:"Colocar pra dentro e fechar a porteira",fn:()=>{hz.st="volta";hz.route=[[PASTO.x,PASTO.y+PASTO.d/2-3],pastoRand()];hz.lb.visible=false;setWaypoint(null);S.pts+=20;S.coins=(S.coins||0)+6;save();updateHUD();sfx("win");toast(hz.n+" voltou pro terreno! Porteira fechada. +20 pontos e 6 moedas");lastPlace="";checkPlace()}}}return null}
+function updateHorses(dt){if(!HZ.length)return;horseEsc-=dt;if(horseEsc<=0){horseEsc=420+Math.random()*420;if(S)horseEscape()}
+  for(const hz of HZ){let tx=hz.x,ty=hz.y,sp=0;
+    if(hz.st==="pasta"){hz.t-=dt;if(hz.t<=0){if(Math.random()<0.5){const [x,y]=pastoRand();hz.tx=x;hz.ty=y;hz.st="anda"}else hz.t=3+Math.random()*7}}
+    else if(hz.st==="anda"){tx=hz.tx;ty=hz.ty;sp=1.3;if(Math.hypot(tx-hz.x,ty-hz.y)<0.6){hz.st="pasta";hz.t=4+Math.random()*8}}
+    else if(hz.st==="fugiu"||hz.st==="volta"){if(hz.route&&hz.route.length){[tx,ty]=hz.route[0];sp=hz.st==="volta"?2:3.2;if(Math.hypot(tx-hz.x,ty-hz.y)<1){hz.route.shift();if(!hz.route.length&&hz.st==="volta"){hz.st="pasta";hz.t=3}}}
+      else{tx=hz.hx+Math.sin(clockT*0.13+hz.x*0.01)*6;ty=hz.hy+Math.cos(clockT*0.11)*6;sp=0.9}
+      if(waypoint&&waypoint.horse===hz.n&&hz.st==="fugiu"){waypoint.x=hz.x;waypoint.y=hz.y;const [X,Z]=W3(hz.x,hz.y);beam.position.x=X;beam.position.z=Z}}
+    else if(hz.st==="segue"){const a=player.face+Math.PI;tx=player.x+Math.sin(a)*3.2;ty=player.y+Math.cos(a)*3.2;const dd=Math.hypot(tx-hz.x,ty-hz.y);sp=Math.min(Math.max(3,player.speed*1.05||3),dd*2.5);if(dd>45){hz.x=tx;hz.y=ty}}
+    const dx=tx-hz.x,dy=ty-hz.y,dd=Math.hypot(dx,dy);if(sp>0&&dd>0.3){const st=Math.min(dd,sp*dt);hz.x+=dx/dd*st;hz.y+=dy/dd*st;const f=Math.atan2(dx,dy);let df=f-hz.face;df=Math.atan2(Math.sin(df),Math.cos(df));hz.face+=df*Math.min(1,dt*5)}
+    if((hz.st==="pasta"||hz.st==="anda")&&!inPasto(hz.x,hz.y,1)){hz.x=Math.max(PASTO.x-PASTO.w/2+2,Math.min(PASTO.x+PASTO.w/2-2,hz.x));hz.y=Math.max(PASTO.y-PASTO.d/2+2,Math.min(PASTO.y+PASTO.d/2-2,hz.y))}
+    const [X,Z]=W3(hz.x,hz.y);hz.g.position.set(X,0,Z);hz.g.rotation.y=hz.face}}
 
 let stopGame=null;
 function openSheet(title,...content){if(sheetLock)return;content=content.filter(x=>x!=null&&x!==false);$("#sheet").classList.remove("side");profileView=false;const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null;keys={};joyV=null}
