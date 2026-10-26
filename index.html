@@ -1310,12 +1310,12 @@ function mkGarage(g,p){box(g,15,6,12,0xe9e9e6,0,0,0);box(g,15.6,0.5,12.6,0x2b2f3
 
 /* ============ pets ============ */
 const PETV={dog:[{b:"#b07a3e",d:"#7a5128",n:"Caramelo"},{b:"#f1e6d0",d:"#c4ab83",n:"Branquinho"},{b:"#2b2b2b",d:"#5a5a5a",n:"Pretinho"}],
-            cat:[{b:"#e08a3c",d:"#b0602a",n:"Laranjinha"},{b:"#9a9a9a",d:"#5d5d5d",n:"Cinzento"},{b:"#1f1f1f",d:"#f4f4f4",n:"Frajola"}]};
+            cat:[{b:"#e08a3c",d:"#b0602a",n:"Laranjinha"},{b:"#9a9a9a",d:"#5d5d5d",n:"Cinzento"},{b:"#1f1f1f",d:"#f4f4f4",n:"Frajola"},{b:"#151515",d:"#222222",n:"Pretinho",e:"#ffd23f",solid:true}]};
 let petEnts=[];
 function makePet(p,noLabel){const g=new THREE.Group();const v=PETV[p.type][p.v];const dog=p.type==="dog";const s=dog?1:0.86;const OUT=new THREE.MeshBasicMaterial({color:0x2a2230,side:THREE.BackSide});
   const add=(geo,c,x,y,z,parent=g,out=true,sc,ow=1.06)=>{const m=new THREE.Mesh(geo,lam(new THREE.Color(c)));m.position.set(x*s,y*s,z*s);if(sc)m.scale.set(sc[0]*s,sc[1]*s,sc[2]*s);else m.scale.setScalar(s);m.castShadow=!lowQ;parent.add(m);if(out){const o=new THREE.Mesh(geo,OUT);o.scale.setScalar(ow);m.add(o)}return m};
   const flat=(geo,c,x,y,z,parent,sc)=>{const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:c}));m.position.set(x*s,y*s,z*s);if(sc)m.scale.set(sc[0]*s,sc[1]*s,sc[2]*s);else m.scale.setScalar(s);parent.add(m);return m};
-  const SP=(r,a=16,b=12)=>new THREE.SphereGeometry(r,a,b);const light=shade(v.b,0.35),belly=p.v===2&&!dog?"#f4f4f4":light;
+  const SP=(r,a=16,b=12)=>new THREE.SphereGeometry(r,a,b);const light=v.solid?"#262626":shade(v.b,0.35),belly=p.v===2&&!dog?"#f4f4f4":light;
   /* corpo */
   add(SP(0.3,22,16),v.b,0,dog?0.55:0.6,-0.02,g,true,dog?[0.78,0.74,1.18]:[0.52,0.52,1.22]);
   add(SP(0.22,16,12),belly,0,0.5,0.14,g,false,dog?[0.8,0.72,0.9]:[0.7,0.66,0.8]);
@@ -1328,7 +1328,7 @@ function makePet(p,noLabel){const g=new THREE.Group();const v=PETV[p.type][p.v];
     for(const sx of[-1,1]){const ear=add(new THREE.ConeGeometry(0.115,0.3,3),v.b,sx*0.17,0.29,-0.03,head,true);ear.rotation.z=-sx*0.22;ear.rotation.y=sx*0.5;const inn=flat(new THREE.ConeGeometry(0.06,0.18,3),0xffa3b8,sx*0.17,0.27,0.02,head);inn.rotation.z=-sx*0.22;inn.rotation.y=sx*0.5;
       for(const k of[-1,0,1]){const w=flat(new THREE.BoxGeometry(0.3,0.01,0.01),0x2a2230,sx*0.26,-0.08+k*0.03,0.2,head);w.rotation.z=sx*k*0.18}}}
   for(const sx of[-1,1]){const ex=sx*(dog?0.11:0.12),ey=dog?0.05:0.03,ez=dog?0.235:0.23;
-    if(dog)flat(SP(0.058,14,12),0x1d1410,ex,ey,ez,head,[0.9,1.1,0.5]);else{flat(SP(0.065,14,12),v.p===2?0x9be36a:0x9be36a,ex,ey,ez,head,[0.95,1.15,0.45]);flat(SP(0.06,10,8),0x111111,ex,ey,ez+0.012,head,[0.28,1.05,0.45])}
+    if(dog)flat(SP(0.058,14,12),0x1d1410,ex,ey,ez,head,[0.9,1.1,0.5]);else{flat(SP(0.065,14,12),v.e?new THREE.Color(v.e).getHex():0x9be36a,ex,ey,ez,head,[0.95,1.15,0.45]);flat(SP(0.06,10,8),0x111111,ex,ey,ez+0.012,head,[0.28,1.05,0.45])}
     flat(SP(0.02,8,6),0xffffff,ex+0.018,ey+0.025,ez+0.03,head)}
   const col=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.035,8,20),lam(dog?0xF57E20:0x008CE3));col.rotation.x=Math.PI/2+0.3;col.position.set(0,-0.2*s,-0.03*s);col.scale.setScalar(s);head.add(col);
   /* patas */
@@ -1505,8 +1505,12 @@ const ROOFC=["#b8452f","#8e3b2c","#5b6470","#3f5f8a","#0A2240","#2f7a4a","#7a4b8
 const MUROC=["#d8d2c4","#e6dfcf","#b9c6cf","#e7d3b6","#F57E20","#008CE3","#ffffff"];
 function hideHouseInstance(i){if(!houseMeshes)return;const z=new THREE.Matrix4().makeScale(0,0,0);const {body,roof,win,door,muro,gate,frame,base,cap}=houseMeshes;
   [[body,i],[roof,i],[door,i],[gate,i],[win,2*i],[win,2*i+1],[muro,2*i],[muro,2*i+1],[frame,2*i],[frame,2*i+1],[base,i],[cap,2*i],[cap,2*i+1]].forEach(([m,k])=>{m.setMatrixAt(k,z);m.instanceMatrix.needsUpdate=true})}
+const HOME_BACK=4.5;/* a casa do jogador fica mais afastada da rua: sobra quintal para ver carro, flores e bichinhos */
+function homeShift(){const h=homeHouse();let ux=h.wx-h.fx,uy=h.wy-h.fy;const l=Math.hypot(ux,uy)||1;return[ux/l*HOME_BACK,uy/l*HOME_BACK]}
+let homeColDone=-1;
 function buildHome(){const h=homeHouse();if(h.x3==null)return;hideHouseInstance(S.home);if(homeGroup)scene.remove(homeGroup);
-  const H=S.house,lv=H.level||1,C=c=>new THREE.Color(c).getHex();const g=new THREE.Group();g.position.set(h.x3,0,h.z3);g.rotation.y=h.th;
+  const [sx,sy]=homeShift();if(homeColDone!==S.home){for(const arr of colliders.values()){for(let k=arr.length-1;k>=0;k--)if(Math.abs(arr[k].x-h.wx)<0.01&&Math.abs(arr[k].y-h.wy)<0.01)arr.splice(k,1)}addCol(h.wx+sx,h.wy+sy,Math.max(h.w,h.d)*0.5);homeColDone=S.home}
+  const H=S.house,lv=H.level||1,C=c=>new THREE.Color(c).getHex();const g=new THREE.Group();g.position.set(h.x3+sx,0,h.z3+sy);g.rotation.y=h.th;
   const w=h.w+(lv>=3?4:0),d=h.d+(lv>=3?1.5:0),ht=lv>=2?5.8:3.1,front=-h.side;
   box(g,w,ht,d,C(H.wall),0,0,0);if(lv>=2)box(g,w+0.06,0.18,d+0.06,0xffffff,0,2.9,0);
   const r=new THREE.Mesh(prismGeo(),lam(C(H.roof)));r.scale.set(w+0.9,1.6,d+0.9);r.position.y=ht;r.castShadow=!lowQ;g.add(r);
@@ -1514,7 +1518,7 @@ function buildHome(){const h=homeHouse();if(h.x3==null)return;hideHouseInstance(
   for(const lx of[-w*0.3,w*0.3]){box(g,1.3,1.0,0.12,0x2a4766,lx,1.05,fz,{emissive:0x0d1b2a});if(lv>=2)box(g,1.3,1.0,0.12,0x2a4766,lx,3.9,fz,{emissive:0x0d1b2a})}
   box(g,0.95,2.1,0.14,0x6e4526,0,0,fz);
   if(lv>=3){box(g,w*0.55,0.15,1.5,0xdddddd,0,2.95,front*(d/2+0.75));box(g,w*0.55,0.9,0.08,0xffffff,0,3.1,front*(d/2+1.5))}
-  const mz=front*(d/2+3.4),mw=(w+3.4)/2-1.6;
+  const mz=front*(d/2+3.4+HOME_BACK),mw=(w+3.4)/2-1.6;
   /* muro baixo com grade por cima e portão de grade: dá para ver o quintal, o carro e as flores */
   {const bars=new THREE.InstancedMesh(new THREE.BoxGeometry(0.06,1,0.06),lam(0x2b2f36),400);let nb=0;const M=new THREE.Matrix4();
     const bar=(x,y0,h)=>{if(nb>=400)return;M.makeScale(1,h,1);M.setPosition(x,y0+h/2,mz);bars.setMatrixAt(nb++,M)};
@@ -1535,7 +1539,7 @@ function buildHome(){const h=homeHouse();if(h.x3==null)return;hideHouseInstance(
     const vm=makeVehicle(k);vm.position.set(vx,0,front*(d/2+(k==="car"?2.0:1.6)));vm.rotation.y=Math.PI/2;g.add(vm);
     box(g,0.42,0.6,0.16,0x2b3440,vx,0.9,fz+front*0.09);box(g,0.12,0.12,0.04,0x5fe36a,vx,1.3,fz+front*0.18,{emissive:0x2f9f2f});xc-=len+0.5}}
   homeGroup=g;scene.add(g)}
-function homeYard(i){const h=homeHouse();const d=h.d+((S.house&&S.house.level>=3)?1.5:0);const lx=(i?1:-1)*h.w*0.28+Math.sin(clockT*0.35+i*2)*1.4,lz=-h.side*(d/2+1.7);
+function homeYard(i){const h=homeHouse();const d=h.d+((S.house&&S.house.level>=3)?1.5:0);const lx=(i?1:-1)*h.w*0.28+Math.sin(clockT*0.35+i*2)*1.4,lz=-h.side*(d/2+(3.4-HOME_BACK)/2+HOME_BACK*0.0)+(-h.side)*0;
   return[h.x3+Math.cos(h.th)*lx+Math.sin(h.th)*lz+OX,h.z3-Math.sin(h.th)*lx+Math.cos(h.th)*lz+OY]}
 function pay(price,what,apply){if((S.coins||0)<price)return toast("Faltam "+(price-(S.coins||0))+" moedas para: "+what);S.coins-=price;S.pts+=5;apply();save();updateHUD();buildHome();toast(what+": pronto! +5 pontos");openReform()}
 function openReform(){const H=S.house;
