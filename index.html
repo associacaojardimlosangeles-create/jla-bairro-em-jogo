@@ -1910,7 +1910,7 @@ function openProfile(){const L=currentLook();const keep=$("#sheetbox")?$("#sheet
     sec("Personagem"),charPicker(L),
     sec("Onde eu moro"),el("p",{style:"margin:0 0 6px",text:S.rua+" · "+S.bairro+(S.houseNum?" · nº "+S.houseNum:"")}),
     el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn ghost",onclick:openMove},"Mudar de casa"),el("button",{class:"btn blue",onclick:goHome},"Ir para casa agora")),
-    sec("Eu sou"),genRow,sub("Isso muda o jeito do personagem. Depois você pode trocar qualquer roupa ou cabelo."),
+    ...(L.model&&L.model!=="classic"?[el("p",{class:"muted",style:"margin:6px 0 0",text:"Os avatares já vêm com a roupa deles. Para montar cabelo, roupa e acessórios, escolha o Clássico."})]:[sec("Eu sou"),genRow,sub("Isso muda o jeito do personagem. Depois você pode trocar qualquer roupa ou cabelo."),
     sec("Pele"),sw("Pele",LOOKS.skin,L.skin,c=>setLook("skin",c)),
     sec("Olhos"),sw("Olhos",LOOKS.eyes,L.eyes,c=>setLook("eyes",c)),
     el("div",{style:row},tog("Cílios",L.lash,v=>setLook("lash",v)),tog("Sardas",!!L.frk,v=>setLook("frk",v)),tog("Brincos",!!L.ear,v=>setLook("ear",v))),
@@ -1921,8 +1921,7 @@ function openProfile(){const L=currentLook();const keep=$("#sheetbox")?$("#sheet
     sec("Calçado"),opts(SHOES,L.shoeType,i=>setLook("shoeType",i)),sw("Cor do calçado",LOOKS.shoe,L.shoe,c=>setLook("shoe",c)),
     sec("Na cabeça"),opts(HATS,L.hat,i=>setLook("hat",i)),(L.hat>=1&&L.hat<=4||L.hat===6)?sw("Cor",LOOKS.shirt,L.capColor||"#e2483d",c=>setLook("capColor",c)):null,
     sec("Óculos"),opts(GLASSES,L.glasses,i=>setLook("glasses",i)),
-    sec("Mochila"),opts(BAGS,L.bag||0,i=>setLook("bag",i)),
-    sec("Roupa dos bichinhos"),petsBox,
+    sec("Mochila"),opts(BAGS,L.bag||0,i=>setLook("bag",i))]),
     sec("Modelo do carro"),(S.vehicles||[]).includes("car")?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px"},...CAR_MODELS.map(([k,n])=>el("button",{class:"btn "+(((S.carModel||"sedan")===k)?"":"ghost"),style:"width:78px;padding:3px;min-height:0;font-size:11px;display:flex;flex-direction:column;align-items:center",onclick:()=>{S.carModel=k;save();if(riding==="car")setRide("car");buildHome();openProfile()}},el("img",{src:ASSET_BASE+"cars/thumbs/"+k+".png",alt:"",loading:"lazy",style:"width:64px;height:44px;object-fit:contain"}),n))):null,
     sec("Cor do carro (modelo clássico)"),(S.vehicles||[]).includes("car")?sw("Carro",LOOKS.car,S.carColor||"#F57E20",c=>{S.carColor=c;S.carModel="classic";save();if(riding==="car")setRide("car");buildHome();openProfile()}):el("p",{class:"muted",text:"Compre o carro elétrico na Loja de Bikes e Veículos para escolher a cor."}));
   if(!profileView&&nearHome()){const h=homeHouse();player.face=Math.atan2(h.fx-h.wx,h.fy-h.wy)}
