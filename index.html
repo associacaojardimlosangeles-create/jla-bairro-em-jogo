@@ -1056,6 +1056,12 @@ const MODELS=[
   {id:"prot:cyborgFemaleA",n:"Ciborgue",f:"prot/protagonist.glb",skin:"prot/skins/cyborgFemaleA.png"},
   /* avatares (Open Source Avatars, CC0) */
   {id:"v:cyberpal",n:"Cyberpal",f:"vrm/cyberpal.vrm",vrm:1},
+  {id:"v:eugenia",n:"Eugênia",f:"vrm/eugenia.vrm",vrm:1},{id:"v:juanita",n:"Juanita",f:"vrm/juanita.vrm",vrm:1},
+  {id:"v:biz-dude",n:"Executivo",f:"vrm/biz-dude.vrm",vrm:1},{id:"v:leaf-boy",n:"Menino Folha",f:"vrm/leaf-boy.vrm",vrm:1},
+  {id:"v:snail-kid",n:"Caracolzinho",f:"vrm/snail-kid.vrm",vrm:1},{id:"v:blob",n:"Blob",f:"vrm/blob.vrm",vrm:1},
+  {id:"v:jennifer",n:"Jennifer",f:"vrm/jennifer.vrm",vrm:1},{id:"v:kate",n:"Kate",f:"vrm/kate.vrm",vrm:1},
+  {id:"v:pipe",n:"Pipe",f:"vrm/pipe.vrm",vrm:1},{id:"v:retroman",n:"Retrô",f:"vrm/retroman.vrm",vrm:1},
+  {id:"v:dino-kid",n:"Dino",f:"vrm/dino-kid.vrm",vrm:1},{id:"v:muscary",n:"Cogumelo",f:"vrm/muscary.vrm",vrm:1},
   /* moradores realistas (Quaternius) */
   {id:"q:w_Casual",n:"Carla",f:"q/w_Casual.glb",q:1},{id:"q:m_Casual_2",n:"Thiago",f:"q/m_Casual_2.glb",q:1},
   {id:"q:w_Formal",n:"Patrícia",f:"q/w_Formal.glb",q:1},{id:"q:m_Casual_Hoodie",n:"Mateus",f:"q/m_Casual_Hoodie.glb",q:1},
@@ -1886,7 +1892,7 @@ function setLook(k,v){S.look=Object.assign(S.look||{},{[k]:v});save();setAvatar(
 function goHome(){if(!S)return;const h=homeHouse();player.x=h.fx;player.y=h.fy;player.h=0;player.vy=0;if(riding)snapToRoad();yaw=Math.atan2(h.wx-h.fx,h.wy-h.fy)+Math.PI;lastPlace="";closeSheet();toast("Você chegou em casa!")}
 function charPicker(L){const cur=L.model||"classic";const tile=(id,n,img)=>el("button",{type:"button",class:"btn "+(cur===id?"":"ghost"),style:"display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;min-height:0;width:78px;font-size:11px;line-height:1.1"+(cur===id?";outline:3px solid #F57E20":""),
       onclick:()=>{S.look=Object.assign(S.look||{},{model:id});save();setAvatar(S.avatar);openProfile()}},img?el("img",{src:img,alt:"",loading:"lazy",style:"width:60px;height:60px;object-fit:contain;border-radius:8px;background:#e8f3fc"}):el("div",{style:"width:60px;height:60px;border-radius:8px;background:#fff3e8;display:grid;place-items:center;font-size:26px",text:"🧑"}),n);
-  return el("div",{},el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:4px 0"},tile("classic","Clássico"),...MODELS.map(m=>tile(m.id,m.n,CHAR_BASE+"thumbs/"+m.id.replace(":","-")+".png"))),
+  return el("div",{},el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:4px 0"},tile("classic","Clássico"),...MODELS.filter(m=>m.vrm).map(m=>tile(m.id,m.n,CHAR_BASE+"thumbs/"+m.id.replace(":","-")+".png"))),
     cur!=="classic"?el("p",{class:"muted",style:"margin:2px 0 0;font-size:12px",text:"As opções de cabelo e roupa mais abaixo valem para o boneco Clássico."}):null)}
 function openProfile(){const L=currentLook();const keep=$("#sheetbox")?$("#sheetbox").scrollTop:0;
   const row="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px";
