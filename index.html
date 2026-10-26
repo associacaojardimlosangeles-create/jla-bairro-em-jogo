@@ -1089,7 +1089,7 @@ function vrmBones(gl){const j=gl.parser.json,ext=j.extensions||{};const out={};
 /* refaz cada animação do KayKit no esqueleto do avatar, pela rotação no mundo a partir da pose T dos dois */
 function retargetAll(gl,kk){const hb=vrmBones(gl);const tgt=THREE.SkeletonUtils.clone(gl.scene);const tg=new THREE.Group();tg.add(tgt);tg.rotation.y=gl.parser.json.extensions.VRM?Math.PI:0;tg.updateMatrixWorld(true);
   const tB={};tgt.traverse(o=>{if(o.isBone||o.type==="Object3D")tB[o.name]=o});
-  const pairs=[];for(const [s,h] of Object.entries(VRM_MAP)){const tn=hb[h];if(tn&&tB[tn])pairs.push([s,tB[tn]])}
+  const pairs=[];for(const [s,h] of Object.entries(VRM_MAP)){const tn=hb[h];const o=tn&&(tB[tn]||tB[THREE.PropertyBinding.sanitizeNodeName(tn)]);if(o)pairs.push([s,o])}if(!pairs.some(p=>p[0]==="hips"))throw new Error("sem hips: "+hb.hips)
   const depth=o=>{let d=0;while(o.parent){d++;o=o.parent}return d};pairs.sort((a,b)=>depth(a[1])-depth(b[1]));
   const restLocal=new Map(pairs.map(([s,b])=>[b,b.quaternion.clone()]));const restWorld=new Map(pairs.map(([s,b])=>[b,b.getWorldQuaternion(new THREE.Quaternion())]));
   const hipT=pairs.find(p=>p[0]==="hips")[1];const hipRest=hipT.position.clone();
