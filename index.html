@@ -827,6 +827,10 @@ function mkShop(g,p){box(g,13,5,11,0xefe3c8,0,0,0);box(g,13.6,0.5,11.6,new THREE
   box(g,5,2.6,0.15,0x9fd3f5,-3,0.1,5.55,{emissive:0x10304a});box(g,1.8,2.6,0.15,0x6e4526,3.5,0,5.55);
   plane(g,11,1.3,textTex(p.sign,{w:1024,h:130,bg:"#ffffff",fg:p.roof}),0,4.3,5.6);
   for(let i=0;i<3;i++)box(g,0.8,1,0.8,0x5aa0d6,-4+i*1.2,0,7.6);
+  if(["ilse","family","churras","divino"].includes(p.id)){for(let i=2;i<g.children.length;i++){const c=g.children[i];if(c.position.z>7&&c.position.z<8)c.visible=false}
+    for(const sx of[-4.2,3.6]){const t=new THREE.Group();t.position.set(sx,0,8.6);g.add(t);swapModel(t,"kaykit/table_round_A_decorated.glb",{length:1.7,color:0xd8d8d8});
+      for(const [dx,ry] of[[-1.3,Math.PI/2],[1.3,-Math.PI/2]]){const c=new THREE.Group();c.position.set(sx+dx,0,8.6);c.rotation.y=ry;g.add(c);swapModel(c,"kaykit/chair_A.glb",{height:1.45,color:0xd8d8d8})}}}
+  {const tr=new THREE.Group();tr.position.set(6.3,0,6.6);g.add(tr);swapModel(tr,"kaykit/trash_A.glb",{height:1.3,color:0xd8d8d8});const hy=new THREE.Group();hy.position.set(-6.4,0,8.2);g.add(hy);swapModel(hy,"kaykit/firehydrant.glb",{height:1.1,color:0xd8d8d8})}
   const keep=g.children.slice(2);const mdl=SHOP_MODEL[p.id]||"ecda"[(hashStr(p.id||p.name)>>>0)%4];
   shopWallTex(p.wall||p.roof).then(map=>swapModel(g,"commercial/building-"+mdl+".glb",{fill:[13,10.4,mdl==="c"?1.12:1],front:5.5,map,keep,color:0xe2e2e2}))}
 /* comércios com prédios novos (Kenney City Kit Commercial, CC0): a parede ganha a cor da loja */
@@ -3115,9 +3119,10 @@ const FURN=[["loungeSofa","Sofá",70,"sala"],["loungeSofaLong","Sofá grande",90
  ["kitchenFridgeLarge","Geladeira grande",130,"cozinha"],["kitchenMicrowave","Micro-ondas",45,"cozinha",1],["kitchenCoffeeMachine","Cafeteira",25,"cozinha",1],["toaster","Torradeira",15,"cozinha",1],["kitchenBlender","Liquidificador",20,"cozinha",1],
  ["table","Mesa",40,"cozinha"],["tableRound","Mesa redonda",40,"cozinha"],["chair","Cadeira",15,"cozinha"],["chairCushion","Cadeira estofada",20,"cozinha"],["kitchenBar","Bancada",45,"cozinha"],["stoolBar","Banqueta",15,"cozinha"],["trashcan","Lixeira",8,"cozinha"],
  ["toilet","Vaso sanitário",40,"banheiro"],["bathroomSink","Pia do banheiro",35,"banheiro"],["shower","Chuveiro",60,"banheiro"],["bathtub","Banheira",110,"banheiro"],["bathroomCabinet","Armário",30,"banheiro"],["washer","Máquina de lavar",90,"banheiro"],["dryer","Secadora",80,"banheiro"],
- ["wall","Parede",10,"obra"],["wallWindow","Parede com janela",15,"obra"],["wallDoorway","Parede com porta",15,"obra"],["lampSquareFloor","Luminária",25,"obra"],["plantSmall1","Plantinha",8,"obra",1],["plantSmall2","Plantinha 2",8,"obra",1],["books","Livros",6,"obra",1],["cardboardBoxClosed","Caixa de papelão",3,"obra"]];
+ ["wall","Parede",10,"obra"],["wallWindow","Parede com janela",15,"obra"],["wallDoorway","Parede com porta",15,"obra"],["lampSquareFloor","Luminária",25,"obra"],["plantSmall1","Plantinha",8,"obra",1],["plantSmall2","Plantinha 2",8,"obra",1],["books","Livros",6,"obra",1],["cardboardBoxClosed","Caixa de papelão",3,"obra"],
+ ["kk:food_burger","Hambúrguer",6,"cozinha",1],["kk:food_dinner","Prato de comida",6,"cozinha",1],["kk:pot_A_stew","Panela de feijão",8,"cozinha",1],["kk:ketchup","Ketchup",3,"cozinha",1],["kk:crate_tomatoes","Caixa de tomates",5,"cozinha"],["kk:crate_carrots","Caixa de cenouras",5,"cozinha"],["kk:table_round_A","Mesa de bar",30,"sala"],["kk:chair_A","Cadeira de bar",12,"sala"]];
 const FBY={};FURN.forEach(f=>FBY[f[0]]=f);
-const FSURF=new Set(["kitchenCabinet","kitchenCabinetDrawer","kitchenBar","table","tableRound","desk","cabinetTelevision","cabinetBedDrawerTable","tableCoffee","tableCoffeeGlass","washer","dryer","bathroomCabinet","bookcaseOpen","speaker"]);
+const FSURF=new Set(["kk:table_round_A","kitchenCabinet","kitchenCabinetDrawer","kitchenBar","table","tableRound","desk","cabinetTelevision","cabinetBedDrawerTable","tableCoffee","tableCoffeeGlass","washer","dryer","bathroomCabinet","bookcaseOpen","speaker"]);
 const FLOORS=[["Madeira","#a8754a","#8f5f38"],["Piso cerâmico","#e9e6df","#cfcac0"],["Porcelanato bege","#e2cfae","#cdb894"],["Azulejo xadrez","#f2f2f2","#2f3a4a"],["Taco escuro","#7a4b2a","#5e3820"]];
 const WALLS=["#f4efe4","#cfe6f5","#f7d9c4","#d8efd0","#f3d6e4","#fff1b8","#e2dcf2"];
 const ROOM={w:12,d:9,h:3};
@@ -3131,10 +3136,10 @@ const IWALLS=[[-1,-4.5,-1,-1.9],[-1,-0.6,-1,2.1],[-1,3.3,-1,4.5],[-6,1,-1,1]];
 const IDOOR={x:4.6,z:4.5};
 const IN={on:false};const _fmat={};
 function fMat(c){const k=c.getHexString();return _fmat[k]=_fmat[k]||lam(c.getHex())}
-function furnModel(k){return getAsset("furniture/"+k+".glb").then(gl=>{const m=gl.scene.clone(true);
-  m.traverse(o=>{if(o.isMesh){const mats=Array.isArray(o.material)?o.material:[o.material];const nm=mats.map(x=>{const c=(x.color||new THREE.Color(0xcccccc)).clone();
+function furnModel(k){const kk=k.startsWith("kk:");return getAsset(kk?"kaykit/"+k.slice(3)+".glb":"furniture/"+k+".glb").then(gl=>{const m=gl.scene.clone(true);
+  m.traverse(o=>{if(o.isMesh){const mats=Array.isArray(o.material)?o.material:[o.material];const nm=mats.map(x=>{if(x.map){x.map.encoding=THREE.LinearEncoding;return new THREE.MeshToonMaterial({map:x.map,color:0xd8d8d8,gradientMap:TOONG})}const c=(x.color||new THREE.Color(0xcccccc)).clone();
     if(/glass/i.test(x.name||""))return lam(0xbfe3f5,{transparent:true,opacity:0.55});return fMat(c)});o.material=Array.isArray(o.material)?nm:nm[0];o.castShadow=!lowQ;o.receiveShadow=true}});
-  m.scale.setScalar(2);m.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(m),sz=b.getSize(new THREE.Vector3());
+  m.scale.setScalar(kk?1.1:2);m.updateMatrixWorld(true);const b=new THREE.Box3().setFromObject(m),sz=b.getSize(new THREE.Vector3());
   m.position.set(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2);const w=new THREE.Group();w.add(m);w.userData.size=[sz.x,sz.y,sz.z];return w})}
 function floorTex(i){const [,a,b]=FLOORS[i]||FLOORS[0];return canvasTex(256,256,(c)=>{if(i===3){for(let y=0;y<4;y++)for(let x=0;x<4;x++){c.fillStyle=(x+y)%2?b:a;c.fillRect(x*64,y*64,64,64)}return}
   if(i===1||i===2){c.fillStyle=a;c.fillRect(0,0,256,256);c.strokeStyle=b;c.lineWidth=3;for(let k=0;k<=256;k+=64){c.beginPath();c.moveTo(k,0);c.lineTo(k,256);c.stroke();c.beginPath();c.moveTo(0,k);c.lineTo(256,k);c.stroke()}return}
@@ -3206,9 +3211,9 @@ function putFurn(k){const D=interiorData();const [x,z]=freeSpot();const it={k,x,
 function openFurnShop(cat){cat=typeof cat==="string"?cat:IN.cat||"sala";IN.cat=cat;
   openSheet("Loja de móveis",el("p",{class:"muted",style:"margin:0 0 6px",text:"Você tem "+(S.coins||0)+" moedas. O móvel aparece na sua casa e você escolhe o lugar."}),
     el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"},...FCAT.map(([k,n])=>el("button",{class:"btn "+(k===cat?"":"ghost"),style:"min-height:34px;padding:4px 10px;font-size:13px",onclick:()=>openFurnShop(k)},n))),
-    el("div",{class:"fgrid"},...FURN.filter(f=>f[3]===cat).map(f=>el("button",{class:"fitem",onclick:()=>buyFurn(f[0])},el("img",{src:ASSET_BASE+"furniture/thumbs/"+f[0]+".png",alt:"",loading:"lazy"}),el("span",{text:f[1]}),el("b",{text:f[2]+" moedas"})))))}
+    el("div",{class:"fgrid"},...FURN.filter(f=>f[3]===cat).map(f=>el("button",{class:"fitem",onclick:()=>buyFurn(f[0])},el("img",{src:ASSET_BASE+"furniture/thumbs/"+f[0].replace(":","-")+".png",alt:"",loading:"lazy"}),el("span",{text:f[1]}),el("b",{text:f[2]+" moedas"})))))}
 function buyFurn(k){const f=FBY[k];if((S.coins||0)<f[2])return toast("Faltam "+(f[2]-(S.coins||0))+" moedas para: "+f[1]);S.coins-=f[2];S.pts+=2;updateHUD();closeSheet();putFurn(k);toast(f[1]+" comprado! Toque no chão para escolher o lugar")}
-function openFurnBox(){const D=interiorData();openSheet("Caixa de móveis guardados",D.box.length?el("div",{class:"fgrid"},...D.box.map((k,i)=>el("button",{class:"fitem",onclick:()=>{D.box.splice(i,1);closeSheet();putFurn(k)}},el("img",{src:ASSET_BASE+"furniture/thumbs/"+k+".png",alt:"",loading:"lazy"}),el("span",{text:FBY[k]?FBY[k][1]:k}),el("b",{text:"Colocar"})))):el("p",{text:"Nada guardado. Escolha um móvel e toque em Guardar para tirar ele da sala sem perder."}))}
+function openFurnBox(){const D=interiorData();openSheet("Caixa de móveis guardados",D.box.length?el("div",{class:"fgrid"},...D.box.map((k,i)=>el("button",{class:"fitem",onclick:()=>{D.box.splice(i,1);closeSheet();putFurn(k)}},el("img",{src:ASSET_BASE+"furniture/thumbs/"+k.replace(":","-")+".png",alt:"",loading:"lazy"}),el("span",{text:FBY[k]?FBY[k][1]:k}),el("b",{text:"Colocar"})))):el("p",{text:"Nada guardado. Escolha um móvel e toque em Guardar para tirar ele da sala sem perder."}))}
 function openFloorWall(){const D=interiorData();
   openSheet("Piso e parede",el("p",{class:"muted",style:"margin:0 0 6px",text:"Trocar o piso custa 20 moedas. Pintar a parede custa 10."}),el("b",{text:"Piso"}),
     el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px"},...FLOORS.map((f,i)=>el("button",{class:"btn "+(D.floor===i?"":"ghost"),style:"min-height:36px;padding:4px 10px;font-size:13px;border-left:14px solid "+f[1],onclick:()=>{if(D.floor===i)return;if((S.coins||0)<20)return toast("Faltam moedas");S.coins-=20;D.floor=i;const t=floorTex(i);t.repeat.set(ROOM.w/2,ROOM.d/2);IN.floor.material.map=t;IN.floor.material.needsUpdate=true;save();updateHUD();updInUI();openFloorWall()}},f[0]))),
