@@ -149,6 +149,10 @@ label.f{display:block;font-weight:900;font-size:13px;margin:12px 0 6px}
   #place h3{font-size:15px}#place p{font-size:11px}#place .acts{gap:5px}#place .btn{min-height:32px;padding:4px 10px;font-size:12px}
   #toast{top:calc(8px + env(safe-area-inset-top,0px));bottom:auto;max-width:calc(100% - 520px);min-width:160px;font-size:12px;padding:6px 10px}
   #hint{display:none}
+  #sheet{align-items:center}#sheet .box{max-height:calc(100% - 12px);width:min(560px,calc(100% - 24px));border-radius:12px;border:4px solid var(--orange);padding:10px 14px 12px;font-size:14px}
+  #sheet .box h2{font-size:19px}#sheet .box .btn{min-height:34px;padding:5px 11px;font-size:13px}#sheet .box p{margin:5px 0}#sheet .box .row{padding:6px 9px}
+  #sheet.side{justify-content:flex-start;align-items:stretch}#sheet.side .box{width:min(290px,40vw)!important;max-height:100%!important;border-radius:0 12px 12px 0;border:0;border-right:4px solid var(--orange);padding:8px 10px;font-size:13px}
+  #sheet.side .box .swatch{width:26px;height:26px}#sheet.side .box label.f{font-size:12px;margin-top:6px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (max-width:520px){#acts .round{width:56px;height:56px;font-size:11px}#bjump{width:66px!important;height:66px!important}#mm,#mm .wrap{width:124px}#mm .wrap{height:124px}#me{max-width:calc(100% - 156px)}#track{font-size:11px}}
@@ -460,7 +464,11 @@ const POIS = [
   {id:"agua", type:"factory", name:"Água Sistemas de Armazenagem", addr:"Jardim Eldorado", x:2010, y:430, sign:"ÁGUA SISTEMAS"},
   {id:"busA", type:"bus", name:"Ponto de ônibus (Fanucchi)", addr:"Local aproximado, a confirmar", x:1170, y:1148},
   {id:"busB", type:"bus", name:"Ponto de ônibus (Avenida)", addr:"Local aproximado, a confirmar", x:1824, y:1806},
-  {id:"ilse", type:"shop", name:"Pizzaria Ilse", addr:"Rua Alfredo Gomes, 367 · delivery ou retirada · sabor que reúne a família", x:1193, y:731, roof:"#c0392b", sign:"PIZZARIA ILSE"},
+  {id:"vivi", type:"shop", name:"Vivi Cosméticos e Presentes", addr:"Rua Salvador Bueno de Cristo, esquina com a Prof. Fábio Fanucchi", x:703, y:477, roof:"#e86aa0", sign:"VIVI COSMÉTICOS"},
+{id:"furlaneto", type:"shop", name:"Mercado Furlaneto", addr:"Rua Boracha, 720", x:890, y:740, roof:"#2f8a4a", sign:"MERCADO FURLANETO"},
+{id:"kostiuresko", type:"shop", name:"Borracharia Kostiuresko", addr:"Av. Senador Flávio Carvalho Guimarães, 137", x:1724, y:1804, roof:"#2a2230", sign:"BORRACHARIA KOSTIURESKO"},
+{id:"taquarense", type:"shop", name:"Recapadora Taquarense", addr:"Av. Senador Flávio Carvalho Guimarães, 2221", x:2103, y:816, roof:"#2a2230", sign:"BORRACHARIA TAQUARENSE"},
+{id:"ilse", type:"shop", name:"Pizzaria Ilse", addr:"Rua Alfredo Gomes, 367 · delivery ou retirada · sabor que reúne a família", x:1193, y:731, roof:"#c0392b", sign:"PIZZARIA ILSE"},
 {id:"family", type:"shop", name:"Family Burguer", addr:"Rua Pedro Mezzomo · parceiro do prêmio do mês", x:934, y:610, roof:"#e2483d", sign:"FAMILY BURGUER"},
   {id:"garage84", type:"garage", name:"Garage 84 PG · Estética Automotiva", addr:"Rua Teresa Alves, 55 · (42) 99949-3663", x:1480, y:1746},
   {id:"viaduto", type:"viaduto", name:"Viaduto de entrada do bairro", addr:"Passagem sob a PRC-373 · entrada principal do Jardim Los Angeles", x:1815, y:1785},
@@ -959,7 +967,10 @@ async function fbConnect(){if(online())return true;try{const r=await initFirebas
 /* depois de entrar com Google: carrega o jogo salvo da conta ou libera o cadastro */
 async function afterGoogle(){MAIL.uid=firebase.auth().currentUser.uid;unlockSheet();
   try{const d=await MAIL.db.doc("saves/"+MAIL.uid).get();if(d.exists){const ns=JSON.parse((d.data()||{}).s||"null");
-    if(ns&&ns.nick&&(!S||(ns.savedTs||0)>(S.savedTs||0)+3000)){store.set("jla_state3d",ns);toast("Bem-vindo de volta, "+ns.nick+"! Carregando seu jogo...");setTimeout(()=>location.reload(),900);return}}}catch(e){}
+    if(ns&&ns.nick){const same=S&&S.created===ns.created&&S.nick===ns.nick;
+      /* dois personagens diferentes (um neste aparelho e outro na conta): a pessoa escolhe qual fica */
+      if(S&&!same&&(S.pts||0)+(S.coins||0)>0)return chooseSave(S,ns);
+      if(!S||!same||(ns.savedTs||0)>(S.savedTs||0)+3000){store.set("jla_state3d",ns);toast("Bem-vindo de volta, "+ns.nick+"! Carregando seu jogo...");setTimeout(()=>location.reload(),900);return}}}}catch(e){}
   if(S){S.savedTs=Date.now();store.set("jla_state3d",S);pushCloud(true);closeSheet();toast("Pronto! Seu jogo fica salvo na conta "+googleName()+".");MAIL.sig="";registerMorador();return}
   gateDone()}
 async function googleLogin(){const btns=document.querySelectorAll(".gbtn");btns.forEach(b=>b.disabled=true);const done=()=>btns.forEach(b=>b.disabled=false);
@@ -985,6 +996,11 @@ function setupGate(){const card=$("#start .card");if(!card||$("#ggate"))return;c
     el("p",{class:"muted",style:"margin:10px 0 0;font-size:13px",text:"Menores de 13 anos: peça para um adulto da família entrar com a conta dele. O jogo só mostra seu apelido, nunca seu nome ou e-mail."}),local);
   kids.forEach(k=>k.hidden=true);card.prepend(gate);
   fbConnect().then(ok=>{if(!ok){err.textContent="Sem conexão com o servidor do jogo.";local.hidden=false;return}if(isGoogle())afterGoogle();else checkRedirect()})}
+function chooseSave(loc,cloud){sheetLock=false;const card=(x,t)=>el("div",{class:"row",style:"display:block"},el("b",{text:t}),el("span",{style:"display:block;font-size:13px",text:x.nick+" · "+(x.pts||0)+" pontos · "+(x.coins||0)+" moedas · "+(x.rua||"")}));
+  openSheet("Qual personagem você quer usar?",el("p",{text:"Achamos dois personagens: um que estava neste aparelho e outro salvo na sua conta Google. Escolha qual fica. O outro é apagado."}),
+    card(cloud,"Salvo na conta Google"),el("button",{class:"btn green",style:"width:100%;margin:4px 0 12px",onclick:()=>{sheetLock=false;store.set("jla_state3d",cloud);closeSheet();toast("Carregando "+cloud.nick+"...");setTimeout(()=>location.reload(),700)}},"Usar "+cloud.nick),
+    card(loc,"Neste aparelho"),el("button",{class:"btn blue",style:"width:100%;margin-top:4px",onclick:()=>{sheetLock=false;S.savedTs=Date.now();store.set("jla_state3d",S);pushCloud(true);closeSheet();MAIL.sig="";registerMorador();toast("Pronto! "+S.nick+" agora fica salvo na sua conta.")}},"Usar "+loc.nick));
+  sheetLock=true;const x=$("#sheetbox .x");if(x)x.remove()}
 function gateDone(local){const card=$("#start .card"),g=$("#ggate");if(!card||!g)return;g.remove();[...card.children].forEach(k=>{k.hidden=k.dataset.gh==="1"});const fb=$("#fgoogle");if(fb)fb.hidden=true;
   if(!local)toast("Conta conectada! Agora crie seu personagem.");try{$("#fnick").focus()}catch(e){}}
 /* quem já jogava sem conta precisa entrar com Google (uma vez) */
@@ -1265,7 +1281,7 @@ function makePet(p,noLabel){const g=new THREE.Group();const v=PETV[p.type][p.v];
   const flat=(geo,c,x,y,z,parent,sc)=>{const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:c}));m.position.set(x*s,y*s,z*s);if(sc)m.scale.set(sc[0]*s,sc[1]*s,sc[2]*s);else m.scale.setScalar(s);parent.add(m);return m};
   const SP=(r,a=16,b=12)=>new THREE.SphereGeometry(r,a,b);const light=shade(v.b,0.35),belly=p.v===2&&!dog?"#f4f4f4":light;
   /* corpo */
-  add(SP(0.3,22,16),v.b,0,0.55,-0.02,g,true,dog?[0.78,0.74,1.18]:[0.62,0.62,1.08]);
+  add(SP(0.3,22,16),v.b,0,dog?0.55:0.6,-0.02,g,true,dog?[0.78,0.74,1.18]:[0.52,0.52,1.22]);
   add(SP(0.22,16,12),belly,0,0.5,0.14,g,false,dog?[0.8,0.72,0.9]:[0.7,0.66,0.8]);
   /* cabeça */
   const head=new THREE.Group();head.position.set(0,(dog?0.92:0.86)*s,(dog?0.36:0.3)*s);g.add(head);
@@ -1273,19 +1289,19 @@ function makePet(p,noLabel){const g=new THREE.Group();const v=PETV[p.type][p.v];
   if(dog){add(SP(0.14,16,12),light,0,-0.08,0.22,head,true,[1.05,0.8,1.05]);flat(SP(0.05,12,10),0x1d1d1d,0,-0.04,0.36,head,[1.2,0.85,1]);flat(SP(0.04,10,8),0xff7f9a,0,-0.17,0.3,head,[1,0.6,1.2]);
     for(const sx of[-1,1]){const ear=add(SP(0.11,12,10),v.d,sx*0.25,0.02,-0.02,head,true,[0.48,1.3,0.9]);ear.rotation.z=sx*0.35}}
   else{flat(SP(0.1,12,10),new THREE.Color(belly).getHex(),0,-0.08,0.2,head,[1.25,0.75,0.8]);flat(SP(0.028,10,8),0xff8fa8,0,-0.03,0.27,head,[1.3,0.8,1]);
-    for(const sx of[-1,1]){const ear=add(new THREE.ConeGeometry(0.1,0.2,4),v.b,sx*0.16,0.22,-0.02,head,true);ear.rotation.z=-sx*0.25;ear.rotation.y=Math.PI/4;const inn=flat(new THREE.ConeGeometry(0.055,0.12,4),0xffa3b8,sx*0.16,0.21,0.02,head);inn.rotation.z=-sx*0.25;inn.rotation.y=Math.PI/4;
-      for(const k of[-1,1]){const w=flat(new THREE.BoxGeometry(0.2,0.008,0.008),0xffffff,sx*0.2,-0.07+k*0.025,0.2,head);w.rotation.z=sx*k*0.15}}}
+    for(const sx of[-1,1]){const ear=add(new THREE.ConeGeometry(0.115,0.3,3),v.b,sx*0.17,0.29,-0.03,head,true);ear.rotation.z=-sx*0.22;ear.rotation.y=sx*0.5;const inn=flat(new THREE.ConeGeometry(0.06,0.18,3),0xffa3b8,sx*0.17,0.27,0.02,head);inn.rotation.z=-sx*0.22;inn.rotation.y=sx*0.5;
+      for(const k of[-1,0,1]){const w=flat(new THREE.BoxGeometry(0.3,0.01,0.01),0x2a2230,sx*0.26,-0.08+k*0.03,0.2,head);w.rotation.z=sx*k*0.18}}}
   for(const sx of[-1,1]){const ex=sx*(dog?0.11:0.12),ey=dog?0.05:0.03,ez=dog?0.235:0.23;
     if(dog)flat(SP(0.058,14,12),0x1d1410,ex,ey,ez,head,[0.9,1.1,0.5]);else{flat(SP(0.065,14,12),v.p===2?0x9be36a:0x9be36a,ex,ey,ez,head,[0.95,1.15,0.45]);flat(SP(0.06,10,8),0x111111,ex,ey,ez+0.012,head,[0.28,1.05,0.45])}
     flat(SP(0.02,8,6),0xffffff,ex+0.018,ey+0.025,ez+0.03,head)}
   const col=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.035,8,20),lam(dog?0xF57E20:0x008CE3));col.rotation.x=Math.PI/2+0.3;col.position.set(0,-0.2*s,-0.03*s);col.scale.setScalar(s);head.add(col);
   /* patas */
-  const legs=[];for(const [x,z] of(dog?[[-0.13,0.22],[0.13,0.22],[-0.13,-0.26],[0.13,-0.26]]:[[-0.1,0.2],[0.1,0.2],[-0.1,-0.24],[0.1,-0.24]])){const l=new THREE.Group();l.position.set(x*s,0.42*s,z*s);g.add(l);
-    add(new THREE.CylinderGeometry(0.065,0.06,0.3,10),v.b,0,-0.16,0,l,true);add(SP(0.075,10,8),p.v===2&&!dog?"#f4f4f4":v.d,0,-0.33,0.02,l,true,[1,0.7,1.2]);legs.push(l)}
+  const legs=[];for(const [x,z] of(dog?[[-0.13,0.22],[0.13,0.22],[-0.13,-0.26],[0.13,-0.26]]:[[-0.09,0.24],[0.09,0.24],[-0.09,-0.27],[0.09,-0.27]])){const l=new THREE.Group();l.position.set(x*s,0.42*s,z*s);g.add(l);
+    add(new THREE.CylinderGeometry(dog?0.065:0.048,dog?0.06:0.044,0.3,10),v.b,0,-0.16,0,l,true);add(SP(0.075,10,8),p.v===2&&!dog?"#f4f4f4":v.d,0,-0.33,0.02,l,true,[1,0.7,1.2]);legs.push(l)}
   /* rabo */
   const tail=new THREE.Group();tail.position.set(0,(dog?0.66:0.62)*s,(dog?-0.36:-0.3)*s);g.add(tail);
   if(dog){add(new THREE.CylinderGeometry(0.035,0.06,0.34,10),v.d,0,0.15,0,tail,true);tail.rotation.x=-0.6}
-  else{let px=0,py=0,pz=0;for(let k=0;k<6;k++){const a=k*0.35;px=0;py+=Math.cos(a)*0.09;pz-=Math.sin(a)*0.02-0.015;add(SP(0.045,8,6),k>3&&p.v===2?"#f4f4f4":v.b,px,py,pz-0.04,tail,false)}tail.rotation.x=-0.35}
+  else{let py=0,pz=0;for(let k=0;k<12;k++){const a=k<8?0:(k-7)*0.55;py+=Math.cos(a)*0.06;pz+=(k<7?-0.012:Math.sin(a)*0.06);add(SP(0.05,8,6),k>7&&p.v===2?"#f4f4f4":v.b,0,py,pz-0.04,tail,false)}tail.rotation.x=-0.25}
   petOutfit(p,{add,flat,head,g,s,dog});
   const e={g,legs,tail,head,x:player.x+2,y:player.y+2,face:0,phase:0,p,lab:-1};
   if(!noLabel){e.texN=textTex(p.name,{w:512,h:120,bg:"#319B27",fg:"#fff",round:56});e.texH=textTex(p.name+" · com fome",{w:640,h:120,bg:"#e2483d",fg:"#fff",round:56});
@@ -2137,7 +2153,7 @@ function sidewalkPoint(minD,maxD){const cand=roadSegs.filter(s=>(s.k==="R"||s.k=
   for(let tries=0;tries<8;tries++){const sg=cand[Math.floor(Math.random()*cand.length)];const L=Math.hypot(sg.cx-sg.ax,sg.cy-sg.ay);if(L<12)continue;const t=0.25+Math.random()*0.5,ux=(sg.cx-sg.ax)/L,uy=(sg.cy-sg.ay)/L,off=RW[sg.k]/2+1.8,sd=Math.random()<0.5?1:-1;
     const bx=sg.ax+(sg.cx-sg.ax)*t,by=sg.ay+(sg.cy-sg.ay)*t,a=[bx-uy*off*sd,by+ux*off*sd],b=[bx+uy*off*sd,by-ux*off*sd],mid=[bx,by];if(inViaFoot(a[0],a[1]))continue;return{a,b,mid,sg}}return null}
 function evLabel(text,col){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:textTex(text,{w:900,h:120,bg:col||"#7a4b8c",fg:"#fff",round:56}),depthTest:false,transparent:true,fog:false}));sp.scale.set(3,0.42,1);sp.renderOrder=11;return sp}
-function offerEvent(){const keys=Object.keys(EVENTS).filter(k=>k!==(S.lastEv||""));const k=keys[Math.floor(Math.random()*keys.length)],E=EVENTS[k];evOffered=k;sfx("tweet");
+function offerEvent(){const keys=Object.keys(EVENTS).filter(k=>k!==(S.lastEv||"")&&(!EVENTS[k].needCar||(S.vehicles||[]).includes("car")));const k=keys[Math.floor(Math.random()*keys.length)],E=EVENTS[k];evOffered=k;sfx("tweet");
   openSheet("Missão surpresa!",el("div",{style:"background:linear-gradient(135deg,#7a4b8c,#0A2240);color:#fff;border-radius:16px;padding:14px"},el("div",{style:"font-size:12px;font-weight:900;color:#ffd23f;letter-spacing:1px",text:"APARECEU AGORA"}),el("div",{style:"font-family:var(--display);font-size:22px;margin:4px 0",text:E.title}),el("div",{text:E.desc}),el("div",{style:"margin-top:8px;font-weight:900",text:"Recompensa: +"+E.pts+" pontos e "+E.coins+" moedas"})),
     el("div",{style:"display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"},el("button",{class:"btn green",style:"flex:1",onclick:()=>{closeSheet();if(!startEvent(k))toast("Não deu para começar aqui. Fica para a próxima!")}},"Aceitar"),el("button",{class:"btn ghost",style:"flex:1",onclick:()=>{closeSheet();evOffered=null;toast("Tudo bem! Outra missão surpresa aparece daqui a pouco.")}},"Agora não")))}
 function startEvent(k){S.lastEv=k;const E=EVENTS[k];let e={kind:k,st:"vai",t:240};
@@ -2150,8 +2166,9 @@ function startEvent(k){S.lastEv=k;const E=EVENTS[k];let e={kind:k,st:"vai",t:240
       const bag=new THREE.Mesh(new THREE.SphereGeometry(0.45,10,8),lam(0x1d1d1d));bag.scale.set(1,0.8,1);bag.position.y=0.4;g.add(bag);const knot=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.3,6),lam(0x1d1d1d));knot.position.y=0.85;g.add(knot);
       const [X,Z]=W3(x,y);g.position.set(X,0,Z);const ring=new THREE.Mesh(new THREE.RingGeometry(0.8,1,20),new THREE.MeshBasicMaterial({color:0xffd23f,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=0.05;g.add(ring);scene.add(g);e.items.push({g,x,y})}
     e.st="recolhe";e.t=120;toast("Recolha os 6 sacos de lixo (anéis amarelos) passando por cima deles!")}
-  else if(k==="entrega"||k==="pizza"){const f=POIS.find(q=>q.id===(k==="pizza"?"ilse":"family"));const hs=houses.map((h,i)=>[i,Math.hypot(h.fx-f.x,h.fy-f.y)]).filter(([i,d])=>d>60&&d<220&&i!==S.home);if(!hs.length)return false;
-    Object.assign(e,{st:"pegar",house:hs[Math.floor(Math.random()*hs.length)][0],t:240});setWaypoint({x:f.x,y:f.y,label:f.name});toast(k==="pizza"?"Vá até a Pizzaria Ilse pegar a pizza!":"Vá até o Family Burguer pegar o lanche!")}
+  else if(k==="reboque"){if(!startTow(e))return false}
+  else if(k==="entrega"||k==="pizza"||k==="presente"){const f=POIS.find(q=>q.id===({pizza:"ilse",presente:"vivi"}[k]||"family"));const hs=houses.map((h,i)=>[i,Math.hypot(h.fx-f.x,h.fy-f.y)]).filter(([i,d])=>d>60&&d<220&&i!==S.home);if(!hs.length)return false;
+    Object.assign(e,{st:"pegar",house:hs[Math.floor(Math.random()*hs.length)][0],t:240});setWaypoint({x:f.x,y:f.y,label:f.name});toast(k==="pizza"?"Vá até a Pizzaria Ilse pegar a pizza!":k==="presente"?"Vá até a Vivi Cosméticos pegar o presente!":"Vá até o Family Burguer pegar o lanche!")}
   else if(k==="buraco"||k==="poste"){const pt=sidewalkPoint(30,120);if(!pt)return false;const g=new THREE.Group();const [X,Z]=W3(k==="buraco"?pt.mid[0]:pt.a[0],k==="buraco"?pt.mid[1]:pt.a[1]);g.position.set(X,0,Z);
     if(k==="buraco"){const h=new THREE.Mesh(new THREE.CircleGeometry(1.2,16),new THREE.MeshBasicMaterial({color:0x1d1d1d}));h.rotation.x=-Math.PI/2;h.position.y=0.04;h.scale.set(1.3,0.8,1);g.add(h);for(const s of[-1,1]){const cn=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.7,10),lam(0xF57E20));cn.position.set(s*1.8,0.35,0);g.add(cn)}}
     else{const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.16,8,8),lam(0x7a7a7a));pole.position.y=4;g.add(pole);const lmp=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.2,0.8),lam(0x3a3a3a));lmp.position.set(0,8,0.6);g.add(lmp)}
@@ -2164,12 +2181,14 @@ function evNear(){const e=streetEv;if(!e)return null;const d=(x,y)=>Math.hypot(x
   if(e.kind==="atravessar"&&e.st==="espera"&&d(e.a[0],e.a[1])<5)return{title:"Dona Cida",sub:"Quer atravessar a "+e.street,btn:"Ajudar a atravessar",fn:helpCross};
   if(e.kind==="perdido"&&e.st==="solto"&&d(e.pe.x,e.pe.y)<4)return{title:e.type==="dog"?"Cachorrinho perdido":"Gatinho perdido",sub:"Está com medo e sem coleira",btn:"Pegar com carinho",fn:()=>{e.st="comigo";const ab=POIS.find(q=>q.id==="abrigo");setWaypoint({x:ab.x,y:ab.y,label:"Abrigo"});sfx(e.type==="cat"?"meow":"bark");toast("Ele está com você! Leve até o Abrigo Amigo Bicho (luz amarela).");lastPlace="";checkPlace()}};
   if(e.kind==="perdido"&&e.st==="comigo"){const ab=POIS.find(q=>q.id==="abrigo");if(d(ab.x,ab.y)<16)return{title:"Abrigo Amigo Bicho",sub:"Entregar o bichinho perdido",btn:"Entregar no abrigo",fn:()=>{rewardEv("O abrigo vai cuidar dele e procurar o dono!");endStreetEv()}}}
-  if((e.kind==="entrega"||e.kind==="pizza")&&e.st==="pegar"){const pz=e.kind==="pizza",f=POIS.find(q=>q.id===(pz?"ilse":"family"));if(d(f.x,f.y)<14)return{title:f.name,sub:pz?"A pizza da festa está pronta":"O lanche da entrega está pronto",btn:pz?"Pegar a pizza":"Pegar o lanche",fn:()=>{e.st="levar";const h=houses[e.house];setWaypoint({x:h.fx,y:h.fy,label:"Entrega"});toast((pz?"Pizza":"Lanche")+" na mão! Leve até a casa marcada antes de esfriar.");lastPlace="";checkPlace()}}}
-  if((e.kind==="entrega"||e.kind==="pizza")&&e.st==="levar"){const h=houses[e.house];if(d(h.fx,h.fy)<6)return{title:"Casa do vizinho",sub:h.street,btn:e.kind==="pizza"?"Entregar a pizza":"Entregar o lanche",fn:()=>{rewardEv(e.kind==="pizza"?"Pizza entregue! A festa vai ser boa!":"Lanche entregue quentinho!");endStreetEv()}}}
+  {const tn=towNear(e,d);if(tn)return tn}
+  const ITM={pizza:["ilse","a pizza","A pizza da festa está pronta","Pizza entregue! A festa vai ser boa!"],presente:["vivi","o presente","O presente está embrulhado","Presente entregue! A vizinha amou!"],entrega:["family","o lanche","O lanche da entrega está pronto","Lanche entregue quentinho!"]}[e.kind];
+  if(ITM&&e.st==="pegar"){const f=POIS.find(q=>q.id===ITM[0]);if(d(f.x,f.y)<14)return{title:f.name,sub:ITM[2],btn:"Pegar "+ITM[1],fn:()=>{e.st="levar";const h=houses[e.house];setWaypoint({x:h.fx,y:h.fy,label:"Entrega"});toast("Pegou "+ITM[1]+"! Leve até a casa marcada (siga a seta).");lastPlace="";checkPlace()}}}
+  if(ITM&&e.st==="levar"){const h=houses[e.house];if(d(h.fx,h.fy)<6)return{title:"Casa do vizinho",sub:h.street,btn:"Entregar "+ITM[1],fn:()=>{rewardEv(ITM[3]);endStreetEv()}}}
   if((e.kind==="buraco"||e.kind==="poste")&&d(e.x,e.y)<6)return{title:EVENTS[e.kind].title,sub:"Avise a Associação para pedir o conserto",btn:e.kind==="buraco"?"Avisar a Associação":"Pedir troca da lâmpada",fn:()=>{rewardEv("Pedido registrado! A Associação vai levar à Prefeitura.");endStreetEv()}};
   return null}
 function updateStreetEv(dt){if(!S||startMode||miniOpen)return;if(!streetEv){if($("#sheet")&&!$("#sheet").hidden)return;evTimer-=dt;if(evTimer<=0){evTimer=150+Math.random()*150;if(!riding||Math.random()<0.5)offerEvent()}return}
-  const e=streetEv;e.t-=dt;
+  const e=streetEv;e.t-=dt;towUpdate(e,dt);
   if(e.t<=0&&e.st!=="feito"&&e.st!=="atravessa"){toast("O tempo da missão surpresa acabou. Fica para a próxima!");return endStreetEv()}
   if(e.kind==="atravessar"){const c=e.c;if(e.st==="espera")c.legs.forEach(l=>l.rotation.x=0);
     else if(e.st==="atravessa"){e.p=Math.min(1,e.p+dt/5);e.x=e.a[0]+(e.b[0]-e.a[0])*e.p;e.y=e.a[1]+(e.b[1]-e.a[1])*e.p;const [X,Z]=W3(e.x,e.y);c.g.position.set(X,0.38,Z);const sw=Math.sin(clockT*6)*0.4;c.legs[0].rotation.x=sw;c.legs[1].rotation.x=-sw;
@@ -2267,6 +2286,7 @@ function MG_TROCA(){const STAR=[0,2,4,1,3];return{title:"Trocar o pneu furado",t
 /* ============ loop ============ */
 let last=performance.now(),uiT=0,mmT=0;
 function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
+  if(waypoint&&beam){beam.material.opacity=0.32+0.22*Math.abs(Math.sin(clockT*3));const a=document.getElementById("wparrow");if(a){const dx=waypoint.x-player.x,dy=waypoint.y-player.y;const ang=Math.atan2(dx*Math.cos(yaw)-dy*Math.sin(yaw),-dx*Math.sin(yaw)-dy*Math.cos(yaw));a.style.transform="rotate("+ang+"rad)"}}
   if(startMode){const a=clockT*0.06;camera.position.set(Math.cos(a)*85,46,Math.sin(a)*85);camera.lookAt(0,4,0);sun.position.set(60,90,40);sun.target.position.set(0,0,0)}
   else{update(dt);if(now-uiT>250){uiT=now;checkPlace()}if(now-mmT>120){mmT=now;drawMini()}}
   sky.position.copy(camera.position);
@@ -2295,8 +2315,8 @@ function update(dt){if(miniOpen)return;
   updatePets(dt);
   ME.body.position.y=player.speed>0?Math.abs(Math.sin(player.phase))*0.06:Math.sin(clockT*2)*0.015;
   const cdist=riding==="car"?Math.max(camDist,12):riding?Math.max(camDist,10):camDist;const tx=X,ty=1.8+(player.gnd||0)+(player.h-(player.gnd||0))*0.6,tz=Z;const cx=tx+Math.sin(yaw)*Math.cos(pitch)*cdist,cy=ty+Math.sin(pitch)*cdist,cz=tz+Math.cos(yaw)*Math.cos(pitch)*cdist;
-  if(profileView){const fx=Math.sin(player.face),fz=Math.cos(player.face),wide=innerWidth>=700;camTarget.set(X+fx*3.8,1.75+player.h,Z+fz*3.8);camera.position.lerp(camTarget,Math.min(1,dt*8));
-    if(wide)camera.lookAt(X-fz*1.15,1.35+player.h,Z+fx*1.15);else camera.lookAt(X,0.55+player.h,Z)}
+  if(profileView){const fx=Math.sin(player.face),fz=Math.cos(player.face),wide=innerWidth>=700||innerWidth>innerHeight*1.3,short=innerHeight<500&&innerWidth>innerHeight,off=short?0.85:1.15,dist=short?4.4:3.8;camTarget.set(X+fx*dist,1.75+player.h,Z+fz*dist);camera.position.lerp(camTarget,Math.min(1,dt*8));
+    if(wide)camera.lookAt(X-fz*off,1.35+player.h,Z+fx*off);else camera.lookAt(X,0.55+player.h,Z)}
   else{camTarget.set(cx,Math.max(0.8,cy),cz);camera.position.lerp(camTarget,Math.min(1,dt*10));camera.lookAt(tx,ty,tz)}
   {const a=(dayClock()-0.25)*Math.PI*2;sun.position.set(X-Math.cos(a)*80,40+60*Math.abs(Math.sin(a)),Z+35)}sun.target.position.set(X,0,Z);
   if(S&&(L>0.08||player.h>0)){S.px=Math.round(player.x*10)/10;S.py=Math.round(player.y*10)/10}
@@ -2335,7 +2355,7 @@ function checkPlace(){
   if(!near&&S.route){const hi=routeNear();if(hi!=null)near={kind:"route",hi}}
   if(!near&&S.visit!=null&&!mDone(MS("vizinho"))){const h=houses[S.visit];if(h&&Math.hypot(h.fx-player.x,h.fy-player.y)<6)near={kind:"visit"}}
   if(near&&near.p)track("visit",1,near.p.id);if(S.dm&&S.dm.fresh){S.dm.fresh=false;toast("Missão do dia: "+dailyNow().m.title+". Veja em Missões!")}const key=near?(near.kind+(near.p?near.p.id:"")+(near.hi??"")+(near.en?near.en.btn:"")):"";refreshHorta();if(key!==lastPlace){lastPlace=key;showPlace(near)}
-  if(waypoint){const d=Math.round(Math.hypot(waypoint.x-player.x,waypoint.y-player.y));const t=$("#track");t.hidden=false;t.innerHTML="";t.append(el("b",{text:waypoint.label||"Destino"}),document.createTextNode(d<8?"Você chegou!":d+" m · siga a luz amarela"))}else $("#track").hidden=true;
+  if(waypoint){const d=Math.round(Math.hypot(waypoint.x-player.x,waypoint.y-player.y));const t=$("#track");t.hidden=false;t.innerHTML="";t.append(el("span",{id:"wparrow",style:"float:right;font-size:22px;line-height:1;margin-left:6px;display:inline-block;color:#ffd23f;transition:transform .15s",text:"⬆"}),el("b",{text:waypoint.label||"Destino"}),document.createTextNode(d<8?"Você chegou!":d+" m · siga a seta e a luz amarela"))}else $("#track").hidden=true;
   regen();updateHUD();updateBatHUD();if(!MAIL.started){MAIL.started=true;initMail()}}
 function showPlace(near){const box_=$("#place");box_.innerHTML="";if(!near){box_.hidden=true;$("#acts").hidden=false;return}
   const acts=el("div",{class:"acts"});let title="",sub="";
@@ -2401,7 +2421,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
   const wrap=el("div",{id:"cgame",style:"position:fixed;inset:0;z-index:80;background:#1d1d1d;touch-action:none"});const cv=el("canvas",{style:"width:100%;height:100%;display:block"});
   const quit=el("button",{class:"btn ghost",style:"position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:36px;padding:4px 14px;background:#fff;color:#0A2240;border:2px solid #0A2240;font-weight:900;box-shadow:0 3px 0 #0A224088",onclick:()=>end(true)},"Sair");
   wrap.append(cv,quit);document.body.append(wrap);miniOpen=true;keys&&Object.keys(keys).forEach(k=>keys[k]=false);
-  const c=cv.getContext("2d");let W=0,H=0,dpr=1;const fit=()=>{dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;c.setTransform(dpr,0,0,dpr,0,0)};fit();addEventListener("resize",fit);
+  const c=cv.getContext("2d");let W=0,H=0,dpr=1,K=1;const fit=()=>{dpr=Math.min(2,devicePixelRatio||1);K=Math.min(1,innerHeight/400,innerWidth/360);W=innerWidth/K;H=innerHeight/K;cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;c.setTransform(dpr*K,0,0,dpr*K,0,0)};fit();addEventListener("resize",fit);
   const pal={skin:LOOKS.skin,hair:LOOKS.hair,shirt:LOOKS.shirt};const rnd=a=>a[Math.floor(Math.random()*a.length)];
   const mkOrder=()=>{if(cfg.mode==="stack"){const f=pick(cfg.fill,1+Math.floor(Math.random()*3));const o=["paoB",...f,"paoT"];return{list:o,drink:Math.random()<0.5?rnd(cfg.drinks):null}}
     return{list:pick(cfg.pool,2+Math.floor(Math.random()*2)),drink:null}};
@@ -2465,7 +2485,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
   function finish(){if(over)return;over=true;setTimeout(()=>end(false),900)}
   function end(quitting){if(ended)return;ended=true;miniOpen=false;removeEventListener("resize",fit);wrap.remove();const ok=!quitting&&served>=4;
     if(quitting&&served===0){toast("Você saiu do serviço.");return}cb(ok,served)}
-  function tap(e){const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;
+  function tap(e){const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)/K,y=(e.clientY-r.top)/K;
     if(!started){if(y>H*0.6){started=true;t0=performance.now()}return}if(over)return;
     for(const b of btns)if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h){
       if(b.id==="_ok")deliver();else if(b.id==="_lixo"){plate=[];drink=null}
@@ -2516,7 +2536,8 @@ function miniGame(cfg,cb){
   const quit=el("button",{class:"btn ghost",style:"position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;min-height:36px;padding:4px 14px;background:#fff;color:#0A2240;border:2px solid #0A2240;font-weight:900;box-shadow:0 3px 0 #0A224088",onclick:()=>end(true)},"Sair");
   wrap.append(cv,quit);document.body.append(wrap);miniOpen=true;if(typeof keys==="object")Object.keys(keys).forEach(k=>keys[k]=false);if(typeof sfx==="function")sfx("open");
   const c=cv.getContext("2d");const G={c,W:0,H:0,t:0,time:cfg.time||60,started:false,over:false,msg:"",msgT:0,floats:[],buttons:[],good:0,bad:0,ptr:null,conf:[],parts:[]};
-  const fit=()=>{const d=Math.min(2.5,devicePixelRatio||1);G.W=innerWidth;G.H=innerHeight;cv.width=Math.round(G.W*d);cv.height=Math.round(G.H*d);c.setTransform(d,0,0,d,0,0);c.imageSmoothingQuality="high";cfg.resize&&cfg.resize(G)};fit();addEventListener("resize",fit);
+  /* celular deitado ou tela pequena: o joguinho é desenhado num tamanho mínimo e encolhido para caber inteiro */
+  const fit=()=>{const d=Math.min(2.5,devicePixelRatio||1);const k=Math.min(1,innerHeight/460,innerWidth/360);G.k=k;G.W=innerWidth/k;G.H=innerHeight/k;cv.width=Math.round(innerWidth*d);cv.height=Math.round(innerHeight*d);c.setTransform(d*k,0,0,d*k,0,0);c.imageSmoothingQuality="high";cfg.resize&&cfg.resize(G)};fit();addEventListener("resize",fit);
   G.say=m=>{G.msg=m;G.msgT=1.9};G.float=(s,x,y,col)=>G.floats.push({s,x,y,t:1,col:col||"#ffd23f"});
   G.finish=()=>{if(G.over)return;G.over=true;G.endT=0;const w=cfg.win(G);if(typeof sfx==="function")sfx(w?"win":"lose");if(w)for(let k=0;k<90;k++)G.conf.push({x:G.W/2+(Math.random()-.5)*60,y:G.H*0.4,vx:(Math.random()-.5)*700,vy:-200-Math.random()*500,r:Math.random()*6,col:["#F57E20","#008CE3","#319B27","#ffd23f","#e2483d","#ff8fb3"][k%6]});setTimeout(()=>end(false),2300)};
   G.font=(px,w=800)=>c.font=w+" "+px+"px 'Nunito','Inter',system-ui,sans-serif";G.disp=px=>c.font="400 "+px+"px "+getComputedStyle(document.body).getPropertyValue("--display");
@@ -2525,7 +2546,7 @@ function miniGame(cfg,cb){
   let ended=false;
   function end(quitting){if(ended)return;ended=true;miniOpen=false;removeEventListener("resize",fit);wrap.remove();if(quitting&&!G.good){toast("Você saiu do serviço.");return}cb(!quitting&&cfg.win(G))}
   const hit=(b,x,y)=>x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h;
-  function pos(e){const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+  function pos(e){const r=cv.getBoundingClientRect();const k=G.k||1;return[(e.clientX-r.left)/k,(e.clientY-r.top)/k]}
   cv.addEventListener("pointerdown",e=>{const [x,y]=pos(e);try{cv.setPointerCapture(e.pointerId)}catch(_){}
     if(!G.started){if(y>G.H*0.62&&y<G.H*0.62+70){G.started=true;if(typeof sfx==="function")sfx("tap");cfg.start&&cfg.start(G)}return}if(G.over)return;G.ptr={x,y};
     for(const b of G.buttons)if(!b.off&&!b.hide&&hit(b,x,y)){G.heldId=b.id;if(typeof sfx==="function")sfx("tap");cfg.btn&&cfg.btn(G,b.id,true);return}cfg.down&&cfg.down(G,x,y)});
@@ -2912,7 +2933,7 @@ function placeActions(p){const out=[];
   else if(p.id==="garage84"){out.push(el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));if((S.vehicles||[]).includes("car"))out.push(el("button",{class:"btn",onclick:()=>{if((S.coins||0)<20)return toast("A lavagem completa custa 20 moedas");S.coins-=20;S.pts+=5;save();updateHUD();if(riding==="car"&&vehMesh)vehMesh.traverse(o=>{if(o.material&&o.material.emissive&&o.material.color.getHex()===0xF57E20)o.material.emissive.setHex(0x3a1a00)});toast("Seu carro saiu brilhando da Garage 84! +5 pontos")}},"Lavar meu carro · 20 moedas"))}
   else if(p.id==="family")out.push(el("button",{class:"btn",onclick:talkEverton},"Falar com o Everton"),el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));
   if(JOBS[p.id]){const j=JOBS[p.id];const left=JOB_COOLDOWN-(Date.now()-((S.jobs||{})[p.id]||0));
-    out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");(p.id==="rosas"||p.id==="ribas")?openMarketJobs(p):p.id==="posto"?openPostoJobs(p):p.id==="ilse"?openIlseJobs(p):startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+((p.id==="rosas"||p.id==="ribas")?j.label:p.id==="posto"||p.id==="ilse"?"escolher serviço":jobNextLabel(p))))}
+    out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");(p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?openMarketJobs(p):p.id==="posto"?openPostoJobs(p):p.id==="ilse"?openIlseJobs(p):startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+((p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?j.label:p.id==="posto"||p.id==="ilse"?"escolher serviço":jobNextLabel(p))))}
   return out}
 
 /* ============ sheets & minigames ============ */
@@ -2985,6 +3006,48 @@ function MG_FORNO(){const ROUNDS=5;const next=G=>{G.r++;if(G.r>=ROUNDS)return G.
     c.fillStyle="rgba(226,72,61,.6)";c.fillRect(bx+bw*(1/1.15),by,bw*(0.15/1.15),24);const px=bx+bw*Math.min(1,G.v/1.15);c.fillStyle="#0A2240";c.fillRect(px-3,by-8,6,40);
     G.font(13,900);G.font(W<500?11:13,900);G.text("CRUA",bx,by+46,"#fff","left");G.text("NO PONTO",bx+bw*(0.81/1.15),by+46,"#9be36a");G.text("QUEIMOU",bx+bw,by+46,"#ffb3a8","right")},
   stars:G=>G.bad===0?3:G.bad<=1?2:1,win:G=>G.good>=ROUNDS-1}}
+/* ============ Vivi Cosméticos: itens desenhados para os joguinhos ============ */
+function drawBottle(c,x,y,w,body,cap,label,shape){const h=w*(shape==="tall"?1.1:0.8),bw=w*(shape==="round"?0.62:0.46);c.save();
+  c.fillStyle=body;c.strokeStyle="#2a2230";c.lineWidth=2;if(shape==="round"){c.beginPath();c.ellipse(x,y-h*0.42,bw/2,h*0.42,0,0,Math.PI*2);c.fill();c.stroke()}else{RR(c,x-bw/2,y-h*0.85,bw,h*0.85,bw*0.25);c.fill();c.stroke()}
+  c.fillStyle=cap;RR(c,x-bw*0.22,y-h-h*0.04,bw*0.44,h*0.2,3);c.fill();c.stroke();
+  if(label){c.fillStyle="rgba(255,255,255,.85)";RR(c,x-bw*0.36,y-h*0.6,bw*0.72,h*0.24,3);c.fill();c.fillStyle=label;RR(c,x-bw*0.22,y-h*0.53,bw*0.44,h*0.08,2);c.fill()}
+  c.fillStyle="rgba(255,255,255,.45)";c.fillRect(x-bw*0.35,y-h*0.78,bw*0.1,h*0.5);c.restore();return h}
+const BEAUTY={batom:{n:"Batom",d:(c,x,y,w)=>{c.save();c.strokeStyle="#2a2230";c.lineWidth=2;c.fillStyle="#d9b04a";RR(c,x-w*0.13,y-w*0.42,w*0.26,w*0.42,3);c.fill();c.stroke();c.fillStyle="#d62f5c";c.beginPath();c.moveTo(x-w*0.1,y-w*0.42);c.lineTo(x-w*0.1,y-w*0.72);c.lineTo(x+w*0.1,y-w*0.62);c.lineTo(x+w*0.1,y-w*0.42);c.closePath();c.fill();c.stroke();c.restore();return w*0.72}},
+  perfume:{n:"Perfume",d:(c,x,y,w)=>drawBottle(c,x,y,w,"#f7a8d0","#d9b04a","#c0397a","round")},
+  esmalte:{n:"Esmalte",d:(c,x,y,w)=>drawBottle(c,x,y,w*0.7,"#e2483d","#2a2230",null,"sq")},
+  creme:{n:"Creme",d:(c,x,y,w)=>{c.save();c.strokeStyle="#2a2230";c.lineWidth=2;c.fillStyle="#fff6e6";RR(c,x-w*0.34,y-w*0.32,w*0.68,w*0.32,6);c.fill();c.stroke();c.fillStyle="#7ad0c4";RR(c,x-w*0.37,y-w*0.42,w*0.74,w*0.12,4);c.fill();c.stroke();c.fillStyle="#7ad0c4";RR(c,x-w*0.2,y-w*0.22,w*0.4,w*0.08,2);c.fill();c.restore();return w*0.42}},
+  shampoo:{n:"Shampoo",d:(c,x,y,w)=>drawBottle(c,x,y,w,"#8fd3ff","#008CE3","#2f6fae","tall")},
+  sabonete:{n:"Sabonete",d:(c,x,y,w)=>{c.save();c.strokeStyle="#2a2230";c.lineWidth=2;c.fillStyle="#c9f2a2";c.beginPath();c.ellipse(x,y-w*0.16,w*0.36,w*0.16,0,0,Math.PI*2);c.fill();c.stroke();c.fillStyle="#fff";for(const [a,b] of[[-0.15,-0.32],[0.1,-0.36],[0.25,-0.3]]){c.beginPath();c.arc(x+a*w,y+b*w,w*0.05,0,Math.PI*2);c.fill();c.stroke()}c.restore();return w*0.36}},
+  presente:{n:"Caixa de presente",d:(c,x,y,w)=>{c.save();c.strokeStyle="#2a2230";c.lineWidth=2;c.fillStyle="#e86aa0";RR(c,x-w*0.32,y-w*0.5,w*0.64,w*0.5,4);c.fill();c.stroke();c.fillStyle="#ffd23f";c.fillRect(x-w*0.05,y-w*0.5,w*0.1,w*0.5);c.fillRect(x-w*0.32,y-w*0.3,w*0.64,w*0.08);
+    c.beginPath();c.ellipse(x-w*0.09,y-w*0.56,w*0.1,w*0.06,-0.5,0,Math.PI*2);c.ellipse(x+w*0.09,y-w*0.56,w*0.1,w*0.06,0.5,0,Math.PI*2);c.fill();c.stroke();c.restore();return w*0.6}}};
+Object.entries(BEAUTY).forEach(([k,v])=>FOOD[k]=v);
+COUNTER.vivi={title:"Vivi Cosméticos",wall:"#e86aa0",wall2:"#b84a7c",trim:"#ffd23f",mode:"set",label:"Monte a cestinha com o que a cliente pediu",
+  pool:["batom","perfume","esmalte","creme","shampoo","sabonete"],items:["batom","perfume","esmalte","creme","shampoo","sabonete","presente"]};
+THEMES.beleza={place:"Vivi Cosméticos",bg:["#e86aa0","#b84a7c"],items:["batom","perfume","esmalte","creme","shampoo","sabonete","presente"],name:id=>FOOD[id].n,draw:(c,id,x,y,s)=>drawItem(c,id,x,y+16*s,66*s),basket:"Cestinha"};
+JOB_ROT.vivi=["counter","memo:beleza","catch:beleza"];
+JOBS.vivi={label:"Atender as clientes",game:"counter",items:["Batom","Perfume","Esmalte","Creme","Shampoo"],intro:"A Vivi precisa de ajuda no balcão! Monte a cestinha de cada cliente."};
+JOBS.furlaneto=Object.assign({},JOBS.rosas,{label:"Trabalhar no mercado"});
+for(const id of["kostiuresko","taquarense"]){JOB_ROT[id]=["trocapneu","pneu"];JOBS[id]={label:"Consertar pneus",game:"trocapneu",items:["Macaco","Chave de roda","Estepe"],intro:"Chegou carro com pneu furado na borracharia! Troque e calibre os pneus."}}
+const BORRACHARIAS=["kostiuresko","taquarense"];
+/* ============ missão surpresa: reboque do carro com pneu furado ============ */
+EVENTS.reboque={title:"Carro com pneu furado",desc:"Um vizinho ficou parado com o pneu furado. Vá até ele COM O SEU CARRO, engate o reboque e puxe até a borracharia mais perto.",pts:40,coins:15,needCar:true};
+EVENTS.presente={title:"Presente de aniversário",desc:"Uma vizinha encomendou um presente na Vivi Cosméticos. Pegue lá e entregue na casa dela em até 4 minutos!",pts:25,coins:10};
+function towSpot(){const lowAreas=roadSegs.filter(s=>{const mx=(s.ax+s.cx)/2,my=(s.ay+s.cy)/2;return(s.k==="R"||s.k==="K")&&mx<950&&my<600});const near=roadSegs.filter(s=>{const d=Math.hypot((s.ax+s.cx)/2-player.x,(s.ay+s.cy)/2-player.y);return(s.k==="R"||s.k==="K")&&d>60&&d<260});
+  const pool=lowAreas.length&&Math.random()<0.6?lowAreas:near.length?near:lowAreas;if(!pool.length)return null;const sg=pool[Math.floor(Math.random()*pool.length)];const L=Math.hypot(sg.cx-sg.ax,sg.cy-sg.ay);if(L<14)return null;const t=0.3+Math.random()*0.4;
+  return{x:sg.ax+(sg.cx-sg.ax)*t,y:sg.ay+(sg.cy-sg.ay)*t,face:Math.atan2(sg.cx-sg.ax,sg.cy-sg.ay),street:sg.name}}
+function startTow(e){const sp=towSpot();if(!sp)return false;const old=S.carColor;S.carColor=["#7a8a99","#c0392b","#2f6fae","#f4f1e6"][Math.floor(Math.random()*4)];const car=makeVehicle("car");S.carColor=old;
+  const g=new THREE.Group();g.add(car);const lb=evLabel("Pneu furado!","#e2483d");lb.position.y=3.2;g.add(lb);const [X,Z]=W3(sp.x,sp.y);g.position.set(X,0,Z);g.rotation.y=sp.face;car.rotation.z=0.07;scene.add(g);
+  Object.assign(e,{g,x:sp.x,y:sp.y,st:"vai",t:420,street:sp.street});setWaypoint({x:sp.x,y:sp.y,label:"Carro com pneu furado"});toast("Pegue o SEU CARRO e vá até o carro com pneu furado (siga a seta e a luz amarela).");return true}
+function nearestBorracharia(x,y){return BORRACHARIAS.map(id=>POIS.find(q=>q.id===id)).filter(Boolean).sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0]}
+function towNear(e,d){if(e.kind!=="reboque")return null;
+  if(e.st==="vai"&&d(e.x,e.y)<9){if(riding!=="car")return{title:"Carro com pneu furado",sub:"Precisa do seu carro para rebocar",btn:"Entendi",fn:()=>toast("Volte com o seu carro: toque em Veículo e escolha o carro.")};
+    return{title:"Carro com pneu furado",sub:e.street||"",btn:"Engatar o reboque",fn:()=>{const b=nearestBorracharia(e.x,e.y);e.st="reboca";e.dest=b;sfx("door");setWaypoint({x:b.x,y:b.y,label:b.name});toast("Reboque engatado! Leve até a "+b.name+" com cuidado.");lastPlace="";checkPlace()}}}
+  if(e.st==="reboca"&&e.dest&&d(e.dest.x,e.dest.y)<20)return{title:e.dest.name,sub:"Entregar o carro para o borracheiro",btn:"Entregar o carro",fn:()=>{rewardEv("O borracheiro vai trocar o pneu. Valeu pela ajuda!");endStreetEv()}};
+  return null}
+function towUpdate(e,dt){if(e.kind!=="reboque"||e.st!=="reboca")return;if(riding!=="car"){e.st="vai";e.x=player.x;e.y=player.y;setWaypoint({x:e.x,y:e.y,label:"Carro com pneu furado"});toast("Você desceu do carro: o reboque soltou. Volte com o carro para engatar de novo.");return}
+  const back=6.2;const tx=player.x-Math.sin(player.face)*back,ty=player.y-Math.cos(player.face)*back;e.x+=(tx-e.x)*Math.min(1,dt*6);e.y+=(ty-e.y)*Math.min(1,dt*6);const [X,Z]=W3(e.x,e.y);e.g.position.set(X,0,Z);
+  let df=player.face-e.g.rotation.y;df=Math.atan2(Math.sin(df),Math.cos(df));e.g.rotation.y+=df*Math.min(1,dt*4)}
+
 function openIlseJobs(p){const opt=(t,d,fn,col)=>el("button",{class:"btn "+col,style:"display:block;width:100%;margin:8px 0;text-align:left;padding:12px 14px",onclick:()=>{closeSheet();fn()}},el("b",{text:t,style:"display:block;font-size:17px"}),el("span",{text:d,style:"font-weight:600;font-size:13px;opacity:.9"}));
   const f=S.fetch,r=S.route&&S.route.kind==="pizza"?S.route:null;
   openSheet("Pizzaria Ilse",el("p",{text:"Sabor que reúne a família! Delivery ou retirada no local. O que você quer fazer hoje?"}),

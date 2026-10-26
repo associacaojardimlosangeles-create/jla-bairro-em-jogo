@@ -80,6 +80,10 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Amigos e jogadores andando no bairro (só amigos e quem mora junto) | `function openFriends`, `function addFriend`, `function pushPos`, `function watchPos`, `function updateOthers` |
 | Muro com grade e portão, carro na garagem | `function buildHome` |
 | Bichinhos sobem no veículo | começo de `function updatePets` |
+| Joguinhos encolhem para caber no celular deitado | `const fit` em `function miniGame` e em `function gameCounter` |
+| Vivi Cosméticos, Furlaneto e borracharias | `BEAUTY`, `COUNTER.vivi`, `BORRACHARIAS` |
+| Missão do reboque (pneu furado) | `function startTow`, `function towNear`, `function towUpdate` |
+| Escolher personagem (aparelho x conta Google) | `function chooseSave` |
 
 ### Como colocar um comércio novo
 
