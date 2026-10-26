@@ -464,11 +464,12 @@ Rio Los Angeles|824_629 811_495 794_460 763_434 742_407 690_334 668_279 586_226 
 |2082_1106 2012_1072 1868_881`;
 
 const POIS = [
-  {id:"posto", type:"shop", name:"Unidade de Saúde", addr:"Ao lado do campo de futebol", x:1400, y:1440, roof:"#008CE3", wall:"#dff1ff", sign:"UNIDADE BÁSICA DE SAÚDE"},
-  {id:"creche", type:"shop", name:"Creche do Bairro", addr:"Ao lado da Unidade de Saúde", x:1421, y:1426, roof:"#ffd23f", wall:"#ffb6d0", sign:"CRECHE MUNICIPAL"},
-  {id:"skate", type:"skate", name:"Pista de Skate", addr:"Na praça ao lado da Associação · faça manobras", x:1149, y:1272},
-  {id:"golf", type:"golf", name:"Minigolfe da Praça", addr:"Ao lado da Associação · acerte os 3 buracos", x:1069, y:1320},
-  {id:"arcade", type:"shop", name:"Fliperama do Bairro", addr:"Jogos e máquina de pegar bichinho", x:1205, y:1336, roof:"#7a4b8c", sign:"FLIPERAMA"},
+  {id:"agro", type:"shop", name:"Agropecuária", addr:"Rua Pedro Mezomo, na frente do Family Burguer · ração, alpiste, sementes e mais", x:954, y:600, roof:"#319B27", wall:"#b4e28a", sign:"AGROPECUÁRIA"},
+  {id:"ubs", type:"shop", name:"Unidade de Saúde", addr:"Na mesma quadra do campo de futebol", x:1406, y:1368, roof:"#008CE3", wall:"#dff1ff", sign:"UNIDADE BÁSICA DE SAÚDE"},
+  {id:"creche", type:"shop", name:"Creche do Bairro", addr:"Ao lado da Unidade de Saúde, na quadra do campo", x:1416, y:1393, roof:"#ffd23f", wall:"#ffb6d0", sign:"CRECHE MUNICIPAL"},
+  {id:"skate", type:"skate", name:"Pista de Skate", addr:"Entre a Horta Comunitária e a Fazenda Iberá · faça manobras", x:816, y:32},
+  {id:"golf", type:"golf", name:"Minigolfe", addr:"Entre a Horta Comunitária e a Fazenda Iberá · acerte os 3 buracos", x:848, y:16},
+  {id:"arcade", type:"shop", name:"Fliperama", addr:"Entre a Horta Comunitária e a Fazenda Iberá · máquina de pegar bichinho", x:848, y:56, roof:"#7a4b8c", sign:"FLIPERAMA"},
   {id:"assoc", type:"assoc", name:"Sede da Associação", addr:"Rua Prefeito José Hoffmann, 37", x:1140, y:1338},
   {id:"correio", type:"correio", name:"Correio do Bairro", addr:"Casinha de recados entre moradores", x:1172, y:1362},
   {id:"campo", type:"campo", name:"Campo de Futebol (Socity)", addr:"Ao lado das escolas", x:1376, y:1396},
@@ -500,7 +501,7 @@ const POIS = [
   {id:"igreja", type:"igreja", name:"Igreja da Rua Alziro Zarur", addr:"Rua Alziro Zarur · panfletos e campanha do agasalho", x:1274, y:1101},
   {id:"ribas", type:"shop", name:"Mercado Ribas", addr:"Rua Alziro Zarur, esquina com a Rua Pedro Mezzomo", x:1298, y:1135, roof:"#008CE3", sign:"MERCADO RIBAS"},
   {id:"ibera", type:"fazenda", name:"Fazenda Iberá · Sementes", addr:"No fim da Rua Salvador Bueno de Cristo, lá em cima · compre sementes para a horta", x:1072, y:150},
-  {id:"abrigo", type:"shelter", name:"Abrigo Amigo Bicho", addr:"Do jogo · adote um cachorro ou um gato", x:1450, y:1289},
+  {id:"abrigo", type:"shelter", name:"Abrigo Amigo Bicho", addr:"Do jogo · adote um cachorro ou um gato", x:1641, y:1543},
 ];
 const MY_BAIRROS = ["Jardim Los Angeles I","Jardim Los Angeles II","Jardim Califórnia I","Jardim Califórnia II","Residencial Hortência"];
 
@@ -846,7 +847,7 @@ function mkShop(g,p){box(g,13,5,11,0xefe3c8,0,0,0);box(g,13.6,0.5,11.6,new THREE
       for(const [dx,ry] of[[-1.3,Math.PI/2],[1.3,-Math.PI/2]]){const c=new THREE.Group();c.position.set(sx+dx,0,8.6);c.rotation.y=ry;g.add(c);swapModel(c,"kaykit/chair_A.glb",{height:1.45,color:0xd8d8d8})}}}
   {const tr=new THREE.Group();tr.position.set(6.3,0,6.6);g.add(tr);swapModel(tr,"kaykit/trash_A.glb",{height:1.3,color:0xd8d8d8});const hy=new THREE.Group();hy.position.set(-6.4,0,8.2);g.add(hy);swapModel(hy,"kaykit/firehydrant.glb",{height:1.1,color:0xd8d8d8})}
   if(p.id==="arcade")arcadeFront(g);
-  if(p.id==="posto"||p.id==="creche")saudeFront(g,p);
+  if(p.id==="ubs"||p.id==="creche")saudeFront(g,p);
   if(p.id==="ribasmat"){for(let i=2;i<g.children.length;i++){const c=g.children[i];if(c.position.z>7&&c.position.z<8)c.visible=false}
     mAdd(g,"survival/resource-planks.glb",-4.5,8,{length:3.4});mAdd(g,"survival/resource-stone-large.glb",-1.2,8.2,{length:2.4});mAdd(g,"skate/pallet.glb",2.4,8,{length:2.6});mAdd(g,"survival/bucket.glb",4.6,7.8,{height:0.9});mAdd(g,"survival/barrel.glb",5.8,7.6,{height:1.6})}
   if(["rosas","furlaneto","ribas"].includes(p.id)){for(let i=2;i<g.children.length;i++){const c=g.children[i];if(c.position.z>7&&c.position.z<8)c.visible=false}
@@ -854,7 +855,7 @@ function mkShop(g,p){box(g,13,5,11,0xefe3c8,0,0,0);box(g,13.6,0.5,11.6,new THREE
   const keep=g.children.slice(2);const mdl=SHOP_MODEL[p.id]||"ecda"[(hashStr(p.id||p.name)>>>0)%4];
   shopWallTex(p.wall||p.roof).then(map=>swapModel(g,"commercial/building-"+mdl+".glb",{fill:[13,10.4,mdl==="c"?1.12:1],front:5.5,map,keep,color:0xe2e2e2}))}
 /* comércios com prédios novos (Kenney City Kit Commercial, CC0): a parede ganha a cor da loja */
-const SHOP_MODEL={posto:"c",creche:"e",ribasmat:"k",arcade:"d",ribas:"c",ilse:"c",divino:"c",rosas:"e",family:"e",kostiuresko:"e",churras:"a",furlaneto:"b",taquarense:"e",vivi:"d",petshop:"d"};
+const SHOP_MODEL={agro:"e",ubs:"c",creche:"e",ribasmat:"k",arcade:"d",ribas:"c",ilse:"c",divino:"c",rosas:"e",family:"e",kostiuresko:"e",churras:"a",furlaneto:"b",taquarense:"e",vivi:"d",petshop:"d"};
 let _cmImg=null;function cmImg(){return _cmImg=_cmImg||new Promise((ok,no)=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>ok(im);im.onerror=no;im.src=ASSET_BASE+"commercial/Textures/colormap.png"})}
 const _wallTex={};function shopWallTex(col){return _wallTex[col]=_wallTex[col]||cmImg().then(im=>{const c=document.createElement("canvas");c.width=c.height=512;const x=c.getContext("2d");x.drawImage(im,0,0);
     const hsl={};new THREE.Color(col).getHSL(hsl);const w=new THREE.Color().setHSL(hsl.h,Math.min(0.75,hsl.s*0.9+0.15),0.74);const d=x.getImageData(240,256,16,128);for(let i=0;i<d.data.length;i+=4){d.data[i]*=w.r;d.data[i+1]*=w.g;d.data[i+2]*=w.b}x.putImageData(d,240,256);
@@ -1468,8 +1469,8 @@ function mkVShop(g,p){box(g,18,6,13,0xf4f1e6,0,0,0);box(g,18.6,0.5,13.6,0x319B27
   const c=makeVehicle("car");c.position.set(4.5,0,9.5);c.rotation.y=-0.9;g.add(c);
   box(g,0.12,5,0.12,0xdddddd,8.6,0,10);box(g,1.6,2.2,0.08,0x319B27,8.6,3.6,10);
   const keep=g.children.slice(2);shopWallTex("#319B27").then(map=>swapModel(g,"commercial/building-e.glb",{fill:[18,12.4],front:6.5,map,keep,color:0xe2e2e2}))}
-function mkShelter(g,p){box(g,12,4.4,8,0xf2d6c9,-2,0,-3);const r=new THREE.Mesh(prismGeo(),lam(0x7a4b2a));r.scale.set(12.8,2,8.8);r.position.set(-2,4.4,-3);r.castShadow=!lowQ;g.add(r);
-  box(g,2,2.4,0.15,0x6e4526,-2,0,1.05);plane(g,9,1.2,textTex("ABRIGO AMIGO BICHO",{w:1024,h:130,bg:"#319B27",fg:"#fff"}),-2,3.5,1.1);
+function mkShelter(g,p){const hb=new THREE.Group();hb.position.set(-2,0,-3);g.add(hb);box(hb,12,4.4,8,0xf2d6c9,0,0,0);shopWallTex("#3fc1a0").then(map=>swapModel(hb,"commercial/building-c.glb",{fill:[12,7.6,1.05],front:4,map,color:0xf0f0f0}));
+  box(g,2,2.4,0.15,0x6e4526,-2,0,1.05);plane(g,9,1.4,textTex("ABRIGO AMIGO BICHO",{w:1024,h:150,bg:"#ff8fb3",fg:"#fff"}),-2,3.7,1.15);
   for(const s of[-1,1])box(g,16,1.3,0.1,0xb9a27a,0,0,s*8);for(const s of[-1,1])box(g,0.1,1.3,16,0xb9a27a,s*8,0,0);
   for(const [x,c] of[[3.5,0xe2483d],[6,0x008CE3]]){box(g,1.6,1.2,1.6,c,x,0,4);const rr=new THREE.Mesh(prismGeo(),lam(0x5b6470));rr.scale.set(1.9,0.8,1.9);rr.position.set(x,1.2,4);g.add(rr)}
   for(let i=0;i<3;i++){const d=makePet({type:i===1?"cat":"dog",v:i,name:""},true);d.g.position.set(-5+i*2.6,0,5);d.g.rotation.y=i;g.add(d.g)}}
@@ -1830,8 +1831,8 @@ function assocExtras(g){const lt=new THREE.TextureLoader().load(LOGO_URI);
   box(g,0.25,4.9,0.25,0x0A2240,-8.2,0,7.3);box(g,0.25,4.9,0.25,0x0A2240,-4.8,0,7.3);box(g,3.5,3.8,0.12,0xffffff,-6.5,1.1,7.3);
   const lp=new THREE.Mesh(new THREE.PlaneGeometry(3.1,3.4),new THREE.MeshBasicMaterial({map:lt}));lp.position.set(-6.5,3.0,7.4);g.add(lp);
   boardCanvas=document.createElement("canvas");boardCanvas.width=640;boardCanvas.height=420;boardTex=new THREE.CanvasTexture(boardCanvas);drawBoard();
-  box(g,0.2,3.0,0.2,0x6e4526,2.9,0,7.3);box(g,0.2,3.0,0.2,0x6e4526,6.7,0,7.3);box(g,3.9,2.6,0.1,0x6e4526,4.8,0.45,7.3);
-  const bp=new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.36),new THREE.MeshLambertMaterial({map:boardTex}));bp.position.set(4.8,1.75,7.37);g.add(bp)}
+  box(g,0.2,3.0,0.2,0x6e4526,10.4,0,1.5);box(g,0.2,3.0,0.2,0x6e4526,14.2,0,1.5);box(g,3.9,2.6,0.1,0x6e4526,12.3,0.45,1.5);
+  const bp=new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.36),new THREE.MeshLambertMaterial({map:boardTex}));bp.position.set(12.3,1.75,1.57);g.add(bp)}
 function openSuggest(){const sug=S.suggestions||[];const list=el("div",{class:"list"});
   if(!sug.length)list.append(el("p",{class:"muted",text:"Ainda não tem ideias no mural. Seja o primeiro!"}));
   sug.slice(0,10).forEach(s=>list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:s.cat}),el("span",{text:s.text})),el("span",{class:"tag",text:s.date.split("-").reverse().slice(0,2).join("/")}))));
@@ -2451,7 +2452,7 @@ function updateStreetEv(dt){if(!S||startMode||miniOpen)return;if(!streetEv){if($
     const dx=tx-pe.x,dy=ty-pe.y,d=Math.hypot(dx,dy);let sp=0;if(d>0.4){sp=Math.min(e.st==="comigo"?Math.max(9,player.speed*1.1):2.5,d*3);pe.x+=dx/d*sp*dt;pe.y+=dy/d*sp*dt;pe.face=Math.atan2(dx,dy)}if(d>40&&e.st==="comigo"){pe.x=tx;pe.y=ty}
     pe.phase+=dt*Math.min(sp,14)*2.4;const sw=sp>0.3?Math.sin(pe.phase)*0.75:0;pe.legs[0].rotation.x=sw;pe.legs[3].rotation.x=sw;pe.legs[1].rotation.x=-sw;pe.legs[2].rotation.x=-sw;pe.tail.rotation.y=Math.sin(clockT*(e.st==="comigo"?13:3))*0.5;
     const [X,Z]=W3(pe.x,pe.y);pe.g.position.set(X,0.38,Z);pe.g.rotation.y=pe.face}
-  else if(e.kind==="lixo"||e.kind==="natal"){for(const it of e.items){if(!it.got&&Math.hypot(it.x-player.x,it.y-player.y)<2.6){it.got=true;scene.remove(it.g);sfx("coin");const left=e.items.filter(i=>!i.got).length;if(left)toast((e.kind==="natal"?"Pegou um presente! Faltam ":"Recolheu! Faltam ")+left+".");else{rewardEv(e.kind==="natal"?"Todos os presentes salvos! Feliz Natal!":"Rua limpinha de novo!");if(e.kind==="lixo")track("clean");endStreetEv();return}}else if(!it.got)it.g.children[2].rotation.z+=dt}}}
+  else if(e.kind==="lixo"||e.kind==="natal"){for(const it of e.items){if(!it.got&&Math.hypot(it.x-player.x,it.y-player.y)<(S.vassoura&&e.kind==="lixo"?4.6:2.6)){it.got=true;scene.remove(it.g);sfx("coin");const left=e.items.filter(i=>!i.got).length;if(left)toast((e.kind==="natal"?"Pegou um presente! Faltam ":"Recolheu! Faltam ")+left+".");else{rewardEv(e.kind==="natal"?"Todos os presentes salvos! Feliz Natal!":"Rua limpinha de novo!");if(e.kind==="lixo")track("clean");endStreetEv();return}}else if(!it.got)it.g.children[2].rotation.z+=dt}}}
 
 /* ============ serviços do posto: para-brisa, pneus, GNV, óleo, troca de pneu ============ */
 function openPostoJobs(p){const opt=(t,d,g,col)=>el("button",{class:"btn "+col,style:"display:block;width:100%;margin:7px 0;text-align:left;padding:11px 14px",onclick:()=>{closeSheet();startJob(p,g)}},el("b",{text:t,style:"display:block;font-size:16px"}),el("span",{text:d,style:"font-weight:600;font-size:13px;opacity:.9"}));
@@ -3157,9 +3158,9 @@ function drawSucata(c,it,x,y){const col=SUC_BINS[it.k][1];c.strokeStyle="#2a2230
   else if(/Balde/.test(it.n)){c.beginPath();c.moveTo(x-30,y-26);c.lineTo(x+30,y-26);c.lineTo(x+22,y+28);c.lineTo(x-22,y+28);c.closePath();c.fill();c.stroke()}
   else if(/Jornal/.test(it.n)){c.fillStyle="#f4f1e6";c.fillRect(x-40,y-30,80,56);c.strokeRect(x-40,y-30,80,56);c.fillStyle="#999";for(let k=0;k<5;k++)c.fillRect(x-32,y-22+k*10,64,4)}
   else{c.beginPath();c.moveTo(x-40,y-10);c.lineTo(x,y-30);c.lineTo(x+40,y-10);c.lineTo(x+40,y+28);c.lineTo(x-40,y+28);c.closePath();c.fill();c.stroke()}}
-const MINIS={obra:()=>MG_OBRA,limpa:()=>MG_LIMPA,skate:()=>MG_SKATE,golf:()=>MG_GOLF,garra:()=>MG_GARRA,montapizza:()=>MG_MONTA(),forno:()=>MG_FORNO(),vidro:()=>MG_VIDRO(),pneu:()=>MG_GAUGE("pneu"),gnv:()=>MG_GAUGE("gnv"),oleo:()=>MG_GAUGE("oleo"),trocapneu:()=>MG_TROCA(),acougue:()=>MG_ACOUGUE,prateleira:()=>MG_PRAT,caixa:()=>MG_CAIXA,posto:()=>MG_POSTO,molde:()=>MG_LINHA("pour"),solda:()=>MG_LINHA("weld"),cargas:()=>MG_CARGAS,pilha:()=>MG_PILHA,lavagem:()=>MG_LAVA,recicla:()=>MG_RECICLA};
+const MINIS={agro:()=>MG_AGRO,obra:()=>MG_OBRA,limpa:()=>MG_LIMPA,skate:()=>MG_SKATE,golf:()=>MG_GOLF,garra:()=>MG_GARRA,montapizza:()=>MG_MONTA(),forno:()=>MG_FORNO(),vidro:()=>MG_VIDRO(),pneu:()=>MG_GAUGE("pneu"),gnv:()=>MG_GAUGE("gnv"),oleo:()=>MG_GAUGE("oleo"),trocapneu:()=>MG_TROCA(),acougue:()=>MG_ACOUGUE,prateleira:()=>MG_PRAT,caixa:()=>MG_CAIXA,posto:()=>MG_POSTO,molde:()=>MG_LINHA("pour"),solda:()=>MG_LINHA("weld"),cargas:()=>MG_CARGAS,pilha:()=>MG_PILHA,lavagem:()=>MG_LAVA,recicla:()=>MG_RECICLA};
 
-const JOBS={ribasmat:{label:"Atender no balcão",game:"obra"},posto:{label:"Limpar o posto",game:"limpa"},creche:{label:"Recolher os brinquedos",game:"colete:brinquedos"},campo:{label:"Catar as bolas do campo",game:"colete:bolas"},skate:{label:"Andar de skate",game:"skate"},golf:{label:"Jogar minigolfe",game:"golf"},arcade:{label:"Pegar bichinho na máquina",game:"garra"},ilse:{label:"Montar as pizzas",game:"counter",items:["Mussarela","Calabresa","Marguerita","Frango com catupiry","Portuguesa"],intro:"Você está no balcão da Pizzaria Ilse! Atenda as famílias da fila."},
+const JOBS={agro:{label:"Atender no balcão",game:"agro"},ubs:{label:"Limpar o posto",game:"limpa"},ribasmat:{label:"Atender no balcão",game:"obra"},creche:{label:"Recolher os brinquedos",game:"colete:brinquedos"},campo:{label:"Catar as bolas do campo",game:"colete:bolas"},skate:{label:"Andar de skate",game:"skate"},golf:{label:"Jogar minigolfe",game:"golf"},arcade:{label:"Pegar bichinho na máquina",game:"garra"},ilse:{label:"Montar as pizzas",game:"counter",items:["Mussarela","Calabresa","Marguerita","Frango com catupiry","Portuguesa"],intro:"Você está no balcão da Pizzaria Ilse! Atenda as famílias da fila."},
   rosas:{label:"Trabalhar no caixa",game:"caixa",items:["Arroz","Feijão","Leite","Óleo","Café"],intro:"Repor a prateleira na ordem da lista do gerente."},
   ribas:{label:"Trabalhar no mercado",game:"caixa",items:["Arroz","Feijão","Leite","Óleo","Café"],intro:"Escolha onde trabalhar no Mercado Ribas."},
   divino:{label:"Atender no balcão",game:"counter",items:["Pão francês","Sonho","Café com leite","Bolo de fubá","Pão de queijo"],intro:"Atenda a fila da padaria: pão, sonho, bolo, café..."},
@@ -3193,6 +3194,7 @@ function placeActions(p){const out=[];
   else if(p.type==="vshop")out.push(el("button",{class:"btn",onclick:openVehShop},"Ver veículos"));
   else if(p.type==="shelter"){for(const lp of (S.pets||[]).filter(q=>q.lost))out.push(el("button",{class:"btn green",onclick:()=>rescuePet(lp)},"Levar "+lp.name+" para casa"));out.push(el("button",{class:"btn",onclick:openShelter},"Adotar um bichinho"),el("button",{class:"btn blue",onclick:()=>openDonate("abrigo")},"Doar da horta"))}
   else if(p.id==="petshop")out.push(el("button",{class:"btn",onclick:openPetShop},"Comprar ração"));
+  else if(p.id==="agro")out.push(el("button",{class:"btn blue",onclick:openAgroShop},"Comprar na agropecuária"));
   else if(p.id==="garage84"){out.push(el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));if((S.vehicles||[]).includes("car"))out.push(el("button",{class:"btn",onclick:()=>{if((S.coins||0)<20)return toast("A lavagem completa custa 20 moedas");S.coins-=20;S.pts+=5;save();updateHUD();if(riding==="car"&&vehMesh)vehMesh.traverse(o=>{if(o.material&&o.material.emissive&&o.material.color.getHex()===0xF57E20)o.material.emissive.setHex(0x3a1a00)});toast("Seu carro saiu brilhando da Garage 84! +5 pontos")}},"Lavar meu carro · 20 moedas"))}
   else if(p.id==="family")out.push(el("button",{class:"btn",onclick:talkEverton},"Falar com o Everton"),el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));
   if(JOBS[p.id]){const j=JOBS[p.id];const left=JOB_COOLDOWN-(Date.now()-((S.jobs||{})[p.id]||0));
@@ -3468,7 +3470,7 @@ function buildNatal(){if(!isNatal())return;const as=POIS.find(q=>q.type==="assoc
 
 /* ============ Unidade de Saúde e Creche (ao lado do campo) ============ */
 function saudeFront(g,p){for(let i=2;i<g.children.length;i++){const c=g.children[i];if(c.position.z>7&&c.position.z<8)c.visible=false}
-  if(p.id==="posto"){const cr=canvasTex(128,128,(c)=>{c.fillStyle="#fff";c.fillRect(0,0,128,128);c.fillStyle="#e2483d";c.fillRect(44,14,40,100);c.fillRect(14,44,100,40)});const m=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.2),new THREE.MeshBasicMaterial({map:cr}));m.position.set(5.2,4.6,5.75);g.add(m);
+  if(p.id==="ubs"){const cr=canvasTex(128,128,(c)=>{c.fillStyle="#fff";c.fillRect(0,0,128,128);c.fillStyle="#e2483d";c.fillRect(44,14,40,100);c.fillRect(14,44,100,40)});const m=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.2),new THREE.MeshBasicMaterial({map:cr}));m.position.set(5.2,4.6,5.75);g.add(m);
     mAdd(g,"skate/bench.glb",-4.5,7.6,{length:3});mAdd(g,"nature/plant_bush.glb",3.6,7.4,{height:1})}
   else{/* parquinho da creche */const cols=[0xe2483d,0xffd23f,0x008CE3,0x319B27];box(g,0.2,2.4,0.2,0xF57E20,-6.2,0,8);box(g,0.2,2.4,0.2,0xF57E20,-3.4,0,8);box(g,3,0.2,0.2,0xF57E20,-4.8,2.4,8);
     [-5.4,-4.2].forEach((x,k)=>{box(g,0.03,1.6,0.03,0x555555,x,0.8,8);box(g,0.6,0.08,0.35,cols[k],x,0.75,8)});
@@ -3519,22 +3521,43 @@ function drawMat(c,i,x,y,s){c.save();c.translate(x,y);c.scale(s,s);c.lineWidth=2
   else if(i===5){c.fillRect(-28,-6,56,12);c.strokeRect(-28,-6,56,12);c.fillStyle="#d8d3c8";c.beginPath();c.ellipse(28,0,4,6,0,0,7);c.fill();c.stroke()}
   else{c.fillStyle="#e8d6b0";c.fillRect(-20,-12,40,26);c.strokeRect(-20,-12,40,26);c.strokeStyle="#5b6470";c.lineWidth=3;for(let k=0;k<4;k++){c.beginPath();c.moveTo(-12+k*8,-18);c.lineTo(-12+k*8,4);c.stroke()}}
   c.restore()}
-const MG_OBRA={title:"Ribas Material de Construção: balcão",time:80,help:["O cliente pede o material da obra. Toque nos itens certos do pedido.","Atenda 6 clientes antes do tempo acabar!"],
-  icon:(c,x,y,s)=>{drawMat(c,2,x-30*s,y+10*s,s);drawMat(c,0,x+30*s,y+10*s,s)},
-  init(G){G.cust=null;G.next=()=>{const n=2+Math.min(2,(G.good/2)|0);const l=[];while(l.length<n){const k=(Math.random()*8)|0;if(!l.includes(k))l.push(k)}G.cust={order:l,got:[],mood:0,toon:TOONS[(Math.random()*4)|0]}};G.next()},
+function MG_BALCAO(o){const ME_={title:o.title,time:80,help:o.help,icon:o.icon,
+  init(G){G.items=o.items;G.drw=o.draw;G.sign=o.sign;G.bg=o.bg;G.cust=null;G.next=()=>{const n=2+Math.min(2,(G.good/2)|0);const l=[];while(l.length<n){const k=(Math.random()*8)|0;if(!l.includes(k))l.push(k)}G.cust={order:l,got:[],mood:0,toon:TOONS[(Math.random()*4)|0]}};G.next()},
   hud:G=>"Clientes "+G.good+"/6",
   grid(G){const W=G.W,H=G.H,cols=4,bw=Math.min(150,(W-50)/cols),bh=Math.min(92,H*0.15),gy=H-bh*2-30;return{cols,bw,bh,gy,gx:(W-(bw*cols+10*(cols-1)))/2}},
-  down(G,x,y){const L=MG_OBRA.grid(G);for(let i=0;i<8;i++){const bx=L.gx+(i%4)*(L.bw+10),by=L.gy+((i/4)|0)*(L.bh+10);if(x>bx&&x<bx+L.bw&&y>by&&y<by+L.bh){const cu=G.cust;
+  down(G,x,y){const L=ME_.grid(G);for(let i=0;i<8;i++){const bx=L.gx+(i%4)*(L.bw+10),by=L.gy+((i/4)|0)*(L.bh+10);if(x>bx&&x<bx+L.bw&&y>by&&y<by+L.bh){const cu=G.cust;
       if(cu.order.includes(i)&&!cu.got.includes(i)){cu.got.push(i);sfx("coin");G.burst(bx+L.bw/2,by+L.bh/2,"#ffd23f",8,140);if(cu.got.length===cu.order.length){G.good++;cu.mood=1;G.float("Pedido certo!",G.W/2,G.H*0.3);sfx("win");if(G.good>=6)return G.finish();setTimeout(()=>G.next(),600)}}
-      else if(!cu.got.includes(i)){G.bad++;cu.mood=-1;G.say(MATS[i][0]+" não estava no pedido!");sfx("err");setTimeout(()=>{if(G.cust===cu)cu.mood=0},700)}return}}},
+      else if(!cu.got.includes(i)){G.bad++;cu.mood=-1;G.say(G.items[i][0]+" não estava no pedido!");sfx("err");setTimeout(()=>{if(G.cust===cu)cu.mood=0},700)}return}}},
   update(){},
-  draw(G,c){const W=G.W,H=G.H;c.fillStyle="#f2e3c6";c.fillRect(0,0,W,H);c.fillStyle="#008CE3";c.fillRect(0,52,W,10);G.font(16,900);G.text("RIBAS MATERIAL DE CONSTRUÇÃO",W/2,86,"#0A2240");
-    const L=MG_OBRA.grid(G),cu=G.cust;const top=L.gy-24;c.fillStyle="#8a5a33";c.fillRect(0,top,W,14);
+  draw(G,c){const W=G.W,H=G.H;c.fillStyle=G.bg;c.fillRect(0,0,W,H);c.fillStyle="#008CE3";c.fillRect(0,52,W,10);G.font(16,900);G.text(G.sign,W/2,86,"#0A2240");
+    const L=ME_.grid(G),cu=G.cust;const top=L.gy-24;c.fillStyle="#8a5a33";c.fillRect(0,top,W,14);
     if(cu){toonDraw(c,cu,W*0.22,top-10,Math.min(0.9,(top-100)/260),cu.mood>0?"cheer0":cu.mood<0?"think":"talk");
       const bx=W*0.4,bw=Math.min(W*0.56,cu.order.length*92+20),by=110,bh=Math.min(130,top-130);c.fillStyle="#fff";RR(c,bx,by,bw,bh,16);c.fill();c.strokeStyle="#2a2230";c.lineWidth=3;c.stroke();
-      cu.order.forEach((k,j)=>{const ix=bx+20+46+j*((bw-40)/cu.order.length)-30,iy=by+bh*0.45;c.globalAlpha=cu.got.includes(k)?0.3:1;drawMat(c,k,ix,iy,Math.min(1,bh/110));c.globalAlpha=1;G.font(11,800);G.text(MATS[k][0],ix,by+bh-10,"#2a2230");if(cu.got.includes(k)){c.strokeStyle="#319B27";c.lineWidth=5;c.beginPath();c.moveTo(ix-14,iy);c.lineTo(ix-4,iy+10);c.lineTo(ix+16,iy-12);c.stroke()}})}
-    for(let i=0;i<8;i++){const bx=L.gx+(i%4)*(L.bw+10),by=L.gy+((i/4)|0)*(L.bh+10);c.fillStyle="#fff";RR(c,bx,by,L.bw,L.bh,12);c.fill();c.strokeStyle="#0A2240";c.lineWidth=2.5;c.stroke();drawMat(c,i,bx+L.bw/2,by+L.bh*0.45,Math.min(1,L.bh/80));G.font(12,900);G.text(MATS[i][0],bx+L.bw/2,by+L.bh-8,"#0A2240")}},
-  win:G=>G.good>=6};
+      cu.order.forEach((k,j)=>{const ix=bx+20+46+j*((bw-40)/cu.order.length)-30,iy=by+bh*0.45;c.globalAlpha=cu.got.includes(k)?0.3:1;G.drw(c,k,ix,iy,Math.min(1,bh/110));c.globalAlpha=1;G.font(11,800);G.text(G.items[k][0],ix,by+bh-10,"#2a2230");if(cu.got.includes(k)){c.strokeStyle="#319B27";c.lineWidth=5;c.beginPath();c.moveTo(ix-14,iy);c.lineTo(ix-4,iy+10);c.lineTo(ix+16,iy-12);c.stroke()}})}
+    for(let i=0;i<8;i++){const bx=L.gx+(i%4)*(L.bw+10),by=L.gy+((i/4)|0)*(L.bh+10);c.fillStyle="#fff";RR(c,bx,by,L.bw,L.bh,12);c.fill();c.strokeStyle="#0A2240";c.lineWidth=2.5;c.stroke();G.drw(c,i,bx+L.bw/2,by+L.bh*0.45,Math.min(1,L.bh/80));G.font(12,900);G.text(G.items[i][0],bx+L.bw/2,by+L.bh-8,"#0A2240")}},
+  win:G=>G.good>=6};return ME_}
+const MG_OBRA=MG_BALCAO({title:"Ribas Material de Construção: balcão",help:["O cliente pede o material da obra. Toque nos itens certos do pedido.","Atenda 6 clientes antes do tempo acabar!"],icon:(c,x,y,s)=>{drawMat(c,2,x-30*s,y+10*s,s);drawMat(c,0,x+30*s,y+10*s,s)},items:MATS,draw:drawMat,sign:"RIBAS MATERIAL DE CONSTRUÇÃO",bg:"#f2e3c6"});
+
+/* ============ Agropecuária (na frente do Family Burguer, Rua Pedro Mezomo) ============ */
+const AGRO_ITEMS=[["Ração de cachorro","#c0502e"],["Ração de gato","#7a4b8c"],["Alpiste","#d9b54a"],["Vassoura","#e2c35a"],["Mangueira","#319B27"],["Sementes","#6aa346"],["Adubo","#6b4a2f"],["Coleira","#e2483d"]];
+function drawAgro(c,i,x,y,s){c.save();c.translate(x,y);c.scale(s,s);c.lineWidth=2.5;c.strokeStyle="#2a2230";const col=AGRO_ITEMS[i][1];c.fillStyle=col;
+  if(i<=2||i===6){c.beginPath();c.moveTo(-20,18);c.lineTo(-22,-16);c.lineTo(22,-16);c.lineTo(20,18);c.closePath();c.fill();c.stroke();c.fillStyle="#fff";RR(c,-14,-8,28,14,4);c.fill();
+    c.fillStyle=col;if(i===0){c.beginPath();c.arc(0,-1,4,0,7);c.fill();for(const [a,b] of[[-6,-6],[6,-6],[-8,0],[8,0]]){c.beginPath();c.arc(a,b,2,0,7);c.fill()}}else if(i===1){c.beginPath();c.moveTo(-6,4);c.lineTo(-6,-6);c.lineTo(-2,-2);c.lineTo(2,-2);c.lineTo(6,-6);c.lineTo(6,4);c.closePath();c.fill()}else if(i===2){for(let k=0;k<6;k++){c.beginPath();c.arc(-8+k*3.2,(k%2)*3-1,1.6,0,7);c.fill()}}else{c.fillRect(-9,-3,18,5)}}
+  else if(i===3){c.fillStyle="#8a5a33";c.fillRect(-2,-26,4,34);c.fillStyle=col;c.beginPath();c.moveTo(-14,8);c.lineTo(14,8);c.lineTo(10,22);c.lineTo(-10,22);c.closePath();c.fill();c.stroke()}
+  else if(i===4){c.strokeStyle=col;c.lineWidth=6;c.beginPath();c.arc(0,2,16,0,6.283);c.stroke();c.beginPath();c.arc(0,2,9,0,6.283);c.stroke();c.fillStyle="#ffd23f";c.fillRect(14,-4,10,8)}
+  else if(i===5){c.fillStyle="#f4f1e6";RR(c,-14,-18,28,36,4);c.fill();c.stroke();c.fillStyle=col;c.beginPath();c.ellipse(0,-2,7,10,0,0,7);c.fill();c.fillStyle="#e2483d";c.beginPath();c.arc(0,10,4,0,7);c.fill()}
+  else{c.strokeStyle=col;c.lineWidth=7;c.beginPath();c.arc(0,0,15,0,6.283);c.stroke();c.fillStyle="#ffd23f";c.beginPath();c.arc(0,17,5,0,7);c.fill()}
+  c.restore()}
+const MG_AGRO=MG_BALCAO({title:"Agropecuária: atender no balcão",help:["O cliente pede ração, alpiste, vassoura e outras coisas. Toque nos itens certos.","Atenda 6 clientes antes do tempo acabar!"],icon:(c,x,y,s)=>{drawAgro(c,0,x-30*s,y+10*s,s);drawAgro(c,3,x+30*s,y+10*s,s)},items:AGRO_ITEMS,draw:drawAgro,sign:"AGROPECUÁRIA DO BAIRRO",bg:"#e8f2d8"});
+function openAgroShop(){const list=el("div",{class:"list"});S.food=S.food||{};S.seedBag=S.seedBag||{};
+  const items=[["dog",5,38,"Saco de ração de cachorro","5 refeições"],["cat",5,38,"Saco de ração de gato","5 refeições"],["seed",10,10,"Alpiste a granel","10 porções para os passarinhos"],
+    ["petisco",3,15,"Petisco para os bichinhos","Seus bichinhos ficam de barriga cheia na hora"],["semente",5,12,"Pacote de sementes de alface","5 sementes para a horta comunitária"],["vassoura",1,20,"Vassoura","Recolher lixo nas missões fica mais rápido (pega de mais longe)"]];
+  for(const [t,q,price,n,d] of items){const ok=(S.coins||0)>=price;const have=t==="vassoura"?(S.vassoura?"já tem":"não tem"):t==="semente"?(S.seedBag.alface||0):t==="petisco"?"":(S.food[t]||0);
+    list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:n}),el("span",{text:d+(have!==""?" · você tem "+have:"")})),
+      el("button",{class:"btn",...(ok&&!(t==="vassoura"&&S.vassoura)?{}:{disabled:"true",style:"opacity:.5"}),onclick:()=>{if(!ok)return;S.coins-=price;
+        if(t==="vassoura")S.vassoura=true;else if(t==="semente")S.seedBag.alface=(S.seedBag.alface||0)+q;else if(t==="petisco"){(S.pets||[]).forEach(p=>p.fed=Date.now());if(typeof spawnPets==="function")spawnPets()}else S.food[t]=(S.food[t]||0)+q;
+        save();updateHUD();sfx("coin");toast("Comprou: "+n);openAgroShop()}},price+" moedas")))}
+  openSheet("Agropecuária",el("p",{},document.createTextNode("Seu saldo: "),el("b",{text:(S.coins||0)+" moedas"})),list)}
 
 let stopGame=null;
 function openSheet(title,...content){if(sheetLock)return;content=content.filter(x=>x!=null&&x!==false);$("#sheet").classList.remove("side");profileView=false;const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null;keys={};joyV=null}
