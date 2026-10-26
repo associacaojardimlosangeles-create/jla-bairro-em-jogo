@@ -573,7 +573,7 @@ const ENERGY_MAX=5, ENERGY_REGEN=20*60*1000, JOB_COOLDOWN=30*60*1000, REFILL_COO
 let S=store.get("jla_state3d",null);
 const LEVELS=[[0,"Morador Novo"],[50,"Vizinho Presente"],[150,"Vizinho Solidário"],[300,"Guardião da Rua"],[600,"Embaixador do Bairro"],[1000,"Lenda do JLA"]];
 function level(p){let i=0;for(let k=0;k<LEVELS.length;k++)if(p>=LEVELS[k][0])i=k;return i}
-function save(){if(S)S.savedTs=Date.now();store.set("jla_state3d",S);if(MAIL.db){registerMorador();if(MAIL.kind==="fb"){pushRank();pushHouseStyle();pushCloud()}}}
+function save(){if(S)S.savedTs=Date.now();store.set("jla_state3d",S);if(MAIL.db){registerMorador();if(MAIL.kind==="fb"){pushRank();pushHouseStyle();syncHousePets();pushCloud()}}}
 function regen(){if(!S)return;const now=Date.now();if(S.energy>=ENERGY_MAX){S.energyTs=now;return}while(S.energy<ENERGY_MAX&&now-S.energyTs>=ENERGY_REGEN){S.energy++;S.energyTs+=ENERGY_REGEN}}
 const AVATARS=[
   {skin:"#f1c27d",hair:"#3b2414",shirt:"#F57E20",pants:"#0A2240",shoe:"#ffffff",hs:0,eyes:"#3b2414"},
@@ -1342,13 +1342,19 @@ async function claimHouse(){if(!online()||!S)return;const i=S.home,uid=MAIL.uid;
     const d=s.data()||{};if((d.membros||[]).includes(uid)){if((d.nicks||{})[uid]!==S.nick)casaRef(i).update({["nicks."+uid]:S.nick}).catch(()=>{});watchHouse(i);return}
     if(S.casaReq&&S.casaReq.i===i)return;houseTaken(i,d,{rua:S.rua,num:S.houseNum,first:true})}
   catch(e){/* sem permissão ou sem rede: segue jogando local */}}
-function watchHouse(i){if(CASA.unsub)CASA.unsub();CASA.i=i;
+function watchHouse(i){if(CASA.unsub)CASA.unsub();CASA.i=i;CASA.ready=false;
   CASA.unsub=casaRef(i).onSnapshot(s=>{if(!s.exists){CASA.d=null;return}const d=s.data()||{};CASA.d=d;
     if(!(d.membros||[]).includes(MAIL.uid)){CASA.unsub&&CASA.unsub();CASA.unsub=null;CASA.d=null;
       openSheet("Você saiu da casa",el("p",{text:"O dono da casa tirou você da lista de moradores. Escolha uma casa nova para continuar morando no bairro."}),el("button",{class:"btn green",onclick:openMove},"Escolher outra casa"));return}
-    syncHousePets();const sig=JSON.stringify(d.style||{});if(d.style&&sig!==JSON.stringify(S.house||{})){CASA.styleSig=sig;S.house=Object.assign({},d.style);store.set("jla_state3d",S);try{buildHome()}catch(e){}}else CASA.styleSig=sig;
+    /* primeiro aplica a reforma da casa que está na nuvem (assim quem mora junto vê a mesma casa), só depois deixa enviar mudanças */
+    const sig=JSON.stringify(d.style||{});const carsSig=JSON.stringify(d.pets||{});let rebuild=false;
+    const val=h=>h?((h.pool?3:0)+(h.garage?2:0)+(h.solar?2:0)+(h.garden?1:0)+((h.level||1)-1)*3+(h.model?3:0)):0;
+    /* se a casa na nuvem perdeu reformas que o dono tem (alguém mandou uma casa velha), o dono manda a dele de volta */
+    if(d.dono===MAIL.uid&&S.house&&val(S.house)>val(d.style)){CASA.styleSig=sig;CASA.ready=true;pushHouseStyle()}
+    else if(d.style&&sig!==JSON.stringify(S.house||{})){CASA.styleSig=sig;S.house=Object.assign({},d.style);store.set("jla_state3d",S);rebuild=true}else CASA.styleSig=sig;
+    if(carsSig!==CASA.carsSig){CASA.carsSig=carsSig;rebuild=true}CASA.ready=true;if(rebuild){try{buildHome()}catch(e){}}syncHousePets();
     if(lastPlace==="home"){lastPlace="";checkPlace()}},()=>{})}
-function pushHouseStyle(){if(!online()||!CASA.d||CASA.i!==S.home)return;const sig=JSON.stringify(S.house||{});if(sig===CASA.styleSig)return;CASA.styleSig=sig;casaRef(S.home).update({style:S.house}).catch(()=>{})}
+function pushHouseStyle(){if(!online()||!CASA.d||!CASA.ready||CASA.i!==S.home)return;const sig=JSON.stringify(S.house||{});if(sig===CASA.styleSig)return;CASA.styleSig=sig;casaRef(S.home).update({style:S.house}).catch(()=>{})}
 function houseMates(){if(!CASA.d)return[];const n=CASA.d.nicks||{};return(CASA.d.membros||[]).filter(u=>u!==MAIL.uid).map(u=>({uid:u,nick:String(n[u]||"Morador").slice(0,16),dono:u===CASA.d.dono}))}
 /* código da casa: quem quer morar junto digita o código que o dono passou (não mostra endereço) */
 function houseCode(i){const n=i*7+13;let ck=0;for(const ch of String(n))ck+=+ch;return"CASA-"+n.toString(36).toUpperCase()+(ck%10)}
@@ -1549,7 +1555,7 @@ function updatePets(dt){let rideSlot=0;petEnts.forEach((e,i)=>{if(e.bs==null)e.b
 const PET_LIM={cat:3,dog:2};
 function myPetCount(){const c={cat:0,dog:0};(S.pets||[]).forEach(p=>{if(c[p.type]!=null)c[p.type]++});return c}
 function houseHasPets(type){let n=myPetCount()[type];if(CASA&&CASA.d&&CASA.d.pets)for(const [u,c] of Object.entries(CASA.d.pets))if(u!==MAIL.uid&&(CASA.d.membros||[]).includes(u))n+=(c&&c[type])||0;return n}
-function syncHousePets(){if(!online()||!CASA.d||CASA.i!==S.home)return;const c=myPetCount(),cur=(CASA.d.pets||{})[MAIL.uid]||{};if(cur.cat===c.cat&&cur.dog===c.dog)return;casaRef(S.home).update({["pets."+MAIL.uid]:c}).catch(()=>{})}
+function syncHousePets(){if(!online()||!CASA.d||!CASA.ready||CASA.i!==S.home)return;const c=myPetCount(),cur=(CASA.d.pets||{})[MAIL.uid]||{};c.car=(S.vehicles||[]).includes("car");c.cm=S.carModel||"sedan";c.nick=String(S.nick||"").slice(0,16);if(cur.cat===c.cat&&cur.dog===c.dog&&cur.car===c.car&&cur.cm===c.cm&&cur.nick===c.nick)return;casaRef(S.home).update({["pets."+MAIL.uid]:c}).catch(()=>{})}
 function openShelter(){let type="dog",v=0;const box_=el("div",{});
   const draw=()=>{box_.innerHTML="";const lim=PET_LIM[type],cnt=houseHasPets(type),has=cnt>=lim;
     const tabs=el("div",{style:"display:flex;gap:8px;margin-bottom:10px"},...[["dog","Cachorro"],["cat","Gato"]].map(([k,n])=>el("button",{class:"btn "+(k===type?"":"ghost"),onclick:()=>{type=k;v=0;draw()}},n)));
@@ -1715,6 +1721,8 @@ function buildHome(){const h=homeHouse();if(h.x3==null)return;hideHouseInstance(
   {let xc=w/2-0.4;for(const k of Object.keys(S.plug||{})){if(!VEH[k]||riding===k||(k==="car"&&H.garage))continue;const len=k==="car"?4.5:1.5;const vx=xc-len/2;if(vx-len/2<-w/2-1)break;
     const vm=makeVehicle(k);vm.position.set(vx,0,front*(d/2+(k==="car"?2.0:1.6)));vm.rotation.y=Math.PI/2;g.add(vm);
     box(g,0.42,0.6,0.16,0x2b3440,vx,0.9,fz+front*0.09);box(g,0.12,0.12,0.04,0x5fe36a,vx,1.3,fz+front*0.18,{emissive:0x2f9f2f});xc-=len+0.5}}
+  /* carros de quem mora junto ficam estacionados na frente */
+  if(CASA.d&&CASA.i===S.home){let k=0;for(const [uid,v] of Object.entries(CASA.d.pets||{})){if(uid===MAIL.uid||!v||!v.car||k>=2||!(CASA.d.membros||[]).includes(uid))continue;const vm=makeVehicle("car",v.cm);vm.position.set(-w/2+1.5+k*5.2,0,front*(d/2+5.6+HOME_BACK*0.5));vm.rotation.y=Math.PI/2;g.add(vm);k++}}
   homeGroup=g;scene.add(g)}
 function homeYard(i){const h=homeHouse();const d=h.d+((S.house&&S.house.level>=3)?1.5:0);const lx=(i?1:-1)*h.w*0.28+Math.sin(clockT*0.35+i*2)*1.4,lz=-h.side*(d/2+(3.4-HOME_BACK)/2+HOME_BACK*0.0)+(-h.side)*0;
   return[h.x3+Math.cos(h.th)*lx+Math.sin(h.th)*lz+OX,h.z3-Math.sin(h.th)*lx+Math.cos(h.th)*lz+OY]}
