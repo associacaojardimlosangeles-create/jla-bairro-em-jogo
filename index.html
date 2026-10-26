@@ -1054,6 +1054,8 @@ const MODELS=[
   {id:"prot:skaterFemaleA",n:"Skatista (menina)",f:"prot/protagonist.glb",skin:"prot/skins/skaterFemaleA.png"},
   {id:"prot:criminalMaleA",n:"Estiloso",f:"prot/protagonist.glb",skin:"prot/skins/criminalMaleA.png"},
   {id:"prot:cyborgFemaleA",n:"Ciborgue",f:"prot/protagonist.glb",skin:"prot/skins/cyborgFemaleA.png"},
+  /* avatares (Open Source Avatars, CC0) */
+  {id:"v:cyberpal",n:"Cyberpal",f:"vrm/cyberpal.vrm",vrm:1},
   /* moradores realistas (Quaternius) */
   {id:"q:w_Casual",n:"Carla",f:"q/w_Casual.glb",q:1},{id:"q:m_Casual_2",n:"Thiago",f:"q/m_Casual_2.glb",q:1},
   {id:"q:w_Formal",n:"Patrícia",f:"q/w_Formal.glb",q:1},{id:"q:m_Casual_Hoodie",n:"Mateus",f:"q/m_Casual_Hoodie.glb",q:1},
@@ -1068,7 +1070,49 @@ const MCACHE={},SKINC={};
 function getGltf(file){return MCACHE[file]=MCACHE[file]||loadGltfLib().then(()=>new Promise((ok,no)=>new THREE.GLTFLoader().load(CHAR_BASE+file,ok,undefined,no)))}
 function getSkin(file){if(!SKINC[file]){SKINC[file]=new THREE.TextureLoader().load(CHAR_BASE+file);SKINC[file].encoding=THREE.LinearEncoding}return SKINC[file]}
 const ANIMATED=new Set();
-function attachModel(ch,av){const M=MODELS.find(m=>m.id===av.model);if(!M)return;
+/* ============ avatares VRM (Open Source Avatars, CC0): movimentos do KayKit passados para o esqueleto do avatar ============ */
+const VRM_MAP={hips:"hips",spine:"spine",chest:"chest",head:"head","upperarm.l":"leftUpperArm","lowerarm.l":"leftLowerArm","wrist.l":"leftHand","upperarm.r":"rightUpperArm","lowerarm.r":"rightLowerArm","wrist.r":"rightHand",
+  "upperleg.l":"leftUpperLeg","lowerleg.l":"leftLowerLeg","foot.l":"leftFoot","toes.l":"leftToes","upperleg.r":"rightUpperLeg","lowerleg.r":"rightLowerLeg","foot.r":"rightFoot","toes.r":"rightToes"};
+const VRM_CLIPS={idle:["anim_general","Idle_A"],walk:["anim_move","Walking_A"],run:["anim_move","Running_A"],jump:["anim_move","Jump_Idle"],wave:["anim_general","Interact"]};
+let _kkAnims=null;function kkAnims(){return _kkAnims=_kkAnims||Promise.all(["anim_general","anim_move"].map(f=>getGltf("kk/"+f+".glb"))).then(([g,m])=>({anim_general:g,anim_move:m}))}
+/* acha o nó de cada osso humano do VRM (VRM 0.x ou 1.0) */
+function vrmBones(gl){const j=gl.parser.json,ext=j.extensions||{};const out={};
+  if(ext.VRM){for(const b of ext.VRM.humanoid.humanBones)out[b.bone]=j.nodes[b.node].name}
+  else if(ext.VRMC_vrm){for(const [k,v] of Object.entries(ext.VRMC_vrm.humanoid.humanBones))out[k]=j.nodes[v.node].name}
+  return out}
+/* refaz cada animação do KayKit no esqueleto do avatar, pela rotação no mundo a partir da pose T dos dois */
+function retargetAll(gl,kk){const hb=vrmBones(gl);const tgt=THREE.SkeletonUtils.clone(gl.scene);const tg=new THREE.Group();tg.add(tgt);tg.rotation.y=gl.parser.json.extensions.VRM?Math.PI:0;tg.updateMatrixWorld(true);
+  const tB={};tgt.traverse(o=>{if(o.isBone||o.type==="Object3D")tB[o.name]=o});
+  const pairs=[];for(const [s,h] of Object.entries(VRM_MAP)){const tn=hb[h];if(tn&&tB[tn])pairs.push([s,tB[tn]])}
+  const depth=o=>{let d=0;while(o.parent){d++;o=o.parent}return d};pairs.sort((a,b)=>depth(a[1])-depth(b[1]));
+  const restLocal=new Map(pairs.map(([s,b])=>[b,b.quaternion.clone()]));const restWorld=new Map(pairs.map(([s,b])=>[b,b.getWorldQuaternion(new THREE.Quaternion())]));
+  const hipT=pairs.find(p=>p[0]==="hips")[1];const hipRest=hipT.position.clone();
+  const out={};const q=new THREE.Quaternion(),pw=new THREE.Quaternion();
+  for(const [key,[file,name]] of Object.entries(VRM_CLIPS)){const src=kk[file];const clip=src.animations.find(c=>c.name===name);const tpose=src.animations.find(c=>c.name==="T-Pose");if(!clip)continue;
+    const sScene=THREE.SkeletonUtils.clone(src.scene);const sB={};sScene.traverse(o=>{sB[o.name]=o});for(const k of Object.keys(VRM_MAP)){const sn=THREE.PropertyBinding.sanitizeNodeName(k);if(!sB[k]&&sB[sn])sB[k]=sB[sn]}const mixer=new THREE.AnimationMixer(sScene);
+    const tp=mixer.clipAction(tpose);tp.play();mixer.update(0);sScene.updateMatrixWorld(true);const sRest={};for(const [s] of pairs)if(sB[s])sRest[s]=sB[s].getWorldQuaternion(new THREE.Quaternion());
+    const sHip0=sB.hips.getWorldPosition(new THREE.Vector3());tp.stop();
+    const act=mixer.clipAction(clip);act.play();const fps=30,n=Math.max(2,Math.round(clip.duration*fps)+1);const times=[];const vals=new Map(pairs.map(([s,b])=>[b,[]]));const hipPos=[];
+    const legS=sHip0.y||1;let legT=0;{const v=new THREE.Vector3();hipT.getWorldPosition(v);legT=v.y-tg.position.y}
+    for(let i=0;i<n;i++){const t=Math.min(clip.duration,i/fps);mixer.setTime(t);sScene.updateMatrixWorld(true);times.push(t);
+      for(const [s,b] of pairs){if(!sB[s]){vals.get(b).push(...restLocal.get(b).toArray());continue}const ws=sB[s].getWorldQuaternion(q.clone());const d=ws.multiply(sRest[s].clone().invert());const wt=d.multiply(restWorld.get(b));
+        b.parent.getWorldQuaternion(pw);const loc=pw.invert().multiply(wt);b.quaternion.copy(loc);b.updateMatrixWorld(true);vals.get(b).push(...loc.toArray())}
+      const sh=sB.hips.getWorldPosition(new THREE.Vector3());hipPos.push(hipRest.x,hipRest.y+(sh.y-sHip0.y)*(legT/legS)/(hipT.parent.getWorldScale(new THREE.Vector3()).y||1),hipRest.z)}
+    for(const [s,b] of pairs)b.quaternion.copy(restLocal.get(b));
+    const tracks=pairs.map(([s,b])=>new THREE.QuaternionKeyframeTrack(b.name+".quaternion",times,vals.get(b)));tracks.push(new THREE.VectorKeyframeTrack(hipT.name+".position",times,hipPos));
+    out[key]=new THREE.AnimationClip(key,clip.duration,tracks);mixer.stopAllAction()}
+  return out}
+const VRM_CACHE={};
+function vrmModel(file){return VRM_CACHE[file]=VRM_CACHE[file]||Promise.all([getGltf(file),kkAnims()]).then(([gl,kk])=>{const clips=retargetAll(gl,kk);return{gl,clips,flip:!!gl.parser.json.extensions.VRM}})}
+function attachVrm(ch,M){vrmModel(M.f).then(({gl,clips,flip})=>{if(ch.dead)return;const m=THREE.SkeletonUtils.clone(gl.scene);
+    m.traverse(o=>{if(o.isMesh){const mats=(Array.isArray(o.material)?o.material:[o.material]).map(x=>{const map=x.map||null;if(map)map.encoding=THREE.LinearEncoding;return new THREE.MeshToonMaterial({map,color:map?0xd8d8d8:(x.color||new THREE.Color(0xcccccc)),gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,transparent:!!x.transparent,alphaTest:x.alphaTest||(x.transparent?0.5:0),side:x.side,emissive:0x101010})});o.material=Array.isArray(o.material)?mats:mats[0];o.castShadow=!lowQ;o.frustumCulled=false}});
+    const w=new THREE.Group();w.add(m);if(flip)m.rotation.y=Math.PI;m.updateMatrixWorld(true);const bb=new THREE.Box3(),v=new THREE.Vector3();m.traverse(o=>{if(o.isBone)bb.expandByPoint(o.getWorldPosition(v))});
+    const h=(bb.max.y-bb.min.y)*1.12||1;const k=2.6/h;w.scale.setScalar(k);w.position.y=-bb.min.y*k+0.02;
+    for(const c of ch.g.children)if(c!==ch.label&&!c.isSprite)c.visible=false;ch.g.add(w);ch.model=w;
+    const mixer=new THREE.AnimationMixer(m);const acts={};for(const [k2,c] of Object.entries(clips))acts[k2]=mixer.clipAction(c);acts.sprint=acts.run;acts.drive=acts.idle;
+    ch.mixer=mixer;ch.acts=acts;ch.cur=null;ch.lastP=null;playAnim(ch,"idle");ANIMATED.add(ch)}).catch(e=>console.warn("avatar",e))}
+
+function attachModel(ch,av){const M=MODELS.find(m=>m.id===av.model);if(!M)return;if(M.vrm)return attachVrm(ch,M);
   getGltf(M.f).then(gl=>{if(ch.dead)return;const m=THREE.SkeletonUtils.clone(gl.scene);
     m.traverse(o=>{if(o.isMesh){const old=o.material;const map=M.skin?getSkin(M.skin):old.map;if(map&&map.encoding!==THREE.LinearEncoding){map.encoding=THREE.LinearEncoding;map.needsUpdate=true}o.material=map?new THREE.MeshToonMaterial({map,color:0xb8b8b8,gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:0x101010}):new THREE.MeshToonMaterial({color:(old.color||new THREE.Color(0xcccccc)).clone().convertLinearToSRGB().multiplyScalar(0.92),gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:0x0c0c0c});o.castShadow=!lowQ;o.frustumCulled=false}});
     let box=new THREE.Box3().setFromObject(m);if(M.q){m.updateMatrixWorld(true);const bb=new THREE.Box3(),v=new THREE.Vector3();m.traverse(o=>{if(o.isBone)bb.expandByPoint(o.getWorldPosition(v))});bb.max.y+=(bb.max.y-bb.min.y)*0.1;bb.min.y-=(bb.max.y-bb.min.y)*0.02;box=bb}
