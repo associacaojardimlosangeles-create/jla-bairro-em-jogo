@@ -85,6 +85,7 @@ Tudo fica em um arquivo só: `index.html`. Use **Ctrl+F** para achar cada parte 
 | Missão do reboque (pneu furado) | `function startTow`, `function towNear`, `function towUpdate` |
 | Escolher personagem (aparelho x conta Google) | `function chooseSave` |
 | Personagens 3D prontos (Kenney, CC0) e animações | `MODELS`, `function attachModel`, `function updateModels`, `function charPicker`; arquivos em `assets/chars` |
+| Bichinhos, carros e casas 3D (Kenney, CC0) | `function swapModel`, `PET_TINT`, `CAR_MODELS`, `HOUSE_MODELS`; arquivos em `assets/pets`, `assets/cars`, `assets/houses` |
 
 ### Como colocar um comércio novo
 
