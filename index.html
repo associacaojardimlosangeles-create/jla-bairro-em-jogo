@@ -1286,6 +1286,7 @@ function openFriends(){const inp=el("input",{class:"inp",placeholder:"Código do
   for(const f of acc){const o=OTHERS[f.other],on=o&&Date.now()-o.ts<90000;list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:on?"jogando agora":"amigo"})),
     on?el("button",Object.assign({class:"btn blue",onclick:()=>{closeSheet();setWaypoint({x:o.x,y:o.y,label:f.nick})}},sb),"Ir até"):null,
     el("button",Object.assign({class:"btn green",onclick:()=>openWrite({to:f.other,nick:f.nick,rua:""})},sb),"Recado"),
+    houseMates().some(m=>m.uid===f.other)?null:el("button",Object.assign({class:"btn",onclick:()=>moveInWith(f.other,f.nick)},sb),"Morar junto"),
     el("button",Object.assign({class:"btn ghost",onclick:async()=>{try{await MAIL.db.doc("amigos/"+f.id).delete();toast(f.nick+" saiu da sua lista de amigos.")}catch(e){}setTimeout(openFriends,400)}},sb),"Desfazer")))}
   for(const f of pout)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:"pedido enviado, esperando aceitar"}))));
   if(!FR.list.length)list.append(el("p",{class:"muted",text:"Você ainda não tem amigos no jogo. Passe seu código para quem você conhece!"}));
@@ -1295,13 +1296,52 @@ function openFriends(){const inp=el("input",{class:"inp",placeholder:"Código do
     el("p",{style:"font-weight:800;margin:14px 0 4px",text:"Seus amigos"}),list,
     el("details",{style:"margin-top:12px"},el("summary",{style:"cursor:pointer;font-weight:800",text:"Usar código de amigo"}),el("p",{text:"Seu código: "+S.code}),inp,err,el("button",{class:"btn",style:"margin-top:6px",onclick:()=>addFriend(inp.value,err)},"Adicionar pelo código")),
     el("p",{class:"muted",style:"margin-top:10px",text:"Só adicione quem você conhece de verdade. Recebeu pedido de quem não conhece? Recuse."}))}
+/* morar junto com um amigo: o jogo acha a casa dele sem mostrar endereço e manda o pedido para o dono */
+async function moveInWith(uid,nick){if(!online())return toast("Para morar junto, abra o jogo pelo link bairroemjogo.web.app com internet.");
+  try{const ps=await MAIL.db.doc("pos/"+uid).get();const i=ps.exists?(ps.data()||{}).casa:null;
+    if(i==null||!houses[i])return toast(nick+" precisa abrir o jogo de novo (com a versão nova) para você poder pedir para morar junto.");
+    if(i===S.home)return toast("Vocês já moram na mesma casa!");
+    const sn=await casaRef(i).get();const d=sn.exists?sn.data()||{}:null;if(!d||!d.dono)return toast("A casa de "+nick+" ainda não está registrada. Peça para "+nick+" abrir o jogo e tente de novo.");
+    if((d.membros||[]).includes(MAIL.uid))return toast("Você já mora nessa casa.");
+    openSheet("Morar junto com "+nick,el("p",{text:"Vamos mandar um pedido para quem é dono da casa de "+nick+". Se aceitar, você muda para lá e vocês dividem a casa, a reforma e os carros."}),
+      el("p",{class:"muted",text:"Só peça se vocês moram juntos de verdade. A sua casa atual fica livre."}),
+      el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn green",onclick:()=>sendHouseReq(i,d,{rua:houses[i].street})},"Mandar pedido"),el("button",{class:"btn ghost",onclick:closeSheet},"Cancelar")))}
+  catch(e){toast("Não deu agora. Confira a internet e tente de novo.")}}
+/* filtro rigoroso dos recados entre jogadores: nada de dados pessoais, contato, fotos, encontros ou segredos */
+const STRICT_RX=[/\d{3,}/,/\d[\s.\-]\d[\s.\-]\d/,/(https?|www|ponto ?com|arroba|\.com|\.br|\.net|@)/,
+  /(whats|wpp|zap|zapzap|insta|ig\b|face|tiktok|telegram|discord|snap|kwai|twitter|youtube|e-?mail|gmail|hotmail|celular|telefone|numero|contato|chama no|me add|me adiciona|me segue)/,
+  /(onde (voce|vc|tu) mora|qual (e |eh )?(a )?sua (rua|casa)|seu endereco|endereco|cep\b|cpf|rg\b|senha|pix|cartao|conta do banco|dinheiro|me empresta)/,
+  /(quantos anos|qual (e |eh )?sua idade|sua idade|voce e menor|tem namorad|namora|namorar|ficar comigo|beij|gostos|sexy|sensual|delicia|nud|pelad|calcinha|cueca|corpo)/,
+  /(foto|fotinha|selfie|manda (uma )?(foto|imagem|video)|camera|chamada de video|video ?chamada|audio)/,
+  /(encontr|me ve |vem aqui|vamos (se )?ver|te busco|te pego|sozinh|segredo|nao conta|nao fala pra|esconde|apaga (essa|a) mensagem|so entre nos)/];
+function strictMsg(raw){const c=checkText(raw);if(!c.ok)return c.msg;if(MAIL_EXTRA.test(raw))return"Não mande contato, redes sociais ou endereço.";
+  const n=" "+_norm(raw).replace(/[^a-z0-9@.\- ]/g," ").replace(/\s+/g," ")+" ";const j=_col(n.replace(/[^a-z]/g,""));
+  if(STRICT_RX.some(r=>r.test(n)))return"Esse recado não pode ser enviado. No jogo não dá para pedir ou passar números, contato, endereço, idade, fotos, encontros ou segredos.";
+  if(/(whats|wpp|instag|telegr|tiktok|endereco|ondevocemora|ondevcmora|mandafoto|nudes|segredo|zapzap)/.test(j))return"Esse recado não pode ser enviado. Escreva só coisas do jogo e do bairro, com respeito.";
+  if(/(.)\1{5,}/.test(raw)||raw.replace(/[^A-ZÁ-Ú]/g,"").length>raw.length*0.7&&raw.length>8)return"Escreva sem gritar e sem repetir letras.";return null}
+/* tocar no boneco de um amigo abre o cartão dele */
+function tapPlayer(cx,cy){const r=renderer.domElement.getBoundingClientRect();let best=null,bd=60;const v=new THREE.Vector3();
+  for(const [uid,o] of Object.entries(OTHERS)){v.copy(o.c.g.position);v.y+=1.4;v.project(camera);if(v.z>1)continue;const sx=r.left+(v.x+1)/2*r.width,sy=r.top+(1-v.y)/2*r.height;const d=Math.hypot(sx-cx,sy-cy);if(d<bd){bd=d;best=[uid,o]}}
+  if(!best)return false;openPlayerCard(best[0],best[1]);return true}
+function openPlayerCard(uid,o){const nick=String(o.nick||"Amigo").slice(0,16);const mate=houseMates().some(m=>m.uid===uid);const blocked=(S.mailBlock||[]).includes(uid);
+  const quick=el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"},...MAIL_FRASES.slice(0,4).map(f=>el("button",{class:"btn ghost",style:"min-height:34px;padding:4px 10px;font-size:13px",onclick:()=>quickMsg(uid,nick,f)},f)));
+  openSheet(nick,el("p",{style:"margin:0 0 6px",text:mate?"Mora na mesma casa que você":"Seu amigo no jogo"}),
+    el("p",{style:"font-weight:800;margin:6px 0 0",text:"Mensagem rápida"}),quick,
+    el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"},el("button",{class:"btn green",onclick:()=>openWrite({to:uid,nick,rua:""})},"Escrever mensagem"),
+      mate?null:el("button",{class:"btn",onclick:()=>moveInWith(uid,nick)},"Morar junto"),
+      el("button",{class:"btn ghost",onclick:()=>{S.mailBlock=blocked?(S.mailBlock||[]).filter(x=>x!==uid):[...new Set([...(S.mailBlock||[]),uid])];save();closeSheet();toast(blocked?"Você voltou a receber recados de "+nick+".":"Você não vai mais receber recados de "+nick+".")}},blocked?"Desbloquear":"Bloquear recados")),
+    el("p",{class:"muted",style:"margin-top:10px",text:"As mensagens passam por filtro e não são secretas: a Associação pode ler. Nunca mande telefone, endereço, foto ou rede social."}))}
+async function quickMsg(uid,nick,text){if(!MAIL.db)return toast("O correio funciona pelo link oficial, com internet.");const day=DAY();if(S.mailDay!==day){S.mailDay=day;S.mailCount=0}
+  if((S.mailCount||0)>=10)return toast("Você já mandou 10 recados hoje. Amanhã tem mais!");
+  try{await MAIL.db.collection("recados").add({to:uid,from:MAIL.uid,fromNick:S.nick,fromRua:S.rua,text,ts:Date.now()});S.mailCount=(S.mailCount||0)+1;if(!S.missions.recado||S.missions.recado!==DAY())complete("recado");else save();closeSheet();toast("Mensagem enviada para "+nick+"!")}
+  catch(e){toast("Não deu para enviar agora. Tente de novo.")}}
 /* posição: só quem está na lista "ver" (amigos aceitos e moradores da mesma casa) consegue ler */
 let lastPos={x:0,y:0,t:0};
 function posVer(){const v=new Set(friendUids());if(CASA&&CASA.d&&CASA.i===S.home)(CASA.d.membros||[]).forEach(u=>{if(u!==MAIL.uid)v.add(u)});return[...v].slice(0,50)}
 function pushPos(force){if(!online()||!S||startMode)return;const ver=posVer();const now=Date.now();const moved=Math.hypot(player.x-lastPos.x,player.y-lastPos.y);
   if(!ver.length){if(lastPos.t){lastPos.t=0;MAIL.db.doc("pos/"+MAIL.uid).set({ts:0,ver:[]}).catch(()=>{})}return}
   if(!force&&moved<2&&now-lastPos.t<60000)return;lastPos={x:player.x,y:player.y,t:now};
-  MAIL.db.doc("pos/"+MAIL.uid).set({x:Math.round(player.x*10)/10,y:Math.round(player.y*10)/10,face:Math.round(player.face*100)/100,nick:S.nick,look:currentLook(S.avatar),ride:riding||null,ts:now,ver}).catch(()=>{})}
+  MAIL.db.doc("pos/"+MAIL.uid).set({casa:S.home,x:Math.round(player.x*10)/10,y:Math.round(player.y*10)/10,face:Math.round(player.face*100)/100,nick:S.nick,look:currentLook(S.avatar),ride:riding||null,ts:now,ver}).catch(()=>{})}
 var OTHERS={};
 function watchPos(){MAIL.db.collection("pos").where("ver","array-contains",MAIL.uid).onSnapshot(s=>{const seen=new Set();
     s.docs.forEach(d=>{if(d.id===MAIL.uid)return;const x=d.data()||{};seen.add(d.id);let o=OTHERS[d.id];
@@ -1469,7 +1509,7 @@ async function openWrite(pre){
   openSheet("Escrever recado",dest,el("p",{style:"margin:12px 0 4px;font-weight:800",text:"Recado"}),chips,txt,err,
     el("button",{class:"btn",style:"margin-top:8px",onclick:async()=>{err.textContent="";const v=txt.value.trim();
       if(!to)return err.textContent="Escolha para quem vai o recado.";if(v.length<2)return err.textContent="Escreva o recado.";
-      if(!checkText(v).ok||MAIL_EXTRA.test(v))return err.textContent="Esse recado não pode ser enviado. Não use palavrões, telefone, endereço, redes sociais ou links.";
+      {const bad=strictMsg(v);if(bad)return err.textContent=bad}
       if((S.mailCount||0)>=10)return err.textContent="Você já mandou 10 recados hoje. Amanhã tem mais!";
       try{await MAIL.db.collection("recados").add({to:to.to,from:MAIL.uid,fromNick:S.nick,fromRua:S.rua,text:v,ts:Date.now()});S.mailCount=(S.mailCount||0)+1;
         if(!S.missions.recado||S.missions.recado!==DAY()){complete("recado")}else save();closeSheet();toast("Recado entregue para "+to.nick+"!")}
@@ -4128,7 +4168,7 @@ function enterGame(first){startMode=false;setTimeout(()=>{try{feedRefresh()}catc
   if(first)openSheet("Bem-vindo, "+S.nick+"!",el("p",{text:"Você está na frente da sua casa, na "+S.rua+" (bandeira laranja)."}),el("p",{text:"Para andar: no celular, arraste o lado esquerdo da tela; no computador, use W A S D. Arraste o lado direito para girar a câmera."}),el("p",{text:"Comece pela missão “Conheça a sede”: siga a luz amarela."}),el("button",{class:"btn",onclick:()=>goTo("assoc","sede")},"Começar"))}
 
 /* ============ input ============ */
-const cv=$("#gl");let joy=null,drag=null;
+const cv=$("#gl");let joy=null,drag=null,TAP=null;
 /* tela cheia no celular: some a barra de endereço (no iPhone, só instalando o jogo na tela de início) */
 let fsTried=false;
 function wantFullscreen(){try{return matchMedia("(pointer:coarse)").matches&&!isStandalone()&&store.get("jla_fs",true)&&document.fullscreenEnabled&&!document.fullscreenElement}catch(e){return false}}
@@ -4136,10 +4176,11 @@ function goFullscreen(){try{const r=document.documentElement.requestFullscreen({
 cv.addEventListener("pointerdown",e=>{if(startMode)return;if(!fsTried&&wantFullscreen()){fsTried=true;goFullscreen()}cv.focus();const left=e.pointerType!=="mouse"&&e.clientX<innerWidth*0.45;
   if(left&&!joy){joy={id:e.pointerId,x:e.clientX,y:e.clientY};const j=$("#joy");j.hidden=false;j.style.left=e.clientX+"px";j.style.top=e.clientY+"px";j.firstElementChild.style.transform="translate(-50%,-50%)"}
   else if(!drag)drag={id:e.pointerId,x:e.clientX,y:e.clientY};
+  TAP={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};
   try{cv.setPointerCapture(e.pointerId)}catch(_){}});
 cv.addEventListener("pointermove",e=>{if(joy&&e.pointerId===joy.id){let dx=e.clientX-joy.x,dy=e.clientY-joy.y;const d=Math.hypot(dx,dy),m=48;if(d>m){dx=dx/d*m;dy=dy/d*m}joyV=[dx/m,-dy/m];$("#joy").firstElementChild.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`}
   else if(drag&&e.pointerId===drag.id){yaw-=(e.clientX-drag.x)*0.006;pitch=Math.max(0.08,Math.min(1.25,pitch+(e.clientY-drag.y)*0.004));drag.x=e.clientX;drag.y=e.clientY}});
-const endP=e=>{if(joy&&e.pointerId===joy.id){joy=null;joyV=null;$("#joy").hidden=true}if(drag&&e.pointerId===drag.id)drag=null};
+const endP=e=>{const tp=TAP&&TAP.id===e.pointerId&&e.type==="pointerup"&&Math.hypot(e.clientX-TAP.x,e.clientY-TAP.y)<12&&performance.now()-TAP.t<450;TAP=null;if(joy&&e.pointerId===joy.id){joy=null;joyV=null;$("#joy").hidden=true}if(drag&&e.pointerId===drag.id)drag=null;if(tp&&!startMode&&$("#sheet").hidden)tapPlayer(e.clientX,e.clientY)};
 cv.addEventListener("pointerup",endP);cv.addEventListener("pointercancel",endP);
 cv.addEventListener("wheel",e=>{e.preventDefault();camDist=Math.max(4,Math.min(40,camDist*(e.deltaY>0?1.1:0.9)))},{passive:false});
 addEventListener("keydown",e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT"||startMode)return;if(!$("#sheet").hidden){if(e.key==="Escape")closeSheet();return}const k=e.key.toLowerCase();keys[k]=true;if(k===" "){e.preventDefault();jump()}if(k.startsWith("arrow"))e.preventDefault()});
