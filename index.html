@@ -148,6 +148,14 @@ label.f{display:block;font-weight:900;font-size:13px;margin:12px 0 6px}
   #sheet.side{justify-content:flex-start;align-items:stretch}#sheet.side .box{width:min(290px,40vw)!important;max-height:100%!important;border-radius:0 12px 12px 0;border:0;border-right:4px solid var(--orange);padding:8px 10px;font-size:13px}
   #sheet.side .box .swatch{width:26px;height:26px}#sheet.side .box label.f{font-size:12px;margin-top:6px}
 }
+#msgcard{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:45;width:min(420px,calc(100% - 380px));min-width:240px;background:#fff8ec;border:3px solid var(--orange);border-radius:14px;box-shadow:0 6px 0 rgba(10,34,64,.25);padding:10px 12px;color:#0A2240}
+#msgcard .h{display:flex;align-items:center;gap:8px;font-weight:900;font-size:13px;color:#F57E20}#msgcard .h b{color:#0A2240}#msgcard .x{margin-left:auto;background:#0A2240;color:#fff;border:0;border-radius:8px;width:30px;height:30px;font-weight:900;cursor:pointer}
+#msgcard .m{font-size:15px;font-weight:800;margin:6px 0 8px;word-break:break-word}#msgcard .bt{display:flex;gap:6px;flex-wrap:wrap}#msgcard .bt .btn{min-height:32px;padding:4px 12px;font-size:13px}
+@media (max-width:640px){#msgcard{top:auto;bottom:calc(170px + env(safe-area-inset-bottom,0px));width:calc(100% - 24px)}}
+@media (max-height:500px){#msgcard{top:calc(56px + env(safe-area-inset-top,0px));bottom:auto;width:min(380px,calc(100% - 300px));padding:6px 10px}#msgcard .m{font-size:13px;margin:3px 0 5px}}
+#bfriends{position:absolute;top:calc(84px + env(safe-area-inset-top,0px));left:max(10px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:6px;padding:6px 12px;font:900 13px var(--body,inherit);color:#fff;cursor:pointer;border-radius:10px}
+#bfriends .dot{width:9px;height:9px;border-radius:50%;background:#9aa1a8}#bfriends.on .dot{background:#319B27;box-shadow:0 0 0 3px rgba(49,155,39,.25)}#bfriends #bfn{color:#ffd23f;font-weight:800}#bfriends.req{border-color:#F57E20}
+@media (max-height:500px){#bfriends{top:calc(52px + env(safe-area-inset-top,0px));padding:3px 9px;font-size:11px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (max-width:520px){#acts .round{width:56px;height:56px;font-size:11px}#bjump{width:66px!important;height:66px!important}#mm,#mm .wrap{width:124px}#mm .wrap{height:124px}#me{max-width:calc(100% - 156px)}#track{font-size:11px}}
 #inside{position:absolute;inset:0;z-index:25;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -177,6 +185,7 @@ body.inside #joy,body.inside #me,body.inside #hudbat,body.inside #mm,body.inside
 <div id="app">
   <canvas id="gl" tabindex="0" aria-label="Bairro em 3D"></canvas>
   <div id="joy" hidden><i></i></div>
+  <button id="bfriends" class="panel" hidden aria-label="Amigos e quem está jogando"><span class="dot"></span><b>Amigos</b><span id="bfn"></span></button>
   <div id="me" class="panel" hidden role="button" tabindex="0" aria-label="Abrir meu perfil"><span class="ed">PERFIL</span>
     <div class="face" id="face">M</div>
     <div style="min-width:0"><div class="nick" id="hudnick">-</div><div class="lvl" id="hudlvl">-</div>
@@ -200,6 +209,7 @@ body.inside #joy,body.inside #me,body.inside #hudbat,body.inside #mm,body.inside
     <button data-tab="assoc"><span class="d"></span>Associação</button>
   </nav>
   <div id="toast" hidden></div>
+  <div id="msgcard" hidden role="alertdialog" aria-live="polite"></div>
   <div id="sheet" hidden><div class="box" id="sheetbox" role="dialog" aria-modal="true"></div></div>
 </div>
 
@@ -216,6 +226,8 @@ body.inside #joy,body.inside #me,body.inside #hudbat,body.inside #mm,body.inside
       <select class="inp" id="fbairro"></select>
       <label class="f" for="frua">Sua rua</label>
       <select class="inp" id="frua"></select>
+      <label class="f" for="fnum">Número da casa (opcional, ninguém vê)</label>
+      <input class="inp" id="fnum" inputmode="numeric" maxlength="5" placeholder="Ex.: 345" autocomplete="off">
       <label class="f">Você é</label>
       <div id="fgen" style="display:flex;gap:8px;margin-bottom:10px"></div>
       <label class="f">Seu personagem</label>
@@ -1031,7 +1043,7 @@ async function initMail(){
   const db=MAIL.db;registerMorador();
   db.collection("recados").where("to","==",MAIL.uid).limit(60).onSnapshot(s=>{const before=new Set(MAIL.inbox.map(r=>r.id));
     MAIL.inbox=s.docs.map(d=>Object.assign({id:d.id},d.data())).sort(byTs);const fresh=MAIL.inbox.filter(r=>!before.has(r.id)&&!(S.mailBlock||[]).includes(r.from));
-    if(!MAIL.first&&fresh.length)toast("Chegou recado de "+fresh[0].fromNick+"! Veja na caixa de correio da sua casa.");MAIL.first=false;mailChanged()},()=>{});
+    if(!MAIL.first&&fresh.length)fresh.forEach(r=>queueMsgCard(r));MAIL.first=false;mailChanged()},()=>{});
   if(MAIL.owner)db.collection("recados").where("to","==","assoc").limit(80).onSnapshot(s=>{MAIL.assoc=s.docs.map(d=>Object.assign({id:d.id},d.data())).sort(byTs);mailChanged()},()=>{});
   mailChanged();
   if(MAIL.kind==="fb"){setTimeout(watchFriends,1500);if(!isGoogle())setTimeout(forceGoogle,2500);if(await pullCloud()){toast("Achei um jogo mais novo na sua conta Google. Carregando...");setTimeout(()=>location.reload(),1200);return}pushCloud(true);pushRank(true);syncInvites();claimHouse();watchRequests()}}
@@ -1277,10 +1289,13 @@ async function searchPlayers(q,box,err){q=normNick(q);box.innerHTML="";err.textC
       box.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:nick}),el("span",{text:String(x.bairro||"")})),
         f?el("span",{class:"tag",text:f.status==="aceito"?"Já é amigo":"Pedido enviado"}):el("button",{class:"btn green",style:"min-height:34px;padding:5px 10px;font-size:13px",onclick:()=>askFriend(d.id,nick,err)},"Convidar para ser amigo")))}}
   catch(e){err.textContent="Não deu para buscar agora. Tente de novo."}}
+function friendsBadge(){const b=$("#bfriends");if(!b||b.hidden)return;const me=$("#me");if(me&&!me.hidden){const r=me.getBoundingClientRect();b.style.top=Math.round(r.bottom+8)+"px";b.style.left=Math.round(r.left)+"px"}const acc=FR.list.filter(f=>f.status==="aceito");const on=acc.filter(f=>{const o=OTHERS[f.other];return o&&Date.now()-o.ts<90000}).length;
+  const req=FR.list.filter(f=>f.status==="pendente"&&f.de!==MAIL.uid).length;b.classList.toggle("on",on>0);b.classList.toggle("req",req>0);$("#bfn").textContent=req?"· "+req+" pedido"+(req>1?"s":""):on?"· "+on+" jogando":acc.length?"· procurar":"· procurar"}
+setInterval(()=>{try{friendsBadge()}catch(e){}},3000);addEventListener('resize',()=>setTimeout(()=>{try{friendsBadge()}catch(e){}},200));
 function openFriends(){const inp=el("input",{class:"inp",placeholder:"Código do amigo: JLA-XXXX",maxlength:"16",style:"text-transform:uppercase"});const err=el("div",{class:"err"});const list=el("div",{class:"list"});
   const sq=el("input",{class:"inp",placeholder:"Digite o apelido do amigo",maxlength:"16"}),serr=el("div",{class:"err"}),sres=el("div",{class:"list",style:"margin-top:6px"});
   sq.addEventListener("keydown",e=>{if(e.key==="Enter")searchPlayers(sq.value,sres,serr)});
-  const acc=FR.list.filter(f=>f.status==="aceito"),pin=FR.list.filter(f=>f.status==="pendente"&&f.de!==MAIL.uid),pout=FR.list.filter(f=>f.status==="pendente"&&f.de===MAIL.uid);
+  const isOn=f=>{const o=OTHERS[f.other];return o&&Date.now()-o.ts<90000};const acc=FR.list.filter(f=>f.status==="aceito").sort((a,b)=>isOn(b)-isOn(a)),pin=FR.list.filter(f=>f.status==="pendente"&&f.de!==MAIL.uid),pout=FR.list.filter(f=>f.status==="pendente"&&f.de===MAIL.uid);
   const sb={style:"min-height:34px;padding:5px 10px;font-size:13px"};
   for(const f of pin)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:"quer ser seu amigo"})),el("button",Object.assign({class:"btn green",onclick:()=>answerFriend(f,true).then(openFriends)},sb),"Aceitar"),el("button",Object.assign({class:"btn ghost",onclick:()=>answerFriend(f,false).then(openFriends)},sb),"Recusar")));
   for(const f of acc){const o=OTHERS[f.other],on=o&&Date.now()-o.ts<90000;list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:f.nick}),el("span",{text:on?"jogando agora":"amigo"})),
@@ -1406,8 +1421,8 @@ function watchHouse(i){if(CASA.unsub)CASA.unsub();CASA.i=i;CASA.ready=false;
     const sig=JSON.stringify(d.style||{});const carsSig=JSON.stringify(d.pets||{});let rebuild=false;
     const val=h=>h?((h.pool?3:0)+(h.garage?2:0)+(h.solar?2:0)+(h.garden?1:0)+((h.level||1)-1)*3+(h.model?3:0)):0;
     /* se a casa na nuvem perdeu reformas que o dono tem (alguém mandou uma casa velha), o dono manda a dele de volta */
-    if(d.dono===MAIL.uid&&S.house&&val(S.house)>val(d.style)){CASA.styleSig=sig;CASA.ready=true;pushHouseStyle()}
-    else if(d.style&&sig!==JSON.stringify(S.house||{})){CASA.styleSig=sig;S.house=Object.assign({},d.style);store.set("jla_state3d",S);rebuild=true}else CASA.styleSig=sig;
+    if(S.house&&val(S.house)>val(d.style)){CASA.styleSig=sig;CASA.ready=true;pushHouseStyle()}
+    else if(d.style&&sig!==JSON.stringify(S.house||{})){CASA.styleSig=sig;if(S.house&&val(S.house)>=3)S.houseBak=Object.assign({},S.house);S.house=Object.assign({},d.style);store.set("jla_state3d",S);rebuild=true}else CASA.styleSig=sig;
     if(carsSig!==CASA.carsSig){CASA.carsSig=carsSig;rebuild=true}CASA.ready=true;if(rebuild){try{buildHome()}catch(e){}}syncHousePets();
     if(lastPlace==="home"){lastPlace="";checkPlace()}},()=>{})}
 function pushHouseStyle(){if(!online()||!CASA.d||!CASA.ready||CASA.i!==S.home)return;const sig=JSON.stringify(S.house||{});if(sig===CASA.styleSig)return;CASA.styleSig=sig;casaRef(S.home).update({style:S.house}).catch(()=>{})}
@@ -1458,7 +1473,9 @@ async function answerReq(p,ok){reqShown=null;closeSheet();
   try{if(ok){await casaRef(S.home).update({membros:firebase.firestore.FieldValue.arrayUnion(p.de),["nicks."+p.de]:String(p.deNick||"Morador").slice(0,16)});toast(String(p.deNick||"O morador").slice(0,16)+" agora mora com você!")}
     else toast("Pedido recusado.");await MAIL.db.doc("pedidos/"+p.id).update({status:ok?"aceito":"recusado"})}catch(e){toast("Não deu para responder agora. Tente de novo.")}
   reqQueue=reqQueue.filter(x=>x.id!==p.id);setTimeout(showNextReq,600)}
+function restoreHouseBak(){if(!S.houseBak)return;S.house=Object.assign({},S.houseBak);delete S.houseBak;save();CASA.styleSig="";pushHouseStyle();try{buildHome()}catch(e){}closeSheet();toast("Sua reforma antiga voltou para a casa!")}
 function openHouseMates(){const mates=houseMates();const list=el("div",{class:"list"});const iAmOwner=CASA.d&&CASA.d.dono===MAIL.uid;
+  if(S.houseBak)list.append(el("div",{class:"row",style:"display:block;background:#e8f3fc;border-color:#008CE3"},el("b",{text:"Sua reforma antiga está guardada"}),el("p",{style:"margin:4px 0 6px;font-size:13px",text:"Quando você mudou de casa, a reforma que você tinha ficou guardada. Toque para colocar de volta nesta casa (vale para todos que moram aqui)."}),el("button",{class:"btn blue",onclick:restoreHouseBak},"Recuperar minha reforma")));
   if(!online())list.append(el("p",{class:"muted",text:"Morar junto funciona quando o jogo é aberto pelo site oficial da Associação, com internet."}));
   else if(!mates.length)list.append(el("p",{class:"muted",text:"Só você mora aqui por enquanto. Para alguém morar junto, passe o código abaixo: a pessoa digita em Mudar de casa e o pedido chega para você aceitar."}));
   for(const m of mates)list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:m.nick}),el("span",{text:m.dono?"dono da casa":"mora junto"})),
@@ -1471,6 +1488,15 @@ function openHouseMates(){const mates=houseMates();const list=el("div",{class:"l
   openSheet("Quem mora aqui",el("p",{text:iAmOwner||!CASA.d?"Você é o dono desta casa.":"Você mora junto nesta casa."}),list,codeBox,
     S.casaReq?el("p",{class:"muted",style:"margin-top:10px",text:"Você mandou um pedido para morar em outra casa e está esperando a resposta."}):null,
     el("button",{class:"btn ghost",style:"margin-top:10px",onclick:openMove},"Mudar de casa"))}
+/* recado chegando: cartão fica na tela até a pessoa fechar ou responder; balão em cima do boneco de quem mandou */
+const MSGQ=[];let msgCur=null;
+function queueMsgCard(r){if(MSGQ.some(x=>x.id===r.id)||(msgCur&&msgCur.id===r.id))return;MSGQ.push(r);msgBubble(r);if(!msgCur)nextMsgCard()}
+function nextMsgCard(){const box=$("#msgcard");msgCur=MSGQ.shift()||null;if(!msgCur){box.hidden=true;return}const r=msgCur;sfx("tweet");box.innerHTML="";
+  const close=()=>{S.mailRead=[...new Set([...(S.mailRead||[]),r.id])].slice(-300);save();nextMsgCard()};
+  box.append(el("div",{class:"h"},document.createTextNode("Recado de "),el("b",{text:String(r.fromNick||"Morador").slice(0,16)}),MSGQ.length?el("span",{style:"color:#5B5B5B",text:"(+"+MSGQ.length+")"}):null,el("button",{class:"x","aria-label":"Fechar",onclick:close},"X")),
+    el("div",{class:"m",text:String(r.text||"").slice(0,140)}),
+    el("div",{class:"bt"},r.from?el("button",{class:"btn green",onclick:()=>{close();openWrite({to:r.from,nick:String(r.fromNick||"Morador").slice(0,16),rua:r.fromRua||""})}},"Responder"):null,el("button",{class:"btn ghost",onclick:close},"Fechar")));box.hidden=false}
+function msgBubble(r){const o=OTHERS[r.from];if(!o)return;const t=String(r.text||"").slice(0,30)+(String(r.text||"").length>30?"...":"");const lb=evLabel(t,"#F57E20");lb.position.y=3.8;lb.scale.set(Math.min(5,1.2+t.length*0.12),0.42,1);o.c.g.add(lb);setTimeout(()=>o.c.g.remove(lb),12000)}
 function mailList(){const bl=S.mailBlock||[];return [MAIL_WELCOME,...MAIL.inbox.filter(r=>!bl.includes(r.from))]}
 function mailUnread(){const rd=S.mailRead||[];return mailList().filter(r=>!rd.includes(r.id)).length}
 let mailFlag=null;
@@ -1910,6 +1936,15 @@ function openSuggest(){const sug=S.suggestions||[];const list=el("div",{class:"l
     el("p",{class:"muted",style:"margin-top:10px",text:"Nesta versão de teste, o mural fica salvo neste aparelho. Para a diretoria receber agora, use o botão do WhatsApp. Quando o jogo tiver servidor, as ideias de todos os moradores aparecem juntas."}))}
 
 function streetPoint(name,meters){let left=meters;let lastPt=null;for(const r of roads){if(r.name!==name)continue;for(let i=0;i<r.pts.length-1;i++){const [ax,ay]=r.pts[i],[bx2,by2]=r.pts[i+1];const L=Math.hypot(bx2-ax,by2-ay);if(left<=L)return[ax+(bx2-ax)*left/L,ay+(by2-ay)*left/L];left-=L;lastPt=[bx2,by2]}}return lastPt}
+/* números das casas: pontos de referência reais (Google) de cada rua; o número vira um ponto na rua */
+const NUMCAL={"Rua Alziro Zarur":[[100,1149,1215],[600,1461,1017]],"Rua Professor Fábio Fanucchi":[[100,910,810],[900,1225,1233]],"Rua Pedro Mezzomo":[[100,1718,1700],[1800,796,392]],"Rua Dona Margarida Zagonel Slaviero":[[100,1620,1908]],"Rua Carlos Lacerda":[[100,1577,1416],[1180,1180,404]],"Rua Sabáudia":[[100,3087,1985],[980,2232,1536]],"Rua Doutor Eugênio José Bocchi":[[100,1690,2614],[850,2038,1927]],"Rua Alfredo Gomes":[[100,1344,916],[660,984,407]],"Rua Fábio Antônio Manoel":[[100,725,320]],"Rua João Dabul Sobrinho":[[100,1034,1198]],"Rua Agenor Machado Béje":[[252,934,391]],"Rua Alfredo Hoffman":[[100,1285,1406],[330,1447,1291]],"Rua Antônio Agenor Gonçalves":[[50,564,496]],"Rua Aracy Maciel Iurk":[[100,1042,1076],[440,1335,872]],"Rua Arlindo Teodoro Costa":[[100,1118,355]],"Rua Carlos Richard Endler":[[50,834,130]],"Rua Comendador Wallace Pina":[[100,938,578]],"Rua Elias Miguel Maia":[[100,892,803],[460,1164,611]],"Rua Ewaldo Macedo Kossatz Neto":[[50,799,75]],"Rua Florival Fanucchi":[[100,807,767],[470,974,648]],"Rua Hamilton Sotoski":[[50,719,-25]],"Rua José Moreira Lopes":[[50,480,54]],"Rua José de Bortoli":[[50,1420,1687]],"Rua João Jordão Chaves":[[100,952,950],[450,1285,716]],"Rua João Maria Cruz":[[100,1261,1327],[350,1481,1175]],"Rua João Martins Neves":[[100,1375,1532],[280,1520,1429]],"Rua Luiz Otávio Viana de Holleben":[[100,435,240],[320,359,132]],"Rua Maria José de França":[[100,670,671],[450,1041,409]],"Rua Padre Amadeu Fracaro":[[100,378,280],[260,257,107]],"Rua Padre Rafael Romão":[[100,878,906],[460,1186,690]],"Rua Prefeito José Hoffmann":[[100,1294,1209],[370,1423,1119]],"Rua Professor José Pessolano Brandes":[[100,1017,1000],[450,1300,800]],"Rua Roque Uliana":[[50,870,181]],"Rua Salvador Bueno de Cristo":[[100,1059,205]],"Rua Sofia de Lara":[[100,836,249]],"Rua Teresa Alves":[[100,1502,1730]],"Rua Vicente Barbur":[[100,1330,1470],[300,1509,1344]],"Rua Verônica Hyczy de Oliveira":[[50,898,241]],"Rua Zenir de Andrade Sotoski":[[50,753,29]],"Rua Antônio Sabedotti":[[100,1419,1596]]};
+function numPoint(st,n){const c=NUMCAL[st];if(!c||!c.length)return streetPoint(st,n);const s_=[...c].sort((a,b)=>a[0]-b[0]);
+  if(s_.length>=2){const A=s_[0],B=s_[s_.length-1];const t=(n-A[0])/((B[0]-A[0])||1);return[A[1]+(B[1]-A[1])*t,A[2]+(B[2]-A[2])*t]}
+  const A=s_[0];const ends=[];for(const r of roads)if(r.name===st){ends.push(r.pts[0],r.pts[r.pts.length-1])}if(!ends.length)return[A[1],A[2]];
+  ends.sort((a,b)=>Math.hypot(a[0]-A[1],a[1]-A[2])-Math.hypot(b[0]-A[1],b[1]-A[2]));const E=ends[0],F=ends[ends.length-1];const L=Math.hypot(F[0]-E[0],F[1]-E[1])||1;
+  return[A[1]+(F[0]-E[0])/L*(n-A[0]),A[2]+(F[1]-E[1])/L*(n-A[0])]}
+function houseByNumber(st,n){const cand=houses.map((h,i)=>[h,i]).filter(([h])=>!h.none&&h.street===st);if(!cand.length)return null;const pt=numPoint(st,n);
+  return cand.sort((a,b)=>Math.hypot(a[0].wx-pt[0],a[0].wy-pt[1])-Math.hypot(b[0].wx-pt[0],b[0].wy-pt[1]))[0]}
 function openMove(){const streets=[...new Set(houses.map(h=>h.street))].sort((a,b)=>a.localeCompare(b,"pt"));
   const sel=el("select",{class:"inp",id:"movestreet"},...streets.map(n=>el("option",{value:n,text:n})));sel.value=S.rua;
   const num=el("input",{class:"inp",id:"movenum",inputmode:"numeric",maxlength:"5",placeholder:"Ex.: 345"});const err=el("div",{class:"err"});
@@ -1920,7 +1955,7 @@ function openMove(){const streets=[...new Set(houses.map(h=>h.street))].sort((a,
     el("p",{style:"font-weight:800;margin:6px 0 2px",text:"Ou escolha uma casa nova:"}),el("p",{text:"Escolha a rua e, se quiser, o número. O jogo coloca você na casa mais perto desse número. O número fica salvo só neste aparelho e ninguém vê."}),
     el("label",{class:"f",for:"movestreet",text:"Rua"}),sel,el("label",{class:"f",for:"movenum",text:"Número (opcional)"}),num,err,
     el("button",{class:"btn green",style:"margin-top:8px",onclick:()=>{const st=sel.value;const n=parseInt(num.value,10);const cand=houses.map((h,i)=>[h,i]).filter(([h])=>!h.none&&h.street===st);if(!cand.length)return err.textContent="Essa rua não tem casas no mapa.";
-      let pick;if(n>0){const pt=streetPoint(st,n);pick=cand.sort((a,b)=>Math.hypot(a[0].wx-pt[0],a[0].wy-pt[1])-Math.hypot(b[0].wx-pt[0],b[0].wy-pt[1]))[0]}else pick=cand[Math.floor(Math.random()*cand.length)];
+      let pick;if(n>0)pick=houseByNumber(st,n);else pick=cand[Math.floor(Math.random()*cand.length)];
       const h=pick[0],hi=pick[1];const go=async()=>{if(online()&&hi!==S.home)await leaveHouse(S.home);S.home=hi;S.rua=st;S.houseNum=n>0?n:null;S.bairro=bairroAt(h.wx,h.wy)||S.bairro;S.px=h.fx;S.py=h.fy;
       save();toast("Mudança feita! Carregando sua casa nova...");setTimeout(()=>location.reload(),900)};
       if(!online()||hi===S.home)return go();err.textContent="Vendo se a casa está livre...";
@@ -4152,16 +4187,16 @@ function setupStart(){$("#startlogo").src=LOGO_URI;const sel=$("#fbairro");MY_BA
   const inv=(location.hash||"").replace("#","");if(/^JLA-[A-Z0-9]{3,12}$/i.test(inv)){const t=$("#invitedBy");t.hidden=false;t.textContent="Convite do código "+inv.toUpperCase()}
   $("#fgoogle").hidden=true;setupGate();$("#finstall").addEventListener("click",doInstall);refreshInstallBtn();$("#fgo").addEventListener("click",()=>{const nick=$("#fnick").value.trim();const err=$("#ferr");
     if(nick.length<2)return err.textContent="Escolha um apelido com pelo menos 2 letras.";if(!$("#frua").value)return err.textContent="Escolha sua rua.";if(!$("#fage").checked)return err.textContent="Confirme a idade ou que está jogando com um adulto.";
-    const rua=$("#frua").value;const hs=houses.map((h,i)=>[h,i]).filter(([h])=>h.street===rua);const home=hs[hashStr(nick)%hs.length][1];
+    const rua=$("#frua").value;const hs=houses.map((h,i)=>[h,i]).filter(([h])=>!h.none&&h.street===rua);const fn=parseInt(($("#fnum")||{}).value,10);const byN=fn>0?houseByNumber(rua,fn):null;const home=byN?byN[1]:hs[hashStr(nick)%hs.length][1];
     const code="JLA-"+(nick.normalize("NFD").replace(/[^A-Za-z]/g,"").toUpperCase().slice(0,5)||"VIZ")+(hashStr(nick+rua)%90+10);
-    S={nick,bairro:sel.value,rua,avatar:chosenAv,look:{gen:chosenGen},home,pts:0,coins:30,vehicles:[],pets:[],food:{dog:0,cat:0},energy:ENERGY_MAX,energyTs:Date.now(),missions:{},jobs:{},invites:0,code,invitedBy:/^JLA-/i.test(inv)?inv.toUpperCase():null,created:Date.now()};
+    S={nick,bairro:sel.value,rua,houseNum:fn>0?fn:null,avatar:chosenAv,look:{gen:chosenGen},home,pts:0,coins:30,vehicles:[],pets:[],food:{dog:0,cat:0},energy:ENERGY_MAX,energyTs:Date.now(),missions:{},jobs:{},invites:0,code,invitedBy:/^JLA-/i.test(inv)?inv.toUpperCase():null,created:Date.now()};
     const h=houses[home];S.px=h.fx;S.py=h.fy;save();enterGame(true)})}
 function setAvatar(i){if(ME){ME.dead=true;scene.remove(ME.g);scene.remove(ME.shadow)}ME=makeChar(currentLook(i));scene.add(ME.g);scene.add(ME.shadow);if(riding==="car")ME.g.visible=false;const [X,Z]=W3(player.x,player.y);ME.g.position.set(X,0.38,Z);ME.shadow.position.set(X,0.42,Z)}
 function placeHomeFlag(){if(homeFlag)scene.remove(homeFlag);const h=homeHouse();const g=new THREE.Group();const [X,Z]=W3(h.fx,h.fy);g.position.set(X,0,Z);
   box(g,0.12,6,0.12,0xdddddd,0,0,0);box(g,1.8,1.1,0.05,0xF57E20,0.95,4.8,0);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:textTex("Sua casa",{w:512,h:120,bg:"#F57E20",fg:"#fff",round:56}),depthTest:false,transparent:true,fog:false}));sp.position.y=7.4;sp.scale.set(5,1.2,1);sp.renderOrder=11;g.add(sp);
   homeFlag=g;scene.add(g)}
-function enterGame(first){startMode=false;setTimeout(()=>{try{feedRefresh()}catch(e){}},500);S.coins??=30;S.vehicles??=[];S.pets??=[];S.food??={dog:0,cat:0};S.house??={wall:"#efe3c8",roof:"#b8452f",muro:"#d8d2c4",level:1};$("#start").hidden=true;["#me","#mm","#tabs","#acts","#zoomc"].forEach(s=>$(s).hidden=false);
+function enterGame(first){startMode=false;setTimeout(()=>{try{feedRefresh()}catch(e){}},500);S.coins??=30;S.vehicles??=[];S.pets??=[];S.food??={dog:0,cat:0};S.house??={wall:"#efe3c8",roof:"#b8452f",muro:"#d8d2c4",level:1};$("#start").hidden=true;["#me","#bfriends","#mm","#tabs","#acts","#zoomc"].forEach(s=>$(s).hidden=false);setTimeout(()=>{try{friendsBadge()}catch(e){}},300);
   player.x=S.px??homeHouse().fx;player.y=S.py??homeHouse().fy;setAvatar(S.avatar);placeHomeFlag();buildHome();spawnPets();drawMural();updateViaState();updateHUD();if(S.route&&S.route.day===DAY())drawRoute();else S.route=null;updateFlood();setTimeout(maybePetEscape,4000);setTimeout(maybeOfferInstall,first?90000:30000);
   const hh=homeHouse();yaw=Math.atan2(hh.wx-hh.fx,hh.wy-hh.fy)+Math.PI;
   if(!store.get("jla_hint",false)){$("#hint").hidden=false;setTimeout(()=>{$("#hint").hidden=true;store.set("jla_hint",true)},12000)}
@@ -4199,7 +4234,7 @@ function openRidePick(){const own=(S.vehicles||[]).filter(k=>VEH[k]);
 $("#bride").addEventListener("click",()=>{if(riding){setRide(null);return}const own=(S.vehicles||[]).filter(k=>VEH[k]);if(!own.length){toast("Compre um veículo na Loja de Bikes e Veículos");goTo("loja");return}if(own.length===1)return setRide(own[0]);openRidePick()});
 $("#bpets").addEventListener("click",()=>openPets());
 $("#bhome").addEventListener("click",goHome);$("#bsnd").addEventListener("click",()=>{initAudio();if(AC&&AC.state==="suspended")AC.resume();S.snd=((S.snd??2)+2)%3;save();applySound();toast(["Som desligado","Só os efeitos (sem música)","Música e efeitos ligados"][S.snd])});
-$("#me").addEventListener("click",()=>{if(S)openProfile()});$("#me").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&S){e.preventDefault();openProfile()}});
+$("#me").addEventListener("click",()=>{if(S)openProfile()});$("#bfriends").addEventListener("click",()=>{if(S)openFriends()});$("#me").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&S){e.preventDefault();openProfile()}});
 document.querySelectorAll("#tabs button").forEach(b=>b.addEventListener("click",()=>{if(S)openTab(b.dataset.tab)}));
 $("#sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
 setInterval(()=>{if(S&&!startMode)save()},4000);
