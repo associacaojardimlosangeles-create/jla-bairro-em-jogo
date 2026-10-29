@@ -477,8 +477,8 @@ Rio Los Angeles|824_629 811_495 794_460 763_434 742_407 690_334 668_279 586_226 
 
 const POIS = [
   {id:"agro", type:"shop", name:"Agropecuária", addr:"Rua Pedro Mezomo, na frente do Family Burguer · ração, alpiste, sementes e mais", x:954, y:600, roof:"#319B27", wall:"#b4e28a", sign:"AGROPECUÁRIA"},
-  {id:"ubs", type:"shop", name:"Unidade de Saúde", addr:"Na mesma quadra do campo de futebol", x:1406, y:1368, roof:"#008CE3", wall:"#dff1ff", sign:"UNIDADE BÁSICA DE SAÚDE"},
-  {id:"creche", type:"shop", name:"Creche do Bairro", addr:"Ao lado da Unidade de Saúde, na quadra do campo", x:1416, y:1393, roof:"#ffd23f", wall:"#ffb6d0", sign:"CRECHE MUNICIPAL"},
+  {id:"ubs", type:"shop", name:"Unidade de Saúde", addr:"Na quadra do campo, entre o campo e a creche", x:1397, y:1360, face:[-0.58,-0.81], roof:"#008CE3", wall:"#dff1ff", sign:"UNIDADE BÁSICA DE SAÚDE"},
+  {id:"creche", type:"shop", name:"Creche do Bairro", addr:"Ao lado da Unidade de Saúde, na quadra do campo", x:1431, y:1335, face:[-0.58,-0.81], roof:"#ffd23f", wall:"#ffb6d0", sign:"CRECHE MUNICIPAL"},
   {id:"skate", type:"skate", name:"Pista de Skate", addr:"No fim da Rua Zenir de Andrade Sotoski · faça manobras", x:824, y:-23},
   {id:"golf", type:"golf", name:"Minigolfe", addr:"No fim da Rua Ewaldo Macedo Kossatz Neto · acerte os 3 buracos", x:863, y:29},
   {id:"arcade", type:"shop", name:"Fliperama", addr:"No fim da Rua Carlos Richard Endler · máquina de pegar bichinho", x:896, y:84, roof:"#7a4b8c", sign:"FLIPERAMA"},
@@ -513,7 +513,7 @@ const POIS = [
 {id:"family", type:"shop", name:"Family Burguer", addr:"Rua Pedro Mezzomo · parceiro do prêmio do mês", x:934, y:610, roof:"#e2483d", sign:"FAMILY BURGUER"},
   {id:"garage84", type:"garage", name:"Garage 84 PG · Estética Automotiva", addr:"Rua Teresa Alves, 55 · (42) 99949-3663", x:1480, y:1746},
   {id:"viaduto", type:"viaduto", name:"Viaduto de entrada do bairro", addr:"Passagem sob a PRC-373 · entrada principal do Jardim Los Angeles", x:1815, y:1785},
-  {id:"loja", type:"vshop", name:"Loja de Bikes e Veículos", addr:"Rua Pedro Mezzomo, na quadra de cima do Mercado Ribas · bicicletas, motos e carros elétricos", x:1272, y:1094},
+  {id:"loja", type:"vshop", name:"Loja de Bikes e Veículos", addr:"Na esquina de baixo do Mercado Ribas · bikes, patinetes e motos elétricas", x:1327, y:1172},
   {id:"ribasmat", type:"shop", name:"Ribas Material de Construção", addr:"Atrás do Mercado Ribas, pela Rua Alziro Zarur", x:1271, y:1144, roof:"#008CE3", wall:"#F57E20", sign:"RIBAS MATERIAL DE CONSTRUÇÃO"},
   {id:"petshop", type:"shop", name:"Pet Shop do Bairro", addr:"Loja do jogo · ração para cachorro e gato", x:1330, y:1279, roof:"#2f9e8f", sign:"PET SHOP DO BAIRRO"},
   {id:"horta", type:"horta", name:"Horta Comunitária", addr:"Residencial Hortência · plante, colha e doe", x:600, y:-80},
@@ -535,6 +535,10 @@ const roads=parseLines(ROADS), areas=parseLines(AREAS), water=parseLines(WATER);
 /* posições antigas dos lugares, congeladas: assim os números das casas não mudam quando um lugar muda de lugar */
 const HKEEP=[[963,584.4115427318801,18],[1406,1368,18],[1413.1022225211327,1393.7764571353075,18],[851,56,18],[1143,1338,24],[1376,1396,34],[1467.7573593128807,1435.7573593128807,30],[2121,1828,30],[1056,717,18],[984,865,18],[1723,2104,22],[1760,2025,18],[1494,1497,26],[1665,1395,34],[1624.8038475772933,1697,34],[1563,1600,34],[2010,430,34],[1170,1148,8],[1824,1806,8],[709,477,18],[892.1213203435597,737.8786796564403,18],[1724,1804,18],[2103,816,18],[1193,731,18],[932.4470857293849,615.7955549577345,18],[1495.5884572681198,1755,22],[1815,1785,70],[1271.2235428646925,1096.8977774788673,26],[1273.5980762113534,1145.5,18],[1345.5884572681198,1288,18],[1298,1135,18],[1644,1543,26]];
 const NOHOUSE=[[[1330,1378],[1372,1438],[1478,1362],[1437,1303]]];
+/* casas que não existem de verdade: atrás da igreja da Alziro Zarur (terreno vazio) */
+const NOHOUSE_IDX=[557,559,583,595,957];
+/* terrenos vazios de verdade: esquina da Alziro Zarur com a Dona Margarida e atrás da igreja */
+const LOTS=[[1103,1264,13,15,-2.528],[1232,1080,14,16]];
 function inPoly(x,y,pts){let c=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const [xi,yi]=pts[i],[xj,yj]=pts[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c}return c}
 function segProj(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;let t=L?((px-ax)*dx+(py-ay)*dy)/L:0;t=Math.max(0,Math.min(1,t));const qx=ax+t*dx,qy=ay+t*dy;return{d:Math.hypot(px-qx,py-qy),qx,qy}}
 function bairroAt(x,y){for(const a of areas){if(a.k==="res"&&a.name&&inPoly(x,y,a.pts))return a.name}return ""}
@@ -580,6 +584,7 @@ function buildPlan(){placePOIs();
         if(!good)continue;for(let yy=-1;yy<8;yy++)for(let xx=-1;xx<8;xx++)occ[(hy+yy)*BW+hx+xx]=1;
         houses.push({wx:mx,wy:my,fx:ax+ux*t-uy*side*8,fy:ay+uy*t+ux*side*8,ux,uy,side,street:r.name,seed:hashStr(r.name+t+side+s)})}}}
   /* casas que somem: quadra do campo (posto e creche) e terrenos de lugares novos; a lista e os números das casas continuam iguais */
+  for(const i of NOHOUSE_IDX)if(houses[i])houses[i].none=true;
   for(const h of houses)if(NOHOUSE.some(P=>inPoly(h.wx,h.wy,P))||POIS.some(p=>Math.hypot(p.x-h.wx,p.y-h.wy)<(keep[p.type]||(p.type==="skate"||p.type==="golf"?22:p.type==="correio"?12:0))))h.none=true;
   for(const h of houses){if(h.none)continue;g.fillStyle=PAL.house;g.fillRect(Math.round(bx(h.wx))-2,Math.round(by(h.wy))-2,5,5)}
   const seen=[];
@@ -719,13 +724,18 @@ function buildWorld(){
   const add=(B,mat)=>{const m=new THREE.Mesh(B.build(),mat);m.receiveShadow=true;scene.add(m);return m};
   add(SB,lam(0xb3ad9f,{side:THREE.DoubleSide}));add(AB,lam(0x585b63,{side:THREE.DoubleSide}));add(KB,lam(0x45484f,{side:THREE.DoubleSide}));
   add(DB,lam(0xa8865a,{side:THREE.DoubleSide}));add(LB,lam(0xf2cf45,{side:THREE.DoubleSide}));add(EB,lam(0xf1efe8,{side:THREE.DoubleSide}));
-  buildHouses();buildTrees(R);buildSigns();buildPOIs();buildPoles();buildPasture();setTimeout(preloadMiniArt,6000);buildNatal();placeEverton();
+  buildHouses();buildLots();buildTrees(R);buildSigns();buildPOIs();buildPoles();buildPasture();setTimeout(preloadMiniArt,6000);buildNatal();placeEverton();
   const bm=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.38,depthWrite:false,side:THREE.DoubleSide,fog:false});
   beam=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,160,20,1,true),bm);beam.position.y=80;beam.visible=false;scene.add(beam);
   wpMark=new THREE.Group();{const mm=new THREE.MeshBasicMaterial({color:0xF57E20,depthTest:false,transparent:true,fog:false});const c=new THREE.Mesh(new THREE.ConeGeometry(1.1,2.2,4),mm);c.rotation.x=Math.PI;c.renderOrder=12;wpMark.add(c);const b=new THREE.Mesh(new THREE.BoxGeometry(0.7,1.6,0.7),mm);b.position.y=1.8;b.renderOrder=12;wpMark.add(b)}wpMark.visible=false;scene.add(wpMark);
   beam2=new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,160,20,1,true),new THREE.MeshBasicMaterial({color:0x5fe36a,transparent:true,opacity:0.38,depthWrite:false,side:THREE.DoubleSide,fog:false}));beam2.position.y=80;beam2.visible=false;scene.add(beam2);
 }
 
+function buildLots(){for(const [x,y,w,d,rot] of LOTS){const g=new THREE.Group();const [X,Z]=W3(x,y);g.position.set(X,0,Z);const nr=(()=>{let b=null;for(const r of roads){if(r.k==="T"||r.k==="P")continue;for(let i=0;i<r.pts.length-1;i++){const q=segProj(x,y,r.pts[i][0],r.pts[i][1],r.pts[i+1][0],r.pts[i+1][1]);if(!b||q.d<b.d)b=Object.assign(q,{})}}return b})();g.rotation.y=rot!=null?rot:Math.atan2(nr.qx-x,nr.qy-y);
+  const dirt=new THREE.Mesh(new THREE.PlaneGeometry(w,d),lam(0x9b8a55));dirt.rotation.x=-Math.PI/2;dirt.position.y=0.09;dirt.receiveShadow=true;g.add(dirt);
+  const r_=mulberry(x*7+y);for(let k=0;k<7;k++){const b=new THREE.Mesh(new THREE.SphereGeometry(0.5+r_()*0.5,7,5),lam(r_()<0.5?0x6d8f3a:0x86a24a));b.scale.y=0.6;b.position.set((r_()-.5)*(w-2),0.2,(r_()-.5)*(d-2));g.add(b)}
+  for(const s_ of[-1,1]){for(let k=0;k<=4;k++){const pst=new THREE.Mesh(new THREE.BoxGeometry(0.12,1.1,0.12),lam(0x8a5a33));pst.position.set(s_*w/2,0.55,-d/2+k*d/4);g.add(pst)}}
+  scene.add(g)}}
 function buildHouses(){
   const n=houses.length;const box=new THREE.BoxGeometry(1,1,1);box.translate(0,0.5,0);
   const body=new THREE.InstancedMesh(box,lam(0xffffff),n),roof=new THREE.InstancedMesh(prismGeo(),lam(0xffffff),n);
@@ -844,12 +854,13 @@ function buildPOIs(){
     const g=new THREE.Group();
     const dims=POI_DIMS[p.type];const depth=dims[1],h=dims[2],rad=Math.max(dims[0],dims[1])*0.5;
     const nr=nearestRoad(p.x,p.y);let fx=nr.qx-p.x,fy=nr.qy-p.y;const fl=Math.hypot(fx,fy)||1;fx/=fl;fy/=fl;
+    if(p.face){fx=p.face[0];fy=p.face[1]}
     if(p.id==="correio"){const A=POIS.find(q=>q.id==="assoc");if(A&&A.fx!=null){p.x=A.x-A.fy*16.5+A.fx*1.5;p.y=A.y+A.fx*16.5+A.fy*1.5;fx=A.fx;fy=A.fy}}
     let px=p.x,py=p.y;if(p.type==="bus"){const need=RW[nr.k]/2+3.2;if(nr.d<need){px=nr.qx-fx*need;py=nr.qy-fy*need}}
     p.x=px;p.y=py;p.fx=fx;p.fy=fy;p.depth=depth;const [X,Z]=W3(px,py);g.position.set(X,0,Z);g.rotation.y=Math.atan2(fx,fy);
     ({assoc:mkAssoc,school:mkSchool,shop:mkShop,fuel:mkFuel,factory:mkFactory,yard:mkYard,bus:mkBus,vshop:mkVShop,shelter:mkShelter,garage:mkGarage,correio:mkCorreio,horta:mkHorta,igreja:mkIgreja,fazenda:mkFazenda,skate:mkSkate,golf:mkGolf})[p.type](g,p);
     if(["skate","golf","arcade"].includes(p.id)){const L=nr.d-depth/2;if(L>1){const pv=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.08,L+1),lam(0xcfc8b6));pv.position.set(0,0.04,depth/2+L/2);pv.receiveShadow=true;g.add(pv)}}
-    const SCL={hubner:2,scheffer:1.6,rodaviva:1.6,ibera:2,balena:1.15,agua:1.5}[p.id]||1;p.sc=SCL;if(SCL!==1){g.scale.setScalar(SCL);industryProps(g,p)}
+    const SCL={hubner:2,scheffer:1.6,rodaviva:1.6,ibera:2,balena:1.15,agua:1.5,ubs:1.7,creche:1.7}[p.id]||1;p.sc=SCL;if(SCL!==1){g.scale.setScalar(SCL);if(p.id!=="ubs"&&p.id!=="creche")industryProps(g,p)}
     scene.add(g);if(p.type!=="bus")addCol(px,py,rad*0.8*SCL);p.mh=h*SCL;
   }
   for(const p of POIS){const t=textTex(p.name,{w:768,h:120,bg:p.type==="bus"?"#008CE3":(p.type==="vshop"||p.type==="shelter"||p.id==="petshop")?"#319B27":p.type==="correio"?"#008CE3":p.type==="horta"||p.type==="fazenda"?"#319B27":p.type==="igreja"?"#9c2f22":p.type==="garage"?"#2b2f36":p.type==="assoc"||p.type==="campo"||p.type==="school"||p.type==="viaduto"?"#F57E20":"#0A2240",fg:"#fff",round:56});
@@ -1937,7 +1948,7 @@ function openSuggest(){const sug=S.suggestions||[];const list=el("div",{class:"l
 
 function streetPoint(name,meters){let left=meters;let lastPt=null;for(const r of roads){if(r.name!==name)continue;for(let i=0;i<r.pts.length-1;i++){const [ax,ay]=r.pts[i],[bx2,by2]=r.pts[i+1];const L=Math.hypot(bx2-ax,by2-ay);if(left<=L)return[ax+(bx2-ax)*left/L,ay+(by2-ay)*left/L];left-=L;lastPt=[bx2,by2]}}return lastPt}
 /* números das casas: pontos de referência reais (Google) de cada rua; o número vira um ponto na rua */
-const NUMCAL={"Rua Alziro Zarur":[[345,1124,1256]],"Rua Professor Fábio Fanucchi":[[100,910,810],[900,1225,1233]],"Rua Pedro Mezzomo":[[100,1718,1700],[1800,796,392]],"Rua Dona Margarida Zagonel Slaviero":[[100,1620,1908]],"Rua Carlos Lacerda":[[100,1577,1416],[1180,1180,404]],"Rua Sabáudia":[[100,3087,1985],[980,2232,1536]],"Rua Doutor Eugênio José Bocchi":[[100,1690,2614],[850,2038,1927]],"Rua Alfredo Gomes":[[100,1344,916],[660,984,407]],"Rua Fábio Antônio Manoel":[[100,725,320]],"Rua João Dabul Sobrinho":[[100,1034,1198]],"Rua Agenor Machado Béje":[[252,934,391]],"Rua Alfredo Hoffman":[[100,1285,1406],[330,1447,1291]],"Rua Antônio Agenor Gonçalves":[[50,564,496]],"Rua Aracy Maciel Iurk":[[100,1042,1076],[440,1335,872]],"Rua Arlindo Teodoro Costa":[[100,1118,355]],"Rua Carlos Richard Endler":[[50,834,130]],"Rua Comendador Wallace Pina":[[100,938,578]],"Rua Elias Miguel Maia":[[100,892,803],[460,1164,611]],"Rua Ewaldo Macedo Kossatz Neto":[[50,799,75]],"Rua Florival Fanucchi":[[100,807,767],[470,974,648]],"Rua Hamilton Sotoski":[[50,719,-25]],"Rua José Moreira Lopes":[[50,480,54]],"Rua José de Bortoli":[[50,1420,1687]],"Rua João Jordão Chaves":[[100,952,950],[450,1285,716]],"Rua João Maria Cruz":[[100,1261,1327],[350,1481,1175]],"Rua João Martins Neves":[[100,1375,1532],[280,1520,1429]],"Rua Luiz Otávio Viana de Holleben":[[100,435,240],[320,359,132]],"Rua Maria José de França":[[100,670,671],[450,1041,409]],"Rua Padre Amadeu Fracaro":[[100,378,280],[260,257,107]],"Rua Padre Rafael Romão":[[100,878,906],[460,1186,690]],"Rua Prefeito José Hoffmann":[[100,1294,1209],[370,1423,1119]],"Rua Professor José Pessolano Brandes":[[100,1017,1000],[450,1300,800]],"Rua Roque Uliana":[[50,870,181]],"Rua Salvador Bueno de Cristo":[[100,1059,205]],"Rua Sofia de Lara":[[100,836,249]],"Rua Teresa Alves":[[100,1502,1730]],"Rua Vicente Barbur":[[100,1330,1470],[300,1509,1344]],"Rua Verônica Hyczy de Oliveira":[[50,898,241]],"Rua Zenir de Andrade Sotoski":[[50,753,29]],"Rua Antônio Sabedotti":[[100,1419,1596]]};
+const NUMCAL={"Rua Alziro Zarur":[[345,1139,1239]],"Rua Professor Fábio Fanucchi":[[100,910,810],[900,1225,1233]],"Rua Pedro Mezzomo":[[100,1718,1700],[1800,796,392]],"Rua Dona Margarida Zagonel Slaviero":[[100,1620,1908]],"Rua Carlos Lacerda":[[100,1577,1416],[1180,1180,404]],"Rua Sabáudia":[[100,3087,1985],[980,2232,1536]],"Rua Doutor Eugênio José Bocchi":[[100,1690,2614],[850,2038,1927]],"Rua Alfredo Gomes":[[100,1344,916],[660,984,407]],"Rua Fábio Antônio Manoel":[[100,725,320]],"Rua João Dabul Sobrinho":[[100,1034,1198]],"Rua Agenor Machado Béje":[[252,934,391]],"Rua Alfredo Hoffman":[[100,1285,1406],[330,1447,1291]],"Rua Antônio Agenor Gonçalves":[[50,564,496]],"Rua Aracy Maciel Iurk":[[100,1042,1076],[440,1335,872]],"Rua Arlindo Teodoro Costa":[[100,1118,355]],"Rua Carlos Richard Endler":[[50,834,130]],"Rua Comendador Wallace Pina":[[100,938,578]],"Rua Elias Miguel Maia":[[100,892,803],[460,1164,611]],"Rua Ewaldo Macedo Kossatz Neto":[[50,799,75]],"Rua Florival Fanucchi":[[100,807,767],[470,974,648]],"Rua Hamilton Sotoski":[[50,719,-25]],"Rua José Moreira Lopes":[[50,480,54]],"Rua José de Bortoli":[[50,1420,1687]],"Rua João Jordão Chaves":[[100,952,950],[450,1285,716]],"Rua João Maria Cruz":[[100,1261,1327],[350,1481,1175]],"Rua João Martins Neves":[[100,1375,1532],[280,1520,1429]],"Rua Luiz Otávio Viana de Holleben":[[100,435,240],[320,359,132]],"Rua Maria José de França":[[100,670,671],[450,1041,409]],"Rua Padre Amadeu Fracaro":[[100,378,280],[260,257,107]],"Rua Padre Rafael Romão":[[100,878,906],[460,1186,690]],"Rua Prefeito José Hoffmann":[[100,1294,1209],[370,1423,1119]],"Rua Professor José Pessolano Brandes":[[100,1017,1000],[450,1300,800]],"Rua Roque Uliana":[[50,870,181]],"Rua Salvador Bueno de Cristo":[[100,1059,205]],"Rua Sofia de Lara":[[100,836,249]],"Rua Teresa Alves":[[100,1502,1730]],"Rua Vicente Barbur":[[100,1330,1470],[300,1509,1344]],"Rua Verônica Hyczy de Oliveira":[[50,898,241]],"Rua Zenir de Andrade Sotoski":[[50,753,29]],"Rua Antônio Sabedotti":[[100,1419,1596]]};
 function numPoint(st,n){const c=NUMCAL[st];if(!c||!c.length)return streetPoint(st,n);const s_=[...c].sort((a,b)=>a[0]-b[0]);
   if(s_.length>=2){const A=s_[0],B=s_[s_.length-1];const t=(n-A[0])/((B[0]-A[0])||1);return[A[1]+(B[1]-A[1])*t,A[2]+(B[2]-A[2])*t]}
   const A=s_[0];const ends=[];for(const r of roads)if(r.name===st){ends.push(r.pts[0],r.pts[r.pts.length-1])}if(!ends.length)return[A[1],A[2]];
