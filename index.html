@@ -181,6 +181,11 @@ body.inside #joy,body.inside #me,body.inside #hudbat,body.inside #mm,body.inside
 .round:active{transform:translateY(3px);box-shadow:0 2px 0 #04101fbb,inset 0 -2px 0 rgba(0,0,0,.25)}
 #tabs button.on{background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0))}
 @media (max-width:560px) and (orientation:portrait){#place{padding:8px 10px;gap:6px}#place h3{font-size:17px}#place p{font-size:12px}#place .acts{gap:6px}#place .btn{min-height:36px;padding:6px 10px;font-size:13px}}
+#sheet.typing{align-items:flex-start;top:var(--vvt,0px);bottom:auto;height:var(--vvh,100%)}
+#sheet.typing .box{max-height:calc(var(--vvh,100%) - 8px);border-radius:0 0 12px 12px;padding-top:8px;padding-bottom:8px}
+#sheet.typing .hideT{display:none!important}
+#sheet.typing .sh h2{font-size:15px;margin:0}#sheet.typing .sh{margin-bottom:4px}#sheet.typing .sh .x{min-height:30px;width:30px;height:30px;font-size:13px}
+.sendrow{display:flex;gap:8px;align-items:center;margin-top:6px}.sendrow .inp{flex:1;min-width:0}.sendrow .btn{flex:none}
 </style>
 
 <div id="app">
@@ -1584,26 +1589,27 @@ async function openWrite(pre){
     el("p",{class:"muted",text:"Você já pode ler o recado de boas-vindas na caixa de correio da sua casa."}),el("button",{class:"btn",onclick:()=>openInbox()},"Ver minha caixa"));return}
   const day=DAY();if(S.mailDay!==day){S.mailDay=day;S.mailCount=0}
   let to=pre||null;const dest=el("div",{});const err=el("div",{class:"err"});
-  const txt=el("textarea",{class:"inp",maxlength:"140",rows:"3",placeholder:"Escreva um recado gentil (até 140 letras)",style:"width:100%;resize:vertical"});
-  const chips=el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"},...MAIL_FRASES.map(f=>el("button",{class:"btn ghost",style:"min-height:32px;padding:4px 9px;font-size:12px",onclick:()=>{txt.value=f}},f)));
+  const txt=el("input",{class:"inp",type:"text",maxlength:"140",enterkeyhint:"send",autocomplete:"off",placeholder:"Escreva aqui (até 140 letras)"});
+  const chips=el("div",{class:"hideT",style:"display:flex;gap:6px;flex-wrap:wrap;margin:6px 0"},...MAIL_FRASES.map(f=>el("button",{class:"btn ghost",style:"min-height:32px;padding:4px 9px;font-size:12px",onclick:()=>{txt.value=f}},f)));
   const pick=el("div",{class:"list",style:"max-height:220px;overflow:auto"});const q=el("input",{class:"inp",placeholder:"Procurar morador pelo apelido",maxlength:"20"});
   let people=[];
-  const showDest=()=>{dest.innerHTML="";if(to){dest.append(el("p",{style:"margin:0 0 6px"},document.createTextNode("Para: "),el("b",{text:to.nick}),document.createTextNode(to.rua?" · "+to.rua:"")),
+  const showDest=()=>{dest.innerHTML="";dest.className=to?"hideT":"";txt.placeholder=to?"Recado para "+to.nick:"Escreva aqui (até 140 letras)";if(to){dest.append(el("p",{style:"margin:0 0 6px"},document.createTextNode("Para: "),el("b",{text:to.nick}),document.createTextNode(to.rua?" · "+to.rua:"")),
       el("button",{class:"btn ghost",style:"min-height:32px;padding:4px 9px;font-size:12px",onclick:()=>{to=null;showDest()}},"Trocar"))}else dest.append(q,pick);renderPick()};
   const renderPick=()=>{pick.innerHTML="";const s=q.value.trim().toLowerCase();
     const opts=[{to:"assoc",nick:"Associação (diretoria)",rua:"Ideias, pedidos e avisos"},...people.filter(p=>!s||p.nick.toLowerCase().includes(s))];
     for(const o of opts.slice(0,60))pick.append(el("div",{class:"row",style:"cursor:pointer",tabindex:"0",onclick:()=>{to=o;showDest()}},el("div",{class:"t"},el("b",{text:o.nick}),el("span",{text:o.rua||""}))));
     if(!people.length)pick.append(el("p",{class:"muted",text:"Ainda não tem outros moradores no jogo. Chame seus vizinhos pela aba Convidar!"}))};
   q.addEventListener("input",renderPick);
-  openSheet("Escrever recado",dest,el("p",{style:"margin:12px 0 4px;font-weight:800",text:"Recado"}),chips,txt,err,
-    el("button",{class:"btn",style:"margin-top:8px",onclick:async()=>{err.textContent="";const v=txt.value.trim();
+  const sendB=el("button",{class:"btn",onclick:async()=>{err.textContent="";const v=txt.value.trim();
       if(!to)return err.textContent="Escolha para quem vai o recado.";if(v.length<2)return err.textContent="Escreva o recado.";
       {const bad=strictMsg(v);if(bad)return err.textContent=bad}
       if((S.mailCount||0)>=10)return err.textContent="Você já mandou 10 recados hoje. Amanhã tem mais!";
       try{await MAIL.db.collection("recados").add({to:to.to,from:MAIL.uid,fromNick:S.nick,fromRua:S.rua,text:v,ts:Date.now()});S.mailCount=(S.mailCount||0)+1;
         if(!S.missions.recado||S.missions.recado!==DAY()){complete("recado")}else save();closeSheet();toast("Recado entregue para "+to.nick+"!")}
-      catch(e){err.textContent=e&&e.code==="quota_exceeded"?"A caixa do correio está cheia. Avise a Associação.":"Não deu para enviar agora. Confira a internet e tente de novo."}}},"Enviar recado"),
-    el("p",{class:"muted",style:"margin-top:10px",text:"Os recados não são secretos: a Associação pode ler todos. Nunca mande endereço, telefone ou foto."}));
+      catch(e){err.textContent=e&&e.code==="quota_exceeded"?"A caixa do correio está cheia. Avise a Associação.":"Não deu para enviar agora. Confira a internet e tente de novo."}}},"Enviar");
+  txt.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();sendB.click()}});
+  openSheet("Escrever recado",dest,el("p",{class:"hideT",style:"margin:10px 0 4px;font-weight:800",text:"Toque numa frase pronta ou escreva"}),chips,el("div",{class:"sendrow"},txt,sendB),err,
+    el("p",{class:"muted hideT",style:"margin-top:10px",text:"Os recados não são secretos: a Associação pode ler todos. Nunca mande endereço, telefone ou foto."}));
   showDest();
   try{const s=await MAIL.db.collection(MAIL.pcol||"moradores").orderBy("ts","desc").limit(300).get();people=s.docs.filter(d=>d.id!==MAIL.uid).map(d=>{const x=d.data()||{};return{to:d.id,nick:String(x.nick||"Morador").slice(0,16),rua:String(x.rua||"")}});renderPick()}catch(e){}}
 function mkCorreio(g,p){box(g,7,3.4,6,0xffd23f,0,0,0);const r=new THREE.Mesh(prismGeo(),lam(0x008CE3));r.scale.set(7.8,1.8,6.8);r.position.y=3.4;r.castShadow=!lowQ;g.add(r);
@@ -4104,7 +4110,7 @@ function openAgroShop(){const list=el("div",{class:"list"});S.food=S.food||{};S.
 
 let stopGame=null;
 function openSheet(title,...content){if(sheetLock)return;content=content.filter(x=>x!=null&&x!==false);$("#sheet").classList.remove("side");profileView=false;const b=$("#sheetbox");b.innerHTML="";b.append(el("div",{class:"sh"},el("h2",{text:title}),el("button",{class:"x","aria-label":"Fechar",onclick:closeSheet},"X")),...content);$("#sheet").hidden=false;stopGame=null;keys={};joyV=null}
-function closeSheet(){if(sheetLock)return;$("#sheet").hidden=true;$("#sheet").classList.remove("side");profileView=false;if(stopGame){stopGame();stopGame=null}document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("on"))}
+function closeSheet(){if(sheetLock)return;$("#sheet").hidden=true;$("#sheet").classList.remove("typing");$("#sheet").classList.remove("side");profileView=false;if(stopGame){stopGame();stopGame=null}document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("on"))}
 function spend(m){if(!m.cost)return true;regen();if(S.energy<m.cost){openSheet("Sem energia",el("p",{text:"Sua energia acabou. Ela volta sozinha (1 coração a cada 20 minutos), ou você pode passar na sede da Associação ou trabalhar em uma empresa do bairro."}),el("button",{class:"btn",onclick:()=>{closeSheet();goTo("assoc")}},"Ir até a sede"));return false}S.energy-=m.cost;if(S.energy===ENERGY_MAX-1)S.energyTs=Date.now();save();updateHUD();return true}
 function result(ok,title,okMsg,failMsg,onOk){openSheet(title,el("div",{class:"game"},el("div",{class:"big",text:ok?"Muito bem!":"Quase lá"}),el("p",{text:ok?okMsg:failMsg})),el("button",{class:"btn",onclick:closeSheet},"Voltar ao bairro"));if(ok&&onOk)onOk()}
 function startMission(id){const m=MS(id);if(mDone(m))return toast("Missão de hoje já cumprida. Volte amanhã!");
@@ -5100,6 +5106,12 @@ function trash3(k){const g=new THREE.Group();const T=TRASH3[k];if(T){const h=new
     if(G.ph<2&&G.dirt){const pw=Math.min(260,W*0.5),px=(W-pw)/2,py=b.y+b.h+16;c.fillStyle="rgba(10,34,64,.35)";RR(c,px,py,pw,12,6);c.fill();c.fillStyle=G.ph?"#F57E20":"#008CE3";RR(c,px,py,Math.max(12,pw*G.prog),12,6);c.fill()}
     const P=G.ptr||G.hover;if(P&&G.started&&!G.over&&G.ph<2){c.save();c.translate(P.x,P.y);c.font="34px system-ui";c.textAlign="center";c.fillText(G.ph===0?"🧽":"🪣",0,10);c.restore()}};return cfg}}
 
+/* teclado do celular: enquanto digita, a janela fica em cima, só com o campo e o botão */
+(function(){const sh=()=>document.getElementById("sheet");const vv=window.visualViewport;
+  const fit=()=>{const el_=sh();if(!el_)return;if(vv){el_.style.setProperty("--vvh",vv.height+"px");el_.style.setProperty("--vvt",vv.offsetTop+"px")}};
+  document.addEventListener("focusin",e=>{const t=e.target;if(!t||!t.matches||!t.matches("#sheet input,#sheet textarea"))return;const el_=sh();el_.classList.add("typing");fit();setTimeout(()=>{fit();try{t.scrollIntoView({block:"nearest"})}catch(_){}},300)});
+  document.addEventListener("focusout",e=>{const t=e.target;if(!t||!t.matches||!t.matches("#sheet input,#sheet textarea"))return;setTimeout(()=>{const a=document.activeElement;if(!(a&&a.matches&&a.matches("#sheet input,#sheet textarea")))sh().classList.remove("typing")},150)});
+  if(vv){vv.addEventListener("resize",fit);vv.addEventListener("scroll",fit)}})();
 /* ============ boot ============ */
 (async function boot(){
   const test=document.createElement("canvas");if(!(test.getContext("webgl")||test.getContext("experimental-webgl"))){$("#loading").innerHTML="";$("#loading").append(el("div",{text:"Este aparelho não roda gráficos 3D."}),el("small",{text:"Tente em outro celular ou computador."}));return}
