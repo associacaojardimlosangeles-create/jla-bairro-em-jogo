@@ -602,6 +602,15 @@ function buildPlan(){placePOIs();
   for(const i of NOHOUSE_IDX)if(houses[i])houses[i].none=true;
   for(const h of houses)if(NOHOUSE.some(P=>inPoly(h.wx,h.wy,P))||POIS.some(p=>Math.hypot(p.x-h.wx,p.y-h.wy)<(keep[p.type]||(p.type==="skate"||p.type==="golf"?22:p.type==="correio"?12:0))))h.none=true;
   for(const h of houses){if(h.none)continue;g.fillStyle=PAL.house;g.fillRect(Math.round(bx(h.wx))-2,Math.round(by(h.wy))-2,5,5)}
+  /* entrada pelo viaduto: sai da passagem por baixo, sobe à esquerda pela rua do lado da BR e logo à direita entra a Pedro Mezzomo.
+     Mexe nas ruas só depois de criar as casas, para os números das casas não mudarem. */
+  {const same=(p,x,y)=>p&&Math.abs(p[0]-x)<1&&Math.abs(p[1]-y)<1;const NEW=[];
+    for(const r of roads){if(r.name!=="Rua Pedro Mezzomo")continue;const P=r.pts;
+      const iA=P.findIndex(p=>same(p,1704,1681));if(iA>=0&&same(P[P.length-1],1800,1787)){r.pts=P.slice(0,iA+1).concat([[1755,1775],[1784,1823]]);NEW.push(r.pts.slice(iA))}
+      else if(same(P[0],1805,1774)&&same(P[3],1532,1421)){r.pts=[[1790,1810],[1764,1765]].concat(P.slice(3));NEW.push(r.pts.slice(0,3))}
+      else if(same(P[0],1788,1772)&&same(P[1],1842,1798)){r.pts=[[1801,1786],[1842,1798]]}}
+    for(const seg of NEW){line(seg);g.strokeStyle=PAL.asph;g.lineWidth=RW.R/MPP;g.stroke();
+      for(const h of houses){if(h.none)continue;for(let i=0;i<seg.length-1;i++)if(segProj(h.wx,h.wy,seg[i][0],seg[i][1],seg[i+1][0],seg[i+1][1]).d<10)h.none=true}}}
   const seen=[];
   for(const r of roads){if(!r.name)continue;for(let s=0;s<r.pts.length-1;s++){const [ax,ay]=r.pts[s],[cx,cy]=r.pts[s+1];roadSegs.push({ax,ay,cx,cy,name:r.name,k:r.k})}
     let best=-1,bl=0;for(let s=0;s<r.pts.length-1;s++){const L=Math.hypot(r.pts[s+1][0]-r.pts[s][0],r.pts[s+1][1]-r.pts[s][1]);if(L>bl){bl=L;best=s}}
