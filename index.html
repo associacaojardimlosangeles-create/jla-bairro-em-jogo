@@ -180,6 +180,7 @@ body.inside #joy,body.inside #me,body.inside #hudbat,body.inside #mm,body.inside
 .round{background-image:linear-gradient(180deg,rgba(255,255,255,.25) 0,rgba(255,255,255,.08) 48%,rgba(0,0,0,0) 49%);box-shadow:0 5px 0 #04101fbb,inset 0 -3px 0 rgba(0,0,0,.25);text-shadow:0 2px 0 rgba(0,0,0,.35)}
 .round:active{transform:translateY(3px);box-shadow:0 2px 0 #04101fbb,inset 0 -2px 0 rgba(0,0,0,.25)}
 #tabs button.on{background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0))}
+@media (max-width:560px) and (orientation:portrait){#place{padding:8px 10px;gap:6px}#place h3{font-size:17px}#place p{font-size:12px}#place .acts{gap:6px}#place .btn{min-height:36px;padding:6px 10px;font-size:13px}}
 </style>
 
 <div id="app">
@@ -2991,7 +2992,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
     c.fillText("Atendidos "+served+"/"+TOTAL+"   Tempo "+Math.ceil(left)+"s",24,31);c.textAlign="center";
     coins=coins.filter(k=>(k.t-=0.02)>0);for(const k of coins){c.globalAlpha=k.t;c.fillStyle="#ffd23f";c.font="900 26px system-ui";c.fillText(k.s,k.x,k.y-(1-k.t)*60);c.globalAlpha=1}
     if(msgT>0){c.fillStyle="rgba(10,34,64,.85)";const mw=Math.min(W-40,420);RR(c,(W-mw)/2,L.work-56,mw,44,22);c.fill();c.fillStyle="#fff";c.font="800 16px system-ui,sans-serif";c.fillText(msg,W/2,L.work-28)}
-    if(!started){c.fillStyle="rgba(10,34,64,.88)";c.fillRect(0,0,W,H);c.fillStyle="#fff";c.font="900 30px "+getComputedStyle(document.body).getPropertyValue("--display");c.fillText(cfg.title,W/2,H*0.32);
+    if(!started){c.fillStyle="rgba(10,34,64,.88)";c.fillRect(0,0,W,H);c.fillStyle="#fff";c.font="900 30px "+getComputedStyle(document.body).getPropertyValue("--display");c.fillText(cfg.title,W/2,H*0.32,W-30);
       c.font="600 16px system-ui,sans-serif";wrapText(intro||cfg.label,W/2,H*0.32+40,Math.min(W-40,460),22);wrapText("Os clientes fazem fila. Olhe o pedido no balão, toque nos ingredientes e depois em ENTREGAR. Atenda "+TOTAL+" clientes antes da paciência acabar!",W/2,H*0.32+96,Math.min(W-40,460),22);
       c.fillStyle="#F57E20";RR(c,W/2-110,H*0.66,220,56,28);c.fill();c.fillStyle="#fff";c.font="900 20px system-ui,sans-serif";c.fillText("COMEÇAR",W/2,H*0.66+36)}}
   const NPCS=new Map();let built=false;
@@ -3096,9 +3097,9 @@ function miniGame(cfg,cb){
       G.conf=G.conf.filter(p=>p.y<G.H+20);for(const p of G.conf){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=700*dt;p.r+=dt*8;c.fillStyle=p.col;c.save();c.translate(p.x,p.y);c.rotate(p.r);c.fillRect(-5,-3,10,6);c.restore()}}
     if(!G.started){const bg=c.createLinearGradient(0,0,0,G.H);bg.addColorStop(0,"#0A2240");bg.addColorStop(1,"#1257a6");c.fillStyle=bg;c.fillRect(0,0,G.W,G.H);
       c.fillStyle="rgba(255,255,255,.05)";for(let k=0;k<8;k++){c.beginPath();c.arc((k*173)%G.W,(k*97)%G.H,40+k*12,0,Math.PI*2);c.fill()}
-      const cw=Math.min(G.W-28,500),cx=(G.W-cw)/2,cy=G.H*0.1,ch=G.H*0.5;c.save();c.shadowColor="rgba(0,0,0,.35)";c.shadowBlur=24;c.fillStyle="#fff8ec";RR(c,cx,cy,cw,ch,26);c.fill();c.restore();
+      const cw=Math.min(G.W-28,500),cx=(G.W-cw)/2,ch=Math.min(G.H*0.5,340),cy=Math.max(G.H*0.1,G.H*0.62-14-ch);c.save();c.shadowColor="rgba(0,0,0,.35)";c.shadowBlur=24;c.fillStyle="#fff8ec";RR(c,cx,cy,cw,ch,26);c.fill();c.restore();
       if(cfg.icon){c.save();cfg.icon(c,G.W/2,cy+ch*0.26,Math.min(1,ch/360));c.restore()}
-      G.disp(Math.min(30,cw/13));G.text(cfg.title,G.W/2,cy+ch*0.48,"#0A2240");G.font(15,700);
+      {let fs=Math.min(30,cw/13);G.disp(fs);while(c.measureText(cfg.title).width>cw-34&&fs>13){fs--;G.disp(fs)}}G.text(cfg.title,G.W/2,cy+ch*0.48,"#0A2240");G.font(15,700);
       let y=cy+ch*0.48+30;c.fillStyle="#3a3f55";for(const para of cfg.help){y=wrapT(c,para,G.W/2,y,cw-40,21,"#3a3f55")+8}
       btn3d(c,{x:G.W/2-115,y:G.H*0.62+4,w:230,h:62,col:"#F57E20",label:"COMEÇAR",fs:22},false,null,G)}
     requestAnimationFrame(loop)})()}
@@ -3506,9 +3507,9 @@ function placeActions(p){const out=[];
   else if(p.id==="agro")out.push(el("button",{class:"btn blue",onclick:openAgroShop},"Comprar na Agropet LK"));
   else if(p.id==="garage84"){out.push(el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));if((S.vehicles||[]).includes("car"))out.push(el("button",{class:"btn",onclick:()=>{if((S.coins||0)<20)return toast("A lavagem completa custa 20 moedas");S.coins-=20;S.pts+=5;save();updateHUD();if(riding==="car"&&vehMesh)vehMesh.traverse(o=>{if(o.material&&o.material.emissive&&o.material.color.getHex()===0xF57E20)o.material.emissive.setHex(0x3a1a00)});toast("Seu carro saiu brilhando da Garage 84! +5 pontos")}},"Lavar meu carro · 20 moedas"))}
   else if(p.id==="family")out.push(el("button",{class:"btn",onclick:talkEverton},"Falar com o Everton"),el("button",{class:"btn blue",onclick:askShopCode},"Código do comércio"));
-  if(p.id==="sanepar"&&!S.svc)out.push(el("button",{class:"btn blue",onclick:()=>startSvc("leitura")},"Fazer leitura de água"),el("button",{class:"btn",onclick:()=>startSvc("cano")},"Consertar um vazamento"));
-  if(p.id==="expresso"){if(S.svc&&S.svc.kind==="entrega"&&S.svc.targets.every(t=>S.svc.done.includes(t)))out.push(el("button",{class:"btn green",onclick:()=>{S.svc=null;clearSvcBeams();setWaypoint(null);svcPay(30,20,"Expresso São Miguel: entregas feitas! +30 moedas e 20 pontos");lastPlace="";checkPlace()}},"Receber pelas entregas"));else if(!S.svc)out.push(el("button",{class:"btn blue",onclick:()=>startSvc("entrega")},"Pegar encomendas para entregar"))}
-  if(S.svc&&S.svc.kind==="entrega"&&S.svc.targets.includes(p.id)&&!S.svc.done.includes(p.id))out.unshift(el("button",{class:"btn green",onclick:()=>svcDeliver(p)},"Entregar a encomenda da Expresso"));
+  if(p.id==="sanepar"&&!S.svc)out.push(el("button",{class:"btn blue",onclick:()=>startSvc("leitura")},"Leitura de água"),el("button",{class:"btn",onclick:()=>startSvc("cano")},"Consertar cano"));
+  if(p.id==="expresso"){if(S.svc&&S.svc.kind==="entrega"&&S.svc.targets.every(t=>S.svc.done.includes(t)))out.push(el("button",{class:"btn green",onclick:()=>{S.svc=null;clearSvcBeams();setWaypoint(null);svcPay(30,20,"Expresso São Miguel: entregas feitas! +30 moedas e 20 pontos");lastPlace="";checkPlace()}},"Receber pelas entregas"));else if(!S.svc)out.push(el("button",{class:"btn blue",onclick:()=>startSvc("entrega")},"Pegar encomendas"))}
+  if(S.svc&&S.svc.kind==="entrega"&&S.svc.targets.includes(p.id)&&!S.svc.done.includes(p.id))out.unshift(el("button",{class:"btn green",onclick:()=>svcDeliver(p)},"Entregar encomenda"));
   if(JOBS[p.id]){const j=JOBS[p.id];const left=JOB_COOLDOWN-(Date.now()-((S.jobs||{})[p.id]||0));
     out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");(p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?openMarketJobs(p):p.id==="posto"?openPostoJobs(p):p.id==="ilse"?openIlseJobs(p):startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+((p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?j.label:p.id==="posto"||p.id==="ilse"?"escolher serviço":jobNextLabel(p))))}
   return out}
