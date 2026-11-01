@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function logado() { return request.auth != null; }
+    function eu() { return request.auth.uid; }
+    function admin() { return logado() && exists(/databases/$(database)/documents/admins/$(eu())); }
+
+    match /admins/{uid} { allow read: if logado(); }
+    match /saves/{uid} { allow read, write: if logado() && eu() == uid; }
+    match /jogadores/{uid} {
+      allow read: if logado();
+      allow write: if logado() && eu() == uid;
+    }
+    match /ranking/{mes}/pontos/{uid} {
+      allow read: if logado();
+      allow write: if logado() && eu() == uid;
+    }
+    match /recados/{id} {
+      allow create: if logado() && request.resource.data.from == eu()
+        && request.resource.data.text is string && request.resource.data.text.size() <= 140;
+      allow read, delete: if logado() && (resource.data.to == eu() || resource.data.from == eu()
+        || (resource.data.to == 'assoc' && admin()));
+    }
+    match /casas/{casa} {
+      allow read: if logado();
+      allow create: if logado() && request.resource.data.dono == eu();
+      allow update: if logado() && (resource.data.dono == eu() || eu() in resource.data.membros);
+      allow delete: if logado() && resource.data.dono == eu();
+    }
+    match /pedidos/{id} {
+      allow create: if logado() && request.resource.data.de == eu();
+      allow read, update, delete: if logado() && (resource.data.para == eu() || resource.data.de == eu());
+    }
+    match /convites/{uid} {
+      allow read: if logado();
+      allow create: if logado() && eu() == uid;
+    }
+    match /amigos/{id} {
+      allow create: if logado() && request.resource.data.de == eu() && eu() in request.resource.data.membros;
+      allow read, update, delete: if logado() && eu() in resource.data.membros;
+    }
+    match /pos/{uid} {
+      allow write: if logado() && eu() == uid;
+      allow read: if logado() && (eu() == uid || eu() in resource.data.ver);
+    }
+    // códigos dos comércios e eventos: o jogador só confere um código por vez (não consegue listar)
+    match /codigos/{codigo} {
+      allow get: if logado();
+      allow list, write: if admin();
+    }
+    // registro de cada código usado: não dá para usar o mesmo de novo (não tem update)
+    match /usos/{id} {
+      allow create: if logado() && request.resource.data.uid == eu()
+        && id.matches(eu() + '_.*')
+        && exists(/databases/$(database)/documents/codigos/$(request.resource.data.codigo));
+      allow read: if admin() || (logado() && resource.data.uid == eu());
+    }
+  }
+}

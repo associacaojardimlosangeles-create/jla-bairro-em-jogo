@@ -29,8 +29,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .hearts{display:flex;gap:3px}
 .heart{width:15px;height:13px;background:var(--red);clip-path:polygon(0 25%,25% 0,50% 20%,75% 0,100% 25%,100% 50%,50% 100%,0 50%)}
 .heart.off{background:#3a4a63}
-.ptsv{font-family:var(--display);font-size:16px;color:var(--gold)}
-.coin{font-family:var(--display);font-size:16px;color:#fff;display:inline-flex;align-items:center;gap:4px}.coin::before{content:"";width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3b0,#ffc61a 45%,#c98a00);box-shadow:0 0 0 2px #8a5b00 inset}
+.ptsv{font-family:var(--display);font-size:16px;color:var(--gold);white-space:nowrap}
+.coin{font-family:var(--display);font-size:16px;color:#fff;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}.coin::before{content:"";width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3b0,#ffc61a 45%,#c98a00);box-shadow:0 0 0 2px #8a5b00 inset}
 .shopitem{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}
 .swatch{display:inline-block;width:34px;height:34px;border-radius:8px;border:3px solid #d9d2c0;vertical-align:middle}
 .swatch.on{border-color:var(--orange)}
@@ -131,6 +131,7 @@ label.f{display:block;font-weight:900;font-size:13px;margin:12px 0 6px}
 [hidden]{display:none!important}
 @keyframes lgpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 #loading small{font-family:var(--body);font-size:14px;color:var(--muted);font-weight:700}
+@media (max-width:420px) and (orientation:portrait){#me .row1{gap:6px}.ptsv,#me .coin{font-size:14px}}
 /* celular deitado: interface compacta para sobrar mais tela para o jogo */
 @media (max-height:500px) and (orientation:landscape){
   #me{padding:4px 8px;gap:7px;max-width:240px}#me .face{width:28px;height:28px;font-size:15px;border-width:1.5px}#me .nick{font-size:14px}#me .lvl{display:none}#me .row1{margin-top:2px;gap:6px;font-size:12px}#me .ed{display:none}
@@ -1750,10 +1751,7 @@ function openPets(){const pets=S.pets||[];
 
 
 /* ============ Everton (Family Burguer) + códigos do comércio ============ */
-const COMERCIO={ // código que fica no balcão de cada comércio parceiro; vale 1 vez por dia
-  "FAMILY-BURGUER":{shop:"Family Burguer",coins:15},
-  "GARAGE-84":{shop:"Garage 84 PG",coins:15},
-};
+/* os códigos dos comércios ficam só no Firebase (coleção codigos), não aqui */
 let everton=null;
 function placeEverton(){const p=POIS.find(q=>q.id==="family");if(!p||p.fx==null)return;
   const c=makeChar({gen:"m",hs:0,skin:"#c68642",hair:"#1d1d1d",eyes:"#3b2414",shirt:"#e2483d",pants:"#1d1d1d",shoe:"#ffffff",hat:1,capColor:"#e2483d",bag:3});
@@ -1776,13 +1774,6 @@ function talkEverton(){const mp=trackMonth();const lv=level(S.pts);
     el("p",{class:"muted",text:"Veio comer aqui? Pede no balcão o código do comércio e ganhe moedas no jogo."}),
     el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn blue",onclick:askShopCode},"Tenho um código do comércio"),el("button",{class:"btn",onclick:closeSheet},"Valeu, Everton!")));
   if(!mDone(MS("everton")))complete("everton")}
-function askShopCode(){const inp=el("input",{class:"inp",id:"shopcode",placeholder:"Ex.: FAMILY-BURGUER",maxlength:"24"});const err=el("div",{class:"err"});
-  openSheet("Código do comércio",el("p",{text:"Os comércios parceiros do bairro têm um código no balcão. Digite aqui para ganhar moedas. Cada código vale 1 vez por dia."}),inp,err,
-    el("button",{class:"btn",onclick:()=>{const c=inp.value.trim().toUpperCase().replace(/\s+/g,"-");const it=COMERCIO[c];if(!it)return err.textContent="Código não encontrado. Confira no balcão do comércio.";
-      S.shopCodes=S.shopCodes||{};if(S.shopCodes[c]===DAY())return err.textContent="Você já usou o código do "+it.shop+" hoje. Volte amanhã!";
-      S.shopCodes[c]=DAY();S.coins=(S.coins||0)+it.coins;S.pts+=5;save();updateHUD();closeSheet();toast("+"+it.coins+" moedas e +5 pontos! Obrigado por comprar no "+it.shop)}},"Validar"),
-    el("p",{class:"muted",style:"margin-top:10px",text:"Comércios parceiros: "+Object.values(COMERCIO).map(v=>v.shop).join(", ")+"."}))}
-
 /* ============ viaduto de entrada (passagem sob a PRC-373) ============ */
 const VIA={cx:1815,cy:1785,ux:-0.436,uy:0.900,half:9,ramp:45,H:6,w:22};
 (()=>{const L=Math.hypot(VIA.ux,VIA.uy);VIA.ux/=L;VIA.uy/=L})();
@@ -2025,9 +2016,9 @@ function openSuggest(){const sug=S.suggestions||[];const list=el("div",{class:"l
     el("label",{class:"f",for:"sugcat",text:"Assunto"}),cat,el("label",{class:"f",for:"sugtxt",text:"Sua ideia (até 140 letras)"}),txt,err,
     el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;clear:both"},el("button",{class:"btn green",onclick:()=>{const t=txt.value.trim();if(t.length<8)return err.textContent="Escreva um pouco mais (pelo menos 8 letras).";
       const ck=checkText(t);if(!ck.ok)return err.textContent=ck.msg;
-      S.suggestions=[{cat:cat.value,text:t,date:DAY()},...(S.suggestions||[])].slice(0,30);save();drawBoard();if(!mDone(MS("ideia")))complete("ideia");else toast("Ideia colocada no mural!");openSuggest()}},"Colocar no mural"),wa),
+      S.suggestions=[{cat:cat.value,text:t,date:DAY()},...(S.suggestions||[])].slice(0,30);save();ideaSend(cat.value,t);drawBoard();if(!mDone(MS("ideia")))complete("ideia");else toast("Ideia colocada no mural!");openSuggest()}},"Colocar no mural"),wa),
     el("h3",{text:"Ideias no mural",style:"margin:16px 0 8px;font-family:var(--display);font-weight:400"}),list,
-    el("p",{class:"muted",style:"margin-top:10px",text:"Nesta versão de teste, o mural fica salvo neste aparelho. Para a diretoria receber agora, use o botão do WhatsApp. Quando o jogo tiver servidor, as ideias de todos os moradores aparecem juntas."}))}
+    el("p",{class:"muted",style:"margin-top:10px",text:"Pelo site oficial, com internet, sua ideia chega direto no painel da Diretoria. Se quiser, mande também pelo WhatsApp."}))}
 
 function streetPoint(name,meters){let left=meters;let lastPt=null;for(const r of roads){if(r.name!==name)continue;for(let i=0;i<r.pts.length-1;i++){const [ax,ay]=r.pts[i],[bx2,by2]=r.pts[i+1];const L=Math.hypot(bx2-ax,by2-ay);if(left<=L)return[ax+(bx2-ax)*left/L,ay+(by2-ay)*left/L];left-=L;lastPt=[bx2,by2]}}return lastPt}
 /* números das casas: pontos de referência reais (Google) de cada rua; o número vira um ponto na rua */
@@ -2121,7 +2112,7 @@ function openProfile(){const L=currentLook();const keep=$("#sheetbox")?$("#sheet
     sec("Óculos"),opts(GLASSES,L.glasses,i=>setLook("glasses",i)),
     sec("Mochila"),opts(BAGS,L.bag||0,i=>setLook("bag",i))]),
     sec("Modelo do carro"),(S.vehicles||[]).includes("car")?el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px"},...CAR_MODELS.map(([k,n])=>el("button",{class:"btn "+(((S.carModel||"sedan")===k)?"":"ghost"),style:"width:78px;padding:3px;min-height:0;font-size:11px;display:flex;flex-direction:column;align-items:center",onclick:()=>{S.carModel=k;save();if(riding==="car")setRide("car");buildHome();openProfile()}},el("img",{src:ASSET_BASE+"cars/thumbs/"+k+".png",alt:"",loading:"lazy",style:"width:64px;height:44px;object-fit:contain"}),n))):null,
-    sec("Cor do carro (modelo clássico)"),(S.vehicles||[]).includes("car")?sw("Carro",LOOKS.car,S.carColor||"#F57E20",c=>{S.carColor=c;S.carModel="classic";save();if(riding==="car")setRide("car");buildHome();openProfile()}):el("p",{class:"muted",text:"Compre o carro elétrico na Loja de Bikes e Veículos para escolher a cor."}));
+    sec("Vibração do celular"),el("div",{style:"margin:4px 0 10px"},tog("Vibrar nos joguinhos e acertos",S.vibe!==false,v=>{S.vibe=v;save();if(v)vib(60)})),sec("Cor do carro (modelo clássico)"),(S.vehicles||[]).includes("car")?sw("Carro",LOOKS.car,S.carColor||"#F57E20",c=>{S.carColor=c;S.carModel="classic";save();if(riding==="car")setRide("car");buildHome();openProfile()}):el("p",{class:"muted",text:"Compre o carro elétrico na Loja de Bikes e Veículos para escolher a cor."}));
   if(!profileView&&nearHome()){const h=homeHouse();player.face=Math.atan2(h.fx-h.wx,h.fy-h.wy)}
   $("#sheet").classList.add("side");profileView=true;if($("#sheetbox"))$("#sheetbox").scrollTop=keep}
 
@@ -2822,7 +2813,7 @@ function frame(now){const dt=Math.min(0.05,(now-last)/1000);last=now;clockT+=dt;
   animEverton();
   if(beam.visible)beam.material.opacity=0.34+Math.sin(clockT*3)*0.12;
   if(wpMark&&waypoint){wpMark.visible=true;wpMark.position.set(beam.position.x,0,beam.position.z);const dd=Math.hypot(wpMark.position.x-camera.position.x,wpMark.position.z-camera.position.z);const k=Math.max(1,dd/35);wpMark.scale.setScalar(k);wpMark.position.y=(waypoint.label&&/Poste/.test(waypoint.label)?10.5:5)+Math.abs(Math.sin(clockT*3))*1.4*k+1.2*k;wpMark.rotation.y=clockT*1.5}
-  updateDayNight(dt);updateRain(dt);if(!startMode){updateBirds(dt);updateHorses(dt);updateCollect(dt);try{updateAmb(dt)}catch(e){if(!AMB.err){AMB.err=1;console.warn("amb",e)}}}updateStreetEv(dt);if(!startMode)updateOthers(dt);updateModels(dt);audioUpdate(dt);if(!miniOpen||!document.getElementById("mgame"))renderer.render(scene,camera);requestAnimationFrame(frame)}
+  updateDayNight(dt);updateRain(dt);if(!startMode){updateBirds(dt);updateHorses(dt);updateCollect(dt);try{updateAmb(dt)}catch(e){if(!AMB.err){AMB.err=1;console.warn("amb",e)}}}updateStreetEv(dt);if(!startMode)updateOthers(dt);updateModels(dt);audioUpdate(dt);try{liteTick(now)}catch(e){}if((!miniOpen||!document.getElementById("mgame"))&&!(sheetBlocks()&&!startMode))renderer.render(scene,camera);requestAnimationFrame(frame)}
 function update(dt){if(miniOpen)return;
   let mx=0,my=0;if(keys.a||keys.arrowleft)mx-=1;if(keys.d||keys.arrowright)mx+=1;if(keys.w||keys.arrowup)my+=1;if(keys.s||keys.arrowdown)my-=1;
   if(joyV){mx+=joyV[0];my+=joyV[1]}
@@ -4396,7 +4387,7 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
   if(tab==="assoc"){openSheet("Associação de Moradores",el("img",{src:LOGO_URI,alt:"Logo da Associação",style:"width:110px;float:right;margin:0 0 8px 12px;border-radius:12px"}),el("p",{},el("b",{text:"Associação de Moradores do Jardim Los Angeles"})),
       el("p",{text:"Sede: Rua Prefeito José Hoffmann, 37 – Jardim Los Angeles, Ponta Grossa/PR. Atende os bairros Jardim Los Angeles, Jardim Califórnia I, Jardim Califórnia II e Jardim Hortência."}),
       el("p",{text:"Projetos: Atleta do Bairro (esporte para crianças e adolescentes), Capoeira Arte Viva, campanhas solidárias e de segurança alimentar, mutirões e eventos."}),
-      googleBox(),installBox(),el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
+      googleBox(),installBox(),el("div",{style:"display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px"},el("button",{class:"btn",onclick:()=>goTo("assoc")},"Ir até a sede"),MAIL.owner&&online()?el("button",{class:"btn green",onclick:()=>{ADM.tab="resumo";openAdmin()}},"Painel da Diretoria"):online()?el("button",{class:"btn ghost",onclick:openDirHelp},"Sou da Diretoria"):null,el("button",{class:"btn blue",onclick:askCode},"Tenho um código de evento"),el("button",{class:"btn green",onclick:askShopCode},"Código do comércio")),
       el("p",{},el("b",{text:"Gráficos: "}),document.createTextNode(lowQ?"modo leve (para celulares mais simples). ":"modo completo, com sombras. "),el("button",{class:"btn ghost",style:"min-height:36px;padding:6px 10px",onclick:()=>{store.set("jla_lowq",!lowQ);location.reload()}},lowQ?"Usar modo completo":"Usar modo leve")),
       document.fullscreenEnabled?el("p",{},el("b",{text:"Tela cheia no celular: "}),...[[true,"Ligada"],[false,"Desligada"]].map(([k,n])=>el("button",{class:"btn "+(store.get("jla_fs",true)===k?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{store.set("jla_fs",k);if(k)goFullscreen();else if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});openTab("assoc")}},n))):null,
       el("p",{},el("b",{text:"Chuva: "}),...[["auto","Em alguns dias"],["nunca","Nunca"],["chuva","Chover agora"]].map(([k,n])=>el("button",{class:"btn "+(((S.weather||"auto")===k)?"":"ghost"),style:"min-height:34px;padding:5px 10px;margin:3px",onclick:()=>{S.weather=k;save();openTab("assoc")}},n))),
@@ -4404,11 +4395,6 @@ function openTab(tab){document.querySelectorAll("#tabs button").forEach(b=>b.cla
       online()?el("p",{class:"muted",style:"font-size:11px",text:"Código do jogador (só para a diretoria liberar acesso de administrador): "+MAIL.uid}):null,el("p",{class:"muted",text:"Mapa: dados © colaboradores do OpenStreetMap (ODbL), em 3D. As empresas aparecem porque estão no mapa público; antes do lançamento, a Associação vai pedir autorização a cada uma. Os pontos de ônibus estão em local aproximado."}),
       el("button",{class:"btn ghost",style:"margin-top:8px",onclick:()=>{if(resetArm){store.set("jla_state3d",null);location.reload()}else{resetArm=true;toast("Toque de novo para apagar seu progresso")}}},"Apagar meu progresso"))}}
 let resetArm=false;
-function askCode(){const inp=el("input",{class:"inp",id:"evcode",placeholder:"Ex.: MUTIRAO-NOV",maxlength:"24"});const err=el("div",{class:"err"});
-  openSheet("Código de ação real",el("p",{text:"Nos mutirões e eventos, a Associação mostra um QR Code com um código. Digite aqui para ganhar +50 pontos."}),inp,err,
-    el("button",{class:"btn",onclick:()=>{const c=inp.value.trim().toUpperCase();S.codes=S.codes||[];if(S.codes.includes(c))return err.textContent="Você já usou esse código.";
-      if(c==="TESTE-JLA"){S.codes.push(c);complete("evento");closeSheet()}else if(c==="MOEDAS5000"){S.codes.push(c);S.coins=(S.coins||0)+5000;save();updateHUD();closeSheet();toast("+5000 moedas de teste!")}else if(c==="MOEDAS900"){S.codes.push(c);S.coins=(S.coins||0)+900;save();updateHUD();closeSheet();toast("+900 moedas de teste! Vá à Loja de Bikes e Veículos.")}else err.textContent="Código não encontrado. Confira com a equipe da Associação."}},"Validar"),
-    el("p",{class:"muted",style:"margin-top:10px",text:"Para testar agora, use o código TESTE-JLA."}))}
 function missionGo(m){
   if(m.kind==="pet"){if((S.pets||[]).length)return openPets();return goTo("abrigo","pet")}
   if(m.kind==="invite")return openTab("convidar");if(m.kind==="code")return askCode();
@@ -4549,7 +4535,7 @@ function MG_CANO(){return{title:"Sanepar: consertar o encanamento",time:100,icon
   help:["O cano estourou! Toque nas peças para girar.","Ligue a água da Sanepar (esquerda) até a casa (direita). Conserte 3 encanamentos!"],
   init(G){G.lv=0;G.solved=0;G.P=canoGen(...CANO_SIZES[0]);G.wait=0},
   hud:G=>"Consertados "+G.solved+"/3",layout(G){G.buttons=[]},
-  down(G,x,y){if(G.wait>0||!G.tiles)return;const h=pick3(G,x,y,G.tiles.map(t=>t.g));if(!h)return;let o=h.object;while(o&&!o.userData.cell)o=o.parent;if(!o)return;o.userData.cell.r=(o.userData.cell.r+1)%4;sfx("tap");
+  down(G,x,y){if(G.wait>0||!G.tiles)return;const h=pick3(G,x,y,G.tiles.map(t=>t.g));if(!h)return;let o=h.object;while(o&&!o.userData.cell)o=o.parent;if(!o)return;o.userData.cell.r=(o.userData.cell.r+1)%4;sfx("tap");vib(12);
     const f=canoFlow(G.P);G.wet=f.wet;if(f.ok){G.solved++;G.good++;G.float("Água chegando!",G.W/2,G.H*0.3);sfx("coin");G.wait=1.6}},
   update(G,dt){if(G.wait>0){G.wait-=dt;if(G.wait<=0){if(G.solved>=3)return G.finish();G.lv++;G.P=canoGen(...CANO_SIZES[Math.min(2,G.lv)]);G.rebuild=true}}},
   draw(G,c,t3){if(!t3)return;hint3(G,c,"Toque no cano para girar · leve a água até a casa")},
@@ -4604,7 +4590,7 @@ function MG_CHAPA(){return{title:"Garage Burger: a chapa",time:75,icon:(c,x,y,s)
   init(G){G.served=0;G.spawn=0.5;G.slots=[0,1,2,3,4,5].map(i=>({i,p:null}))},hud:G=>"Lanches "+G.served+"/8 · Queimados "+G.bad,layout(G){G.buttons=[]},
   down(G,x,y){if(!G.M)return;let best=null,bd=60;for(const s of G.slots){if(!s.p||!s.sc)continue;const d=Math.hypot(s.sc.x-x,s.sc.y-y);if(d<bd){bd=d;best=s}}if(!best)return;const p=best.p;const v=p.side?p.b:p.a;
     if(v<0.72){G.say("Ainda está cru!");return}if(v>1.18){G.bad++;G.say("Queimou! Jogue fora e faça outro.");G.fx.spawn(p.m.position.clone(),0x333333,8,2,2);G.rm(best);return}
-    if(!p.side){p.side=1;p.flip=0;sfx("tap");G.float("Virou!",x,y-30)}else{G.served++;G.good++;sfx("coin");G.float("Lanche pronto!",x,y-30);p.serve=1;best.p=null;if(G.served>=8)G.finish()}},
+    if(!p.side){p.side=1;p.flip=0;sfx("tap");vib([15,40,15]);G.float("Virou!",x,y-30)}else{G.served++;G.good++;sfx("coin");G.float("Lanche pronto!",x,y-30);p.serve=1;best.p=null;if(G.served>=8)G.finish()}},
   update(G,dt){G.spawn-=dt;if(G.spawn<=0){const free=G.slots.filter(s=>!s.p);if(free.length&&G.slots.filter(s=>s.p).length<4){const s=free[Math.floor(Math.random()*free.length)];s.p={a:0,b:0,side:0,rate:0.2+Math.random()*0.12+G.served*0.012,flip:1};s.new=1}G.spawn=1.6+Math.random()*1.2}
     for(const s of G.slots){const p=s.p;if(!p)continue;if(p.side)p.b+=p.rate*dt;else p.a+=p.rate*dt;if((p.side?p.b:p.a)>1.45){G.bad++;G.say("Uma carne queimou!");G.rm(s)}}},
   draw(G,c,t3){if(!t3)return;hint3(G,c,"Anel verde = no ponto · toque para virar e servir")},
@@ -5154,6 +5140,245 @@ function buildMedians(){const NAMES=["Rua Pedro Mezzomo","Rua Professor Fábio F
       const a=v(x0+nx,y0+ny,g0+h0),b=v(x1+nx,y1+ny,g1+h0),c=v(x1-nx,y1-ny,g1+h0),d=v(x0-nx,y0-ny,g0+h0);top.push(...a,...b,...c,...a,...c,...d);
       for(const s of[1,-1]){const p0=v(x0+s*nx,y0+s*ny,g0+0.28),p1=v(x1+s*nx,y1+s*ny,g1+0.28),p2=v(x1+s*nx,y1+s*ny,g1+h0),p3=v(x0+s*nx,y0+s*ny,g0+h0);side.push(...p0,...p1,...p2,...p0,...p2,...p3)}}
     const mk=(arr,mat)=>{if(!arr.length)return;const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(arr,3));g.computeVertexNormals();const m=new THREE.Mesh(g,mat);m.material.side=THREE.DoubleSide;m.receiveShadow=true;scene.add(m)};mk(top,grass);mk(side,curb)}}
+
+/* ================= códigos seguros, vibração, modo leve e painel da Diretoria ================= */
+/* Os códigos (balcão dos comércios e eventos da Associação) ficam só no Firebase, na coleção "codigos".
+   O jogo pergunta por um código de cada vez; ninguém consegue ver a lista inteira. Cada uso fica registrado em "usos". */
+function normCode(v){return String(v||"").trim().toUpperCase().replace(/\s+/g,"-").replace(/[^A-Z0-9À-Ü_-]/g,"").slice(0,24)}
+async function checkCode(code,tipo){if(!online())return{err:"Para validar códigos, abra o jogo pelo site oficial, com internet."};if(!code||code.length<3)return{err:"Digite o código."};
+  try{const d=await withTimeout(MAIL.db.doc("codigos/"+code).get(),10000);if(!d.exists)return{err:"Código não encontrado. Confira e tente de novo."};const x=d.data()||{};
+    if(x.ativo===false)return{err:"Esse código não está mais valendo."};if(tipo&&x.tipo!==tipo)return{err:tipo==="comercio"?"Esse código é de evento: use o botão \"Tenho um código de evento\".":"Esse código é de comércio: use o \"Código do comércio\"."};return{ok:x}}
+  catch(e){return{err:"Não deu para conferir agora. Confira a internet e tente de novo."}}}
+async function useCode(code,tipo,id,x){const doc={uid:MAIL.uid,nick:S.nick,codigo:code,tipo,nome:x.nome||"",dia:DAY(),mes:monthKey(),ts:Date.now()};
+  try{await withTimeout(MAIL.db.doc("usos/"+id).set(doc),10000);return true}catch(e){return false}}
+function askShopCode(){const inp=el("input",{class:"inp",id:"shopcode",placeholder:"Código do balcão",maxlength:"24",autocomplete:"off"});const err=el("div",{class:"err"});
+  const go=el("button",{class:"btn",onclick:async()=>{err.textContent="";const c=normCode(inp.value);S.shopCodes=S.shopCodes||{};if(S.shopCodes[c]===DAY())return err.textContent="Você já usou esse código hoje. Volte amanhã!";
+    go.disabled=true;go.textContent="Conferindo...";const r=await checkCode(c,"comercio");if(r.err){go.disabled=false;go.textContent="Validar";return err.textContent=r.err}
+    const ok=await useCode(c,"comercio",MAIL.uid+"_"+c+"_"+DAY(),r.ok);go.disabled=false;go.textContent="Validar";if(!ok)return err.textContent="Você já usou esse código hoje. Volte amanhã!";
+    const coins=Math.max(1,Math.min(100,+r.ok.moedas||15));S.shopCodes[c]=DAY();S.coins=(S.coins||0)+coins;S.pts+=5;save();updateHUD();pushRank(true);closeSheet();sfx("win");toast("+"+coins+" moedas e +5 pontos! Obrigado por comprar no "+(r.ok.nome||"comércio do bairro"))}},"Validar");
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter")go.click()});
+  openSheet("Código do comércio",el("p",{text:"Os comércios parceiros do bairro têm um código no balcão. Digite aqui para ganhar moedas. Cada código vale 1 vez por dia."}),el("div",{class:"sendrow"},inp,go),err,
+    el("p",{class:"muted",style:"margin-top:10px",text:"Peça o código no balcão dos comércios parceiros da Associação."}))};
+function askCode(){const inp=el("input",{class:"inp",id:"evcode",placeholder:"Código do evento",maxlength:"24",autocomplete:"off"});const err=el("div",{class:"err"});
+  const go=el("button",{class:"btn",onclick:async()=>{err.textContent="";const c=normCode(inp.value);S.codes=S.codes||[];if(S.codes.includes(c))return err.textContent="Você já usou esse código.";
+    go.disabled=true;go.textContent="Conferindo...";const r=await checkCode(c,"evento");if(r.err){go.disabled=false;go.textContent="Validar";return err.textContent=r.err}
+    const ok=await useCode(c,"evento",MAIL.uid+"_"+c,r.ok);go.disabled=false;go.textContent="Validar";if(!ok){S.codes.push(c);save();return err.textContent="Você já usou esse código."}
+    S.codes.push(c);const pts=Math.max(1,Math.min(200,+r.ok.pontos||50));if(!mDone(MS("evento")))complete("evento");else{S.pts+=pts;save();updateHUD()}pushRank(true);closeSheet();sfx("win");toast("Código de "+(r.ok.nome||"ação real")+" validado! Obrigado por participar.")}},"Validar");
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter")go.click()});
+  openSheet("Código de ação real",el("p",{text:"Nos mutirões e eventos, a Associação mostra um QR Code com um código. Digite aqui para ganhar pontos."}),el("div",{class:"sendrow"},inp,go),err)};
+/* ideias do mural também vão para a Diretoria */
+function ideaSend(cat,t){if(!online())return;MAIL.db.collection("recados").add({to:"assoc",from:MAIL.uid,fromNick:S.nick,fromRua:S.rua,tipo:"ideia",cat,text:(cat+": "+t).slice(0,140),ts:Date.now()}).catch(()=>{})}
+
+/* vibração do celular (Android) */
+function vib(p){try{if(S&&S.vibe===false)return;if(navigator.vibrate)navigator.vibrate(p)}catch(e){}}
+{const _s=sfx;sfx=function(k,opt){const V={coin:25,win:[40,60,40,60,120],lose:[80,50,80],err:[60,40,60]};if(V[k]!=null)vib(V[k]);return _s(k,opt)}}
+
+/* modo leve: o bairro não é desenhado atrás de janelas e, se o celular estiver sofrendo, a imagem fica um pouco menos nítida */
+const LITE={fr:0,t0:0,low:0,high:0,pr:0,max:0};
+function liteTick(now){if(!renderer)return;if(!LITE.max){LITE.max=renderer.getPixelRatio();LITE.pr=LITE.max}LITE.fr++;if(!LITE.t0)LITE.t0=now;if(now-LITE.t0<1000)return;
+  const fps=LITE.fr*1000/(now-LITE.t0);LITE.fr=0;LITE.t0=now;if(document.hidden||miniOpen||sheetBlocks())return;
+  if(fps<24){LITE.low++;LITE.high=0}else if(fps>52){LITE.high++;LITE.low=0}else{LITE.low=0;LITE.high=0}
+  let np=LITE.pr;if(LITE.low>=3&&LITE.pr>0.75){np=Math.max(0.75,LITE.pr-0.25);LITE.low=0}else if(LITE.high>=8&&LITE.pr<LITE.max){np=Math.min(LITE.max,LITE.pr+0.25);LITE.high=0}
+  if(np!==LITE.pr){LITE.pr=np;renderer.setPixelRatio(np);renderer.setSize(innerWidth,innerHeight,false)}}
+function sheetBlocks(){const sh=document.getElementById("sheet");return sh&&!sh.hidden&&!sh.classList.contains("side")&&!IN.on}
+
+/* ============ painel da Diretoria (só para quem está na lista "admins" do Firebase) ============ */
+let ADM={tab:"resumo",cache:{}};
+function admBtn(t,id){return el("button",{class:"btn "+(ADM.tab===id?"":"ghost"),style:"min-height:34px;padding:5px 10px;font-size:13px",onclick:()=>{ADM.tab=id;openAdmin()}},t)}
+async function admLoad(force){const c=ADM.cache;if(c.ok&&!force&&Date.now()-c.ts<60000)return c;const db=MAIL.db,mes=monthKey();
+  const [jog,rank,usos,cods]=await Promise.all([db.collection("jogadores").get().catch(()=>null),db.collection("ranking").doc(mes).collection("pontos").orderBy("pts","desc").limit(100).get().catch(()=>null),
+    db.collection("usos").where("mes","==",mes).get().catch(()=>null),db.collection("codigos").get().catch(()=>null)]);
+  const all=x=>x?x.docs.map(d=>Object.assign({id:d.id},d.data())):[];
+  Object.assign(c,{ok:true,ts:Date.now(),mes,jog:all(jog),rank:all(rank),usos:all(usos),cods:all(cods)});return c}
+async function openAdmin(){if(!online()||!MAIL.owner)return toast("O painel é só para a Diretoria, entrando com a conta Google cadastrada.");
+  const body=el("div",{},el("p",{class:"muted",text:"Carregando os dados do mês..."}));
+  openSheet("Painel da Diretoria",el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"},admBtn("Resumo","resumo"),admBtn("Ranking","ranking"),admBtn("Ideias e recados","mural"),admBtn("Códigos","codigos"),admBtn("Relatório","relatorio")),body);
+  let c;try{c=await admLoad()}catch(e){body.innerHTML="";body.append(el("p",{class:"err",text:"Não deu para carregar. Confira a internet."}));return}
+  body.innerHTML="";const ini=new Date(c.mes+"-01T00:00:00").getTime();const ideias=(MAIL.assoc||[]).filter(r=>(r.ts||0)>=ini);
+  const ver={};c.usos.forEach(u=>{ver[u.uid]=(ver[u.uid]||0)+1});const fmt=n=>String(n);
+  if(ADM.tab==="resumo"){const novos=c.jog.filter(j=>(j.ts||0)>=ini).length;
+    body.append(el("div",{class:"stat"},...[["Moradores cadastrados",c.jog.length],["Jogaram neste mês",c.rank.length],["Novos neste mês",novos],["Códigos de comércio usados",c.usos.filter(u=>u.tipo==="comercio").length],["Presenças em eventos",c.usos.filter(u=>u.tipo==="evento").length],["Ideias e recados no mês",ideias.length]].map(([l,n])=>el("div",{},el("b",{text:fmt(n)}),el("span",{text:l})))),
+      el("p",{class:"muted",text:"Mês "+c.mes.split("-").reverse().join("/")+". Os números vêm direto do Firebase."}),el("button",{class:"btn ghost",onclick:async()=>{await admLoad(true);openAdmin()}},"Atualizar"))}
+  else if(ADM.tab==="ranking"){const list=el("div",{class:"list"});if(!c.rank.length)list.append(el("p",{class:"muted",text:"Ninguém pontuou neste mês ainda."}));
+    c.rank.slice(0,50).forEach((r,i)=>{const v=ver[r.id]||0;list.append(el("div",{class:"row"},el("b",{text:(i+1)+"º",style:"width:34px"}),el("div",{class:"t"},el("b",{text:r.nick||"Morador"}),el("span",{text:(r.rua||"")+" · "+(r.missoes||0)+" missões · "+(r.convites||0)+" convites"})),
+      el("span",{class:"tag "+(v?"done":""),text:v?"✔ "+v+" código"+(v>1?"s":""):"sem código"}),el("span",{class:"pts",text:(r.pts||0)+" pts"})))});
+    body.append(el("p",{class:"muted",text:"Os pontos são somados no celular de cada jogador. Antes de entregar o prêmio, confira: quem tem códigos validados (✔) esteve de verdade nos comércios e eventos."}),list)}
+  else if(ADM.tab==="mural"){const list=el("div",{class:"list"});const all=MAIL.assoc||[];if(!all.length)list.append(el("p",{class:"muted",text:"Nenhuma ideia ou recado para a Associação ainda."}));
+    all.slice(0,80).forEach(r=>list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:(r.tipo==="ideia"?"Ideia · ":"Recado · ")+String(r.fromNick||"Morador")}),el("span",{text:String(r.text||"")})),el("span",{class:"tag",text:fmtDate(r.ts)}))));body.append(list)}
+  else if(ADM.tab==="codigos"){const list=el("div",{class:"list"});const err=el("div",{class:"err"});
+    const cod=el("input",{class:"inp",placeholder:"CÓDIGO (ex.: MUTIRAO-NOV)",maxlength:"24"}),nome=el("input",{class:"inp",placeholder:"Nome (ex.: Family Burguer ou Mutirão de novembro)",maxlength:"40"});
+    const tipo=el("select",{class:"inp"},el("option",{value:"comercio",text:"Comércio (vale 1 vez por dia, dá moedas)"}),el("option",{value:"evento",text:"Evento / ação real (vale 1 vez, dá pontos)"}));const val=el("input",{class:"inp",type:"number",min:"1",max:"200",value:"15"});
+    tipo.addEventListener("change",()=>{val.value=tipo.value==="comercio"?"15":"50"});
+    const sort=el("button",{class:"btn ghost",style:"min-height:34px;padding:5px 10px;font-size:13px;margin-top:6px",onclick:()=>{const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let r="";for(let i=0;i<5;i++)r+=A[Math.floor(Math.random()*A.length)];const base=normCode(nome.value).split("-")[0].slice(0,8)||(tipo.value==="evento"?"EVENTO":"LOJA");cod.value=base+"-"+r}},"Sortear um código difícil de adivinhar");
+    const add=el("button",{class:"btn green",onclick:async()=>{err.textContent="";const c2=normCode(cod.value);if(c2.length<4)return err.textContent="O código precisa ter pelo menos 4 letras.";if(!nome.value.trim())return err.textContent="Escreva o nome.";
+      const d={tipo:tipo.value,nome:nome.value.trim().slice(0,40),ativo:true,ts:Date.now(),por:MAIL.uid};if(tipo.value==="comercio")d.moedas=Math.max(1,Math.min(100,+val.value||15));else d.pontos=Math.max(1,Math.min(200,+val.value||50));
+      try{await MAIL.db.doc("codigos/"+c2).set(d);await admLoad(true);toast("Código "+c2+" criado!");openAdmin()}catch(e){err.textContent="Não deu para salvar. Só a Diretoria pode criar códigos."}}},"Criar código");
+    if(!c.cods.length)list.append(el("p",{class:"muted",text:"Nenhum código cadastrado ainda. Crie um para cada comércio parceiro (Family Burguer, Garage 84...) e imprima para o balcão."}));
+    c.cods.sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(k=>{const usos=c.usos.filter(u=>u.codigo===k.id).length;list.append(el("div",{class:"row"},el("div",{class:"t"},el("b",{text:k.id}),el("span",{text:(k.nome||"")+" · "+(k.tipo==="evento"?"evento, "+(k.pontos||50)+" pts":"comércio, "+(k.moedas||15)+" moedas")+" · "+usos+" uso"+(usos===1?"":"s")+" no mês"})),
+      el("button",{class:"btn "+(k.ativo===false?"green":"ghost"),style:"min-height:32px;padding:4px 9px;font-size:12px",onclick:async()=>{try{await MAIL.db.doc("codigos/"+k.id).set({ativo:k.ativo===false},{merge:true});await admLoad(true);openAdmin()}catch(e){toast("Não deu para mudar.")}}},k.ativo===false?"Ativar":"Desativar")))});
+    body.append(el("p",{class:"muted",text:"Os códigos ficam guardados só no Firebase: não aparecem no código do jogo. Troque o código do evento a cada mutirão."}),el("label",{class:"f",text:"Novo código"}),cod,sort,el("label",{class:"f",text:"Nome"}),nome,el("label",{class:"f",text:"Tipo"}),tipo,el("label",{class:"f",text:"Moedas ou pontos que vale"}),val,err,add,el("h3",{text:"Códigos cadastrados",style:"margin:16px 0 8px;font-family:var(--display);font-weight:400"}),list)}
+  else{body.append(el("p",{text:"Relatório do mês "+c.mes.split("-").reverse().join("/")+" com moradores, ranking conferido, códigos usados e ideias. Sai em PDF para imprimir ou mandar no WhatsApp."}),
+      el("button",{class:"btn green",onclick:()=>admPDF(c,ideias,ver)},"Baixar relatório em PDF"))}}
+async function admPDF(c,ideias,ver){try{if(!window.jspdf)await withTimeout(loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),15000)}catch(e){return toast("Não deu para carregar o gerador de PDF. Confira a internet.")}
+  const {jsPDF}=window.jspdf;const d=new jsPDF({unit:"mm",format:"a4"});let y=18;const W=210,M=16;const line=(t,sz=11,b=false,col=[30,40,60])=>{d.setFont("helvetica",b?"bold":"normal");d.setFontSize(sz);d.setTextColor(...col);for(const l of d.splitTextToSize(String(t),W-2*M)){if(y>282){d.addPage();y=18}d.text(l,M,y);y+=sz*0.45+1.2}};
+  const mesTxt=c.mes.split("-").reverse().join("/");d.setFillColor(10,34,64);d.rect(0,0,W,12,"F");
+  line("Associação de Moradores do Jardim Los Angeles",10,true,[245,126,32]);line("JLA: Bairro em Jogo · Relatório do mês "+mesTxt,16,true,[10,34,64]);line("Gerado em "+new Date().toLocaleString("pt-BR"),9,false,[110,120,140]);y+=3;
+  line("Resumo",13,true,[10,34,64]);
+  for(const [l,n] of[["Moradores cadastrados no jogo",c.jog.length],["Jogaram neste mês",c.rank.length],["Novos cadastros no mês",c.jog.filter(j=>(j.ts||0)>=new Date(c.mes+"-01T00:00:00").getTime()).length],["Códigos de comércio validados",c.usos.filter(u=>u.tipo==="comercio").length],["Presenças em eventos (QR Code)",c.usos.filter(u=>u.tipo==="evento").length],["Ideias e recados recebidos",ideias.length]])line("• "+l+": "+n);
+  y+=3;line("Ranking do mês (10 primeiros)",13,true,[10,34,64]);c.rank.slice(0,10).forEach((r,i)=>line((i+1)+"º  "+(r.nick||"Morador")+" — "+(r.pts||0)+" pts — "+(ver[r.id]?ver[r.id]+" código(s) validado(s)":"sem código validado")+(r.rua?" — "+r.rua:"")));
+  line("Os pontos são somados no celular de cada jogador. Para o prêmio, confira os primeiros colocados pelos códigos validados.",9,false,[110,120,140]);
+  y+=3;line("Uso dos códigos",13,true,[10,34,64]);const by={};c.usos.forEach(u=>{const k=u.codigo+" ("+(u.nome||u.tipo)+")";by[k]=(by[k]||0)+1});const ks=Object.keys(by);if(!ks.length)line("Nenhum código usado no mês.");ks.sort((a,b)=>by[b]-by[a]).forEach(k=>line("• "+k+": "+by[k]));
+  y+=3;line("Ideias e recados para a Associação",13,true,[10,34,64]);if(!ideias.length)line("Nenhuma ideia no mês.");ideias.slice(0,60).forEach(r=>line("• "+fmtDate(r.ts)+" — "+String(r.fromNick||"Morador")+": "+String(r.text||"")));
+  const name="Relatorio-JLA-Bairro-em-Jogo-"+c.mes+".pdf";try{d.save(name)}catch(e){try{window.open(d.output("bloburl"),"_blank")}catch(_){toast("Não deu para baixar o PDF neste navegador.")}}}
+
+function openDirHelp(){const id=MAIL.uid||"";const cp=el("button",{class:"btn",onclick:()=>{try{navigator.clipboard.writeText(id);toast("Código copiado!")}catch(e){}}},"Copiar");
+  openSheet("Acesso da Diretoria",el("p",{text:"O painel da Diretoria mostra o ranking conferido, as ideias do mural, os códigos dos comércios e o relatório do mês. Ele só abre para quem for cadastrado como Diretoria no Firebase."}),
+    isGoogle()?null:el("p",{class:"err",text:"Primeiro entre com sua conta Google (no seu perfil ou na aba Associação), senão o acesso se perde ao trocar de celular."}),
+    el("p",{text:"Seu código de jogador:"}),el("div",{class:"sendrow"},el("div",{class:"code",style:"font-size:15px;letter-spacing:0;word-break:break-all",text:id}),cp),
+    el("p",{class:"muted",style:"margin-top:10px",text:"Mande esse código para quem cuida do Firebase da Associação. Lá, em Firestore, coleção admins, é só criar um documento com esse código como ID. Depois feche e abra o jogo de novo."}))}
+/* ============ joguinhos 3D novos: quiz, separar o lixo, pênalti, horta e pintura ============ */
+function wrapL3(c,t,mw){const out=[];let ln="";for(const w of String(t).split(" ")){const s=ln?ln+" "+w:w;if(c.measureText(s).width>mw&&ln){out.push(ln);ln=w}else ln=s}if(ln)out.push(ln);return out}
+function txtTex3(w,h,bg,fg,txt,px,opt){opt=opt||{};return canvasTex(w,h,c=>{c.fillStyle=bg;c.fillRect(0,0,w,h);if(opt.border){c.strokeStyle=opt.border;c.lineWidth=opt.bw||14;c.strokeRect(0,0,w,h)}
+  let size=px,L;for(;;){c.font="900 "+size+"px 'Nunito','Inter',system-ui,sans-serif";L=wrapL3(c,txt,w*0.86);if(L.length*size*1.18<=h*0.84||size<14)break;size-=2}
+  c.fillStyle=fg;c.textAlign="center";c.textBaseline="middle";const y0=h/2-(L.length-1)*size*0.59;L.forEach((l,i)=>c.fillText(l,w/2,y0+i*size*1.18));if(opt.tag){c.font="900 "+Math.round(px*0.55)+"px system-ui";c.textAlign="left";c.fillStyle=opt.tagCol||fg;c.fillText(opt.tag,18,30)}})}
+function fitW(M,pos,look,needW){const P=new THREE.Vector3(...pos),L=new THREE.Vector3(...look);const dir=P.clone().sub(L);const d0=dir.length();const hf=Math.atan(Math.tan(M.cam.fov*Math.PI/360)*M.cam.aspect);const d=Math.max(d0,needW/2/Math.tan(hf));
+  M.cam.position.copy(L.clone().add(dir.normalize().multiplyScalar(d)));M.cam.lookAt(L);M.cam.updateMatrixWorld(true)}
+const isTall=M=>M.cam.aspect<0.85;
+function partOf(G,x,y,objs,key){const h=pick3(G,x,y,objs);if(!h)return null;let o=h.object;while(o&&o.userData[key]==null)o=o.parent;return o?o.userData[key]:null}
+
+/* ---- 1. Quiz da cidadania na sala de aula ---- */
+function MG_QUIZ3(title,qs){const Q=qs.map(shuffleQ);return{title:title||"Quiz da cidadania",time:Math.max(60,Q.length*22),icon:(c,x,y,s)=>emo(c,"🎓",x,y,s),
+  help:["A professora escreve a pergunta no quadro.","Toque na plaquinha com a resposta certa. Acerte "+Math.ceil(Q.length*0.6)+" de "+Q.length+"!"],
+  init(G){G.i=0;G.lock=0;G.ans=[]},hud:G=>"Pergunta "+Math.min(G.i+1,Q.length)+"/"+Q.length+" · Acertos "+G.good,layout(G){G.buttons=[]},
+  down(G,x,y){if(!G.M||G.lock>0||G.i>=Q.length)return;const k=partOf(G,x,y,G.plates.filter(p=>p.m.visible).map(p=>p.m),"ans");if(k==null)return;const q=Q[G.i];G.lock=1.3;G.pickK=k;
+    if(k===q.a){G.good++;sfx("coin");vib&&vib(20);G.float("Certo!",x,y-30,"#7CFC9A");G.fx.spawn(G.plates[k].m.position.clone(),0x7CFC9A,18,4)}else{G.bad++;G.say("A certa era: "+q.o[q.a]);vib&&vib([30,40,30])}
+    G.plates.forEach((p,j)=>p.m.children[0].material[4].color.set(j===q.a?0x9cf0a8:j===k?0xff9a8f:0xffffff))},
+  update(G,dt){if(G.lock>0){G.lock-=dt;if(G.lock<=0){G.i++;if(G.i>=Q.length)return G.finish();G.newQ()}}},
+  draw(G,c,t3){if(!t3)return;hint3(G,c,"Toque na resposta certa")},
+  win:G=>G.good>=Math.ceil(Q.length*0.6),
+  three:{init(G,M){G.M=M;G.fx=fx3(M);room3d(M,{bg:0xf3e6c8,cam:[0,3.6,9.5],look:[0,2.6,-2],floor:0xb98a5a,fov:46});
+      const wall=new THREE.Mesh(new THREE.PlaneGeometry(40,14),lam(0xf6e7b8));wall.position.set(0,6,-4.2);M.scene.add(wall);
+      const fr=new THREE.Mesh(new THREE.BoxGeometry(9.2,3.2,0.2),lam(0x8a5a2c));fr.position.set(0,4.6,-4.05);M.scene.add(fr);
+      G.board=new THREE.Mesh(new THREE.PlaneGeometry(8.8,2.8),new THREE.MeshBasicMaterial({color:0xffffff}));G.board.position.set(0,4.6,-3.93);M.scene.add(G.board);
+      const tall=isTall(M);if(tall){G.board.geometry.dispose();G.board.geometry=new THREE.PlaneGeometry(5.6,3);fr.scale.set(6/9.2,3.4/3.2,1);G.board.position.y=fr.position.y=5.4}
+      G.plates=[0,1,2,3].map(j=>{const m=new THREE.Group();m.userData.ans=j;const mats=[lam(0xF57E20),lam(0xF57E20),lam(0xF57E20),lam(0xF57E20),new THREE.MeshLambertMaterial({color:0xffffff}),lam(0xF57E20)];
+        const b=new THREE.Mesh(new THREE.BoxGeometry(4.1,1.15,0.18),mats);b.castShadow=!lowQ;m.add(b);if(tall)m.position.set(0,3.35-j*1.3,-3.4);else m.position.set(j%2?2.2:-2.2,j<2?2.35:1.0,-3.4);m.userData.home=m.position.clone();M.scene.add(m);return{m,b}});
+      const t=npc3(M,3);t.position.set(-5.6,0,-2.6);t.rotation.y=0.5;G.teacher=t;
+      for(const x of[-3.5,3.5])prop3(M,"furniture/desk.glb",x,0,3.2,{h:1.1});prop3(M,"furniture/bookcaseOpen.glb",6.2,0,-3.5,{h:3});prop3(M,"furniture/pottedPlant.glb",-7,0,-3.2,{h:1.4});
+      G.newQ=()=>{const q=Q[G.i];G.board.material.map&&G.board.material.map.dispose();G.board.material.map=txtTex3(tall?700:1100,tall?380:350,"#1f4a34","#fdfcf4",q.q,58,{tag:"Pergunta "+(G.i+1)+" de "+Q.length,tagCol:"#ffd23f"});G.board.material.needsUpdate=true;
+        G.plates.forEach((p,j)=>{const mt=p.b.material[4];mt.map&&mt.map.dispose();const has=j<q.o.length;p.m.visible=has;if(!has)return;mt.map=txtTex3(512,144,"#ffffff","#0A2240",q.o[j],44,{border:"#F57E20",bw:10});mt.color.set(0xffffff);mt.needsUpdate=true;p.m.position.copy(p.m.userData.home);p.m.scale.setScalar(0.01)})};G.newQ();
+      if(tall)fitW(M,[0,3.4,9],[0,3.2,-3.4],6.4);else{M.cam.fov=34;M.cam.updateProjectionMatrix();fitW(M,[0,3.8,9.5],[0,3.1,-3],10.5)}},
+    update(G,M,dt){G.fx.update(dt);const q=Q[Math.min(G.i,Q.length-1)];G.plates.forEach((p,j)=>{const s=p.m.scale.x;if(s<1&&!(G.lock>0))p.m.scale.setScalar(Math.min(1,s+dt*4));
+        if(G.lock>0&&j===G.pickK){if(j===q.a){p.m.position.z=-3.4+Math.sin((1.3-G.lock)*6)*0.25}else p.m.position.x=p.m.userData.home.x+Math.sin(G.t*50)*0.08*G.lock}});
+      animTo(G.teacher,G.lock>0&&G.pickK===q.a?/cheer|wave|interact/i:/idle/i)}}}}
+
+/* ---- 2. Separar o lixo nas lixeiras coloridas ---- */
+const LIXO3={"Papel":0x2f6fae,"Plástico":0xe2483d,"Metal":0xd9a400,"Vidro":0x319B27,"Orgânico":0x7a4b2a};
+const LIXO_E={"Jornal velho":"📰","Caixa de papelão":"📦","Garrafa PET":"🧴","Sacolinha plástica":"🛍️","Lata de refrigerante":"🥫","Tampinha de metal":"🔩","Pote de vidro":"🫙","Garrafa de vidro":"🍾","Casca de banana":"🍌","Resto de comida":"🍗","Borra de café":"☕"};
+function MG_LIXO3(){const items=pick(TRASH,8);return{title:"Separar o lixo da rua",time:60,icon:(c,x,y,s)=>emo(c,"♻️",x,y,s),
+  help:["O lixo vem pela esteira, um de cada vez.","Toque na lixeira da cor certa: azul papel, vermelha plástico, amarela metal, verde vidro e marrom orgânico. Acerte 6 de 8!"],
+  init(G){G.i=0;G.fly=null},hud:G=>"Lixo "+Math.min(G.i+1,items.length)+"/"+items.length+" · Certos "+G.good,layout(G){G.buttons=[]},
+  down(G,x,y){if(!G.M||G.fly||G.i>=items.length)return;const b=partOf(G,x,y,G.bins.map(b=>b.m),"bin");if(b==null)return;const [name,ok]=items[G.i];const right=BINK[b]===ok;
+    G.fly={to:G.bins[b],t:0,right};if(right){G.good++;sfx("coin");vib&&vib(15);G.float("Isso!",x,y-40,"#7CFC9A")}else{G.bad++;G.say(name+" vai no "+ok.toLowerCase());vib&&vib([30,40,30])}},
+  update(G,dt){if(G.i>=items.length&&!G.fly)G.finish()},
+  draw(G,c,t3){if(!t3)return;if(G.i<items.length){const [n]=items[G.i];card3(G,c,[n],58+Math.min(40,G.H*0.05))}G.font(12,900);if(G.labels)for(const L of G.labels)G.text(L.t,L.x,L.y,"#fff");hint3(G,c,"Toque na lixeira certa")},
+  win:G=>G.good>=6,
+  three:{init(G,M){G.M=M;G.fx=fx3(M);G.tall=isTall(M);room3d(M,{bg:0x9fd4f5,cam:[0,7.5,9],look:[0,0.8,-0.5],floor:0x8a8f96,fov:46});
+      const grass=new THREE.Mesh(new THREE.PlaneGeometry(60,10),lam(0x5aa84a));grass.rotation.x=-Math.PI/2;grass.position.set(0,0.01,-8);M.scene.add(grass);
+      for(const x of[-9,-5,5,9])prop3(M,"nature/tree_default.glb",x,0,-9,{h:5});
+      const belt=new THREE.Mesh(new THREE.BoxGeometry(12,0.5,1.6),lam(0x2a2e40));belt.position.set(-3,0.9,2.2);M.scene.add(belt);
+      G.bins=BINK.map((k,j)=>{const m=new THREE.Group();m.userData.bin=j;const col=LIXO3[k];const body=new THREE.Mesh(new THREE.CylinderGeometry(0.75,0.62,1.8,14),metal(col));body.position.y=0.9;body.castShadow=!lowQ;m.add(body);
+        const lid=new THREE.Mesh(new THREE.CylinderGeometry(0.82,0.82,0.18,14),metal(new THREE.Color(col).multiplyScalar(0.75)));lid.position.y=1.9;m.add(lid);m.userData.lid=lid;
+        const lab=new THREE.Mesh(new THREE.PlaneGeometry(1.15,0.42),new THREE.MeshBasicMaterial({map:txtTex3(256,92,"#ffffff","#"+new THREE.Color(col).getHexString(),k,40)}));lab.position.set(0,1.05,0.74);m.add(lab);
+        if(G.tall)m.position.set(j<3?-2.6+j*2.6:-1.3+(j-3)*2.6,0,j<3?-2.2:0.4);else m.position.set(-5+j*2.5,0,-1.4);M.scene.add(m);return{m,lid}});
+      if(G.tall){belt.position.set(-2,0.9,3);belt.scale.x=0.75;fitW(M,[0,9,9],[0,0.6,0.4],8.4)}else fitW(M,[0,7.5,9],[0,0.8,-0.5],13.5);
+      G.item=null;G.spawnItem=()=>{if(G.item)M.scene.remove(G.item);if(G.i>=items.length)return;const [n]=items[G.i];const e=LIXO_E[n]||"🗑️";
+        const tex=canvasTex(128,128,c=>{c.font="100px system-ui,'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji'";c.textAlign="center";c.textBaseline="middle";c.fillText(e,64,70)});
+        G.item=new THREE.Sprite(new THREE.SpriteMaterial({map:tex}));G.item.scale.set(1.6,1.6,1);G.item.position.set(-9,1.9,G.tall?3:2.2);M.scene.add(G.item)};G.spawnItem()},
+    update(G,M,dt){G.fx.update(dt);if(G.item&&!G.fly){G.item.position.x=Math.min(G.tall?0.6:1.5,G.item.position.x+dt*9);G.item.position.y=1.9+Math.sin(G.t*6)*0.08}
+      if(G.fly&&G.item){const f=G.fly;f.t+=dt*2.2;const a=G.item.position,b=f.to.m.position;a.x+=(b.x-a.x)*Math.min(1,dt*7);a.z+=(b.z-a.z)*Math.min(1,dt*7);a.y=2.1+Math.sin(Math.min(1,f.t)*Math.PI)*1.8-(f.t>0.8?(f.t-0.8)*4:0);f.to.lid.rotation.x=-Math.min(1.2,f.t*2);
+        if(f.t>=1.15){f.to.lid.rotation.x=0;G.fx.spawn(new THREE.Vector3(b.x,2,b.z),f.right?0x7CFC9A:0xff6b5e,12,3);G.fly=null;G.i++;G.spawnItem()}}
+      G.labels=null}}}}
+let BINK=Object.keys(LIXO3);
+
+/* ---- 3. Pênalti no campo do Socity ---- */
+function MG_PENALTI(){return{title:"Socity: cobrança de pênalti",time:60,icon:(c,x,y,s)=>emo(c,"⚽",x,y,s),
+  help:["Toque no lugar do gol onde você quer chutar.","O goleiro tenta adivinhar! Cantinhos são mais difíceis de pegar. Faça 3 gols em 5 chutes."],
+  init(G){G.kick=0;G.st="mirar";G.res=[]},hud:G=>"Chute "+Math.min(G.kick+1,5)+"/5 · Gols "+G.good,layout(G){G.buttons=[]},
+  down(G,x,y){if(!G.M||G.st!=="mirar")return;const p=rayPlane(G,x,y,G.goalPlane);if(!p)return;const tx=Math.max(-4.2,Math.min(4.2,p.x)),ty=Math.max(0.25,Math.min(2.9,p.y));
+    G.st="chute";G.tt=0;G.tgt=new THREE.Vector3(tx,ty,-12);G.inGoal=Math.abs(p.x)<3.55&&p.y<2.4&&p.y>0;sfx("tap");vib&&vib(25);
+    const corner=Math.abs(tx)/3.6;const guess=Math.random()<0.5?Math.sign(tx||1):(Math.random()<0.5?-1:1)*(Math.random()<0.3?0:1);G.dive=guess;G.keeperReach=guess===0?Math.abs(tx)<1.1:Math.sign(tx)===guess&&(corner<0.72||(ty<1.2&&corner<0.85)||Math.random()<0.15)},
+  update(G,dt){if(G.st==="fim"){G.wait-=dt;if(G.wait<=0){G.kick++;if(G.kick>=5)return G.finish();G.st="mirar";G.resetBall()}}},
+  draw(G,c,t3){if(!t3)return;G.font(22,900);for(let i=0;i<5;i++){const r=G.res[i];const x=G.W/2-60+i*30,y=62+Math.min(40,G.H*0.05);c.fillStyle=r==null?"rgba(255,255,255,.5)":r?"#319B27":"#e2483d";c.beginPath();c.arc(x,y,10,0,7);c.fill();c.strokeStyle="#0A2240";c.lineWidth=2;c.stroke()}
+    hint3(G,c,G.st==="mirar"?"Toque no gol onde quer chutar":"...")},
+  win:G=>G.good>=3,
+  three:{init(G,M){G.M=M;G.fx=fx3(M);room3d(M,{bg:0x8fd0f5,cam:[0,2.6,7.5],look:[0,1.3,-12],floor:0x3f9a3c,fov:50});
+      for(let z=-14;z<12;z+=2){const s=new THREE.Mesh(new THREE.PlaneGeometry(40,1),lam(0x48a845));s.rotation.x=-Math.PI/2;s.position.set(0,0.012,z);M.scene.add(s)}
+      const line=(w,d,x,z)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshBasicMaterial({color:0xffffff}));m.rotation.x=-Math.PI/2;m.position.set(x,0.02,z);M.scene.add(m)};line(16,0.12,0,-12);line(0.12,5,-8,-9.5);line(0.12,5,8,-9.5);line(16,0.12,0,-7);
+      const spot=new THREE.Mesh(new THREE.CircleGeometry(0.15,12),new THREE.MeshBasicMaterial({color:0xffffff}));spot.rotation.x=-Math.PI/2;spot.position.set(0,0.025,0);M.scene.add(spot);
+      const wm=lam(0xffffff);const post=(x)=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,2.45,10),wm);p.position.set(x,1.22,-12);M.scene.add(p)};post(-3.66);post(3.66);const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,7.4,10),wm);bar.rotation.z=Math.PI/2;bar.position.set(0,2.44,-12);M.scene.add(bar);
+      const net=new THREE.Mesh(new THREE.PlaneGeometry(7.3,2.4),new THREE.MeshBasicMaterial({map:canvasTex(256,96,c=>{c.strokeStyle="rgba(255,255,255,.75)";c.lineWidth=2;for(let x=0;x<=256;x+=12){c.beginPath();c.moveTo(x,0);c.lineTo(x,96);c.stroke()}for(let y=0;y<=96;y+=12){c.beginPath();c.moveTo(0,y);c.lineTo(256,y);c.stroke()}}),transparent:true}));net.position.set(0,1.2,-13.4);M.scene.add(net);
+      G.goalPlane=new THREE.Plane(new THREE.Vector3(0,0,1),12);
+      for(let i=0;i<9;i++){const n=npc3(M,i+5);n.position.set(-12+i*3,0,-17-(i%2));n.scale.setScalar(0.9)}
+      G.keeper=npc3(M,2);G.keeper.position.set(0,0,-11.6);G.keeper.scale.setScalar(1.25);
+      G.ball=new THREE.Mesh(new THREE.IcosahedronGeometry(0.22,1),new THREE.MeshToonMaterial({map:canvasTex(64,64,c=>{c.fillStyle="#fff";c.fillRect(0,0,64,64);c.fillStyle="#111";for(const [x,y] of[[16,16],[48,20],[30,44],[56,52],[6,50]]){c.beginPath();c.arc(x,y,7,0,7);c.fill()}}),gradientMap:TOONG}));G.ball.castShadow=!lowQ;M.scene.add(G.ball);
+      if(!isTall(M)){M.cam.fov=32;M.cam.updateProjectionMatrix();fitW(M,[0,1.5,5.2],[0,0.5,-12],9)}else fitW(M,[0,2.6,7.5],[0,1.3,-12],8.6);G.resetBall=()=>{G.ball.position.set(0,0.22,0);G.keeper.position.set(0,0,-11.6);G.keeper.rotation.set(0,0,0);G.dive=0};G.resetBall()},
+    update(G,M,dt){G.fx.update(dt);const kp=G.keeper;
+      if(G.st==="mirar"){kp.position.x=Math.sin(G.t*2.2)*0.6;animTo(kp,/idle/i)}
+      if(G.st==="chute"){G.tt+=dt*1.6;const t=Math.min(1,G.tt);const s=new THREE.Vector3(0,0.22,0);G.ball.position.lerpVectors(s,G.tgt,t);G.ball.position.y+=Math.sin(t*Math.PI)*0.6;G.ball.rotation.x-=dt*20;
+        if(G.tt>0.15){const d=Math.min(1,(G.tt-0.15)*3);const reach=G.keeperReach?G.tgt.x:G.dive*2.6;kp.position.x=reach*d;kp.rotation.z=-G.dive*d*1.1;kp.position.y=(G.dive?0.5:0)*Math.sin(d*Math.PI)}
+        if(t>=1){const goal=G.inGoal&&!G.keeperReach;G.res[G.kick]=goal;if(goal){G.good++;sfx("win");vib&&vib([20,30,60]);G.say("GOOOOL!");G.fx.spawn(G.ball.position.clone(),0xffd23f,30,5);G.ball.position.z=-13.2}else{G.bad++;sfx("err");G.say(G.inGoal?"O goleiro pegou!":"Pra fora!");if(G.keeperReach)G.ball.position.z=-10.5}G.st="fim";G.wait=1.5}}
+      if(G.st==="fim"){if(G.res[G.kick])animTo(kp,/idle/i);G.ball.position.y=Math.max(0.22,G.ball.position.y-dt*2)}}}}}
+
+/* ---- 4. Horta da creche: plantar, regar e colher ---- */
+function MG_HORTA(){const N=9;return{title:"Horta da creche",time:70,icon:(c,x,y,s)=>emo(c,"🥕",x,y,s),
+  help:["Toque na terra para plantar a semente. Depois toque de novo para regar quando aparecer a gotinha.","Quando a planta ficar madura, toque para colher! Não deixe secar. Colha 10 para ganhar."],
+  init(G){G.beds=[];for(let i=0;i<N;i++)G.beds.push({st:0,g:0,dry:0})},hud:G=>"Colhidas "+G.good+"/10 · Secaram "+G.bad,layout(G){G.buttons=[]},
+  down(G,x,y){if(!G.M)return;const i=partOf(G,x,y,G.bm,"bed");if(i==null)return;const b=G.beds[i];
+    if(b.st===0){b.st=1;b.g=0;b.dry=5;sfx("tap");G.fx.spawn(G.bm[i].position.clone().setY(0.5),0x7a4b2a,8,2)}
+    else if(b.st===1&&b.thirst){b.thirst=0;b.dry=6;sfx("tap");vib&&vib(10);G.fx.spawn(G.bm[i].position.clone().setY(1),0x5ab4ff,14,2.5)}
+    else if(b.st===2){b.st=0;G.good++;sfx("coin");vib&&vib(20);const p=scr3(G,G.M,G.bm[i].position.clone().setY(1));G.float("+1",p.x,p.y,"#7CFC9A");G.fx.spawn(G.bm[i].position.clone().setY(1),0xF57E20,14,3);if(G.good>=10)G.finish()}},
+  update(G,dt){for(const b of G.beds){if(b.st!==1)continue;if(!b.thirst){b.g+=dt/6;if(b.g>=1){b.st=2;b.g=1}else if(Math.random()<dt*0.35)b.thirst=1}else{b.dry-=dt;if(b.dry<=0){b.st=0;b.thirst=0;G.bad++;G.say("Uma planta secou! Regue quando aparecer a gota.")}}}},
+  draw(G,c,t3){if(!t3)return;if(G.M)G.beds.forEach((b,i)=>{if(b.st===1&&b.thirst){const p=scr3(G,G.M,G.bm[i].position.clone().setY(1.7));emo(c,"💧",p.x,p.y+Math.sin(G.t*8)*4,0.34)}});hint3(G,c,"Plante · regue a gotinha · colha o que estiver maduro")},
+  win:G=>G.good>=10,
+  three:{init(G,M){G.M=M;G.fx=fx3(M);room3d(M,{bg:0xa8dcf7,cam:[0,8.5,7.8],look:[0,0,-0.6],floor:0x6cb85a,fov:46});
+      const fence=(x,z,r)=>prop3(M,"survival/fence.glb",x,0,z,{h:1.1},r);for(let x=-6;x<=6;x+=2)fence(x,-5,0);
+      prop3(M,"nature/tree_oak.glb",-7.5,0,-4,{h:5});prop3(M,"nature/tree_fat.glb",7.5,0,-4.5,{h:4.5});prop3(M,"survival/bucket.glb",5.5,0,2.6,{h:0.7});prop3(M,"survival/tool-shovel.glb",-5.6,0,2.6,{h:1.4},0.4);
+      fitW(M,[0,8.5,7.8],[0,0,-0.6],10.5);G.bm=[];G.pl=[];for(let i=0;i<N;i++){const x=(i%3-1)*3.2,z=(Math.floor(i/3)-1)*2.6;const g=new THREE.Group();g.userData.bed=i;g.position.set(x,0,z);
+        const box=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.4,1.9),lam(0x8a5a2c));box.position.y=0.2;g.add(box);const soil=new THREE.Mesh(new THREE.BoxGeometry(2.3,0.12,1.6),lam(0x4a2e1a));soil.position.y=0.42;g.add(soil);g.userData.soil=soil;
+        const plant=new THREE.Group();plant.position.y=0.45;g.add(plant);const stem=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.2,7),lam(0x3f9a3c));stem.position.y=0.6;plant.add(stem);const fruit=new THREE.Mesh(new THREE.SphereGeometry(0.28,10,8),lam(0xF57E20));fruit.position.set(0.3,0.5,0.25);plant.add(fruit);const f2=fruit.clone();f2.position.set(-0.32,0.7,-0.1);plant.add(f2);plant.userData.fr=[fruit,f2];
+        M.scene.add(g);G.bm.push(g);G.pl.push(plant)}},
+    update(G,M,dt){G.fx.update(dt);G.beds.forEach((b,i)=>{const p=G.pl[i];const s=b.st===0?0.001:0.25+b.g*0.75;p.scale.setScalar(p.scale.x+(s-p.scale.x)*Math.min(1,dt*6));p.userData.fr.forEach(f=>f.visible=b.st===2);
+      p.rotation.z=b.st===2?Math.sin(G.t*4+i)*0.08:0;G.bm[i].userData.soil.material.color.set(b.thirst?0x8a6a4a:0x4a2e1a);if(b.st===1&&b.thirst)p.rotation.z=0.25})}}}}
+
+/* ---- 5. Pintar a parede do posto de saúde ---- */
+function MG_PINTA(){const GW=24,GH=12;return{title:"Pintar a parede da UBS",time:55,icon:(c,x,y,s)=>emo(c,"🖌️",x,y,s),
+  help:["Arraste o rolo de tinta na parede para pintar tudo.","Cuidado para não pingar no chão da janela! Pinte 90% para ganhar."],
+  init(G){G.cov=new Uint8Array(GW*GH);G.pct=0},hud:G=>"Pintado "+Math.round(G.pct*100)+"%",layout(G){G.buttons=[]},
+  down(G,x,y){this.move(G,x,y)},move(G,x,y){if(!G.M)return;const p=rayPlane(G,x,y,G.wp);if(!p)return;G.roller.position.set(p.x,p.y,-2.7);G.paint(p.x,p.y)},
+  update(G,dt){if(G.pct>=0.9)G.finish()},
+  draw(G,c,t3){if(!t3)return;const w=Math.min(260,G.W-60);c.fillStyle="rgba(10,34,64,.7)";RR(c,G.W/2-w/2,G.H-64,w,16,8);c.fill();c.fillStyle="#7CFC9A";RR(c,G.W/2-w/2,G.H-64,w*Math.min(1,G.pct/0.9),16,8);c.fill();hint3(G,c,"Arraste o rolo na parede")},
+  win:G=>G.pct>=0.9,
+  three:{init(G,M){G.M=M;G.fx=fx3(M);room3d(M,{bg:0xbfe3ff,cam:[0,2.6,7],look:[0,2.4,-3],floor:0x9a9a9a,fov:50});
+      const W=9,H=4.5;G.wp=new THREE.Plane(new THREE.Vector3(0,0,1),2.85);
+      const cv=document.createElement("canvas");cv.width=512;cv.height=256;const cx=cv.getContext("2d");cx.fillStyle="#b9b2a2";cx.fillRect(0,0,512,256);cx.fillStyle="#8a8270";for(let i=0;i<40;i++){cx.globalAlpha=0.4;cx.fillRect(Math.random()*512,Math.random()*256,20+Math.random()*60,4+Math.random()*10)}cx.globalAlpha=1;
+      const tex=new THREE.CanvasTexture(cv);const wall=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshLambertMaterial({map:tex}));wall.position.set(0,0.4+H/2,-2.85);M.scene.add(wall);
+      const trim=new THREE.Mesh(new THREE.BoxGeometry(W+0.4,0.3,0.3),lam(0x008CE3));trim.position.set(0,0.4+H+0.1,-2.8);M.scene.add(trim);const base=new THREE.Mesh(new THREE.BoxGeometry(W+0.4,0.4,0.3),lam(0x008CE3));base.position.set(0,0.2,-2.8);M.scene.add(base);
+      const sign=new THREE.Mesh(new THREE.PlaneGeometry(4,0.8),new THREE.MeshBasicMaterial({map:txtTex3(512,100,"#ffffff","#008CE3","UBS JARDIM LOS ANGELES",44)}));sign.position.set(0,5.6,-2.86);M.scene.add(sign);
+      prop3(M,"survival/bucket.glb",-3.5,0,-1.4,{h:0.7,color:0x319B27});prop3(M,"roads/construction-cone.glb",4,0,-1.5,{h:0.9});prop3(M,"nature/plant_bush.glb",-5.4,0,-2.4,{h:1.2});
+      fitW(M,[0,2.6,7],[0,2.4,-3],10);G.roller=new THREE.Group();const rl=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,1.1,14),lam(0x319B27));rl.rotation.z=Math.PI/2;G.roller.add(rl);const hd=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.4,6),lam(0xF57E20));hd.position.set(0,-0.75,0.2);hd.rotation.x=0.3;G.roller.add(hd);G.roller.position.set(0,2.4,-2.7);M.scene.add(G.roller);
+      const x0=-W/2,y0=0.4;G.paint=(px,py)=>{const u=(px-x0)/W,v=1-(py-y0)/H;if(u<0||u>1||v<0||v>1)return;cx.fillStyle="#9fe3b0";cx.beginPath();cx.ellipse(u*512,v*256,34,22,0,0,7);cx.fill();tex.needsUpdate=true;
+        const gx=Math.floor(u*GW),gy=Math.floor(v*GH);let n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=gx+dx,Y=gy+dy;if(X>=0&&Y>=0&&X<GW&&Y<GH&&(Math.abs(dx)+Math.abs(dy)<2)&&!G.cov[Y*GW+X]){G.cov[Y*GW+X]=1;n++}}if(n){G.pct=G.cov.reduce((a,b)=>a+b,0)/(GW*GH);if(Math.random()<0.3)G.fx.spawn(new THREE.Vector3(px,py,-2.6),0x9fe3b0,3,1)}}},
+    update(G,M,dt){G.fx.update(dt);G.roller.children[0].rotation.x+=dt*4}}}}
+
+/* ---- trocar os jogos de tela (2D) pelos 3D e registrar os novos ---- */
+gameQuiz=function(title,qs,cb){miniGame(MG_QUIZ3(title,qs),ok=>cb(!!ok))};
+gameSort=function(title,intro,cb){miniGame(MG_LIXO3(),ok=>cb(!!ok))};
+gameOrder=function(title,intro,pool,cb){miniGame(MG_MEMO("mercado"),ok=>cb(!!ok))};
+gameTiming=function(title,intro,cb){miniGame(MG_CHAPA(),ok=>cb(!!ok))};
+Object.assign(MINIS,{penalti:()=>MG_PENALTI(),horta:()=>MG_HORTA(),pinta:()=>MG_PINTA(),lixo3:()=>MG_LIXO3()});
+Object.assign(GAME_LABEL,{penalti:"Cobrar pênaltis",horta:"Cuidar da horta",pinta:"Pintar a parede",lixo3:"Separar o lixo"});
+Object.assign(JOB_ROT,{campo:["penalti","colete:bolas"],creche:["horta","colete:brinquedos"],ubs:["limpa","pinta"]});
 
 /* ============ boot ============ */
 (async function boot(){

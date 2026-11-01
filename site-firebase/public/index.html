@@ -24,15 +24,22 @@ a{color:#ffd23f}
 <body>
 <div class="c"><div class="b"></div><div id="m">Carregando o bairro...</div></div>
 <script>
-/* Este endereço curto busca sempre a versão mais nova do jogo, publicada no GitHub da Associação.
-   Assim, cada atualização do jogo aparece aqui sozinha, sem precisar publicar de novo. */
+/* Este endereço curto abre o jogo publicado no GitHub da Associação.
+   Primeira vez: baixa o jogo e guarda no celular. Das próximas vezes abre na hora com o que está guardado,
+   e o service worker baixa a versão nova em segundo plano (ela aparece na próxima vez que abrir). */
 window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__bip=e});
-if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(function(){});
 (function(){
-  var SRC="https://associacaojardimlosangeles-create.github.io/jla-bairro-em-jogo/";
-  fetch(SRC+"?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()})
-  .then(function(h){document.open();document.write(h);document.close()})
-  .catch(function(){document.getElementById("m").innerHTML='Não deu para carregar agora. Confira a internet e <a href="">tente de novo</a>.'});
+  var SRC="https://associacaojardimlosangeles-create.github.io/jla-bairro-em-jogo/",KEY="/__jogo.html",CACHE="jogo-v1";
+  function show(h){document.open();document.write(h);document.close()}
+  function erro(){document.getElementById("m").innerHTML='Não deu para carregar agora. Confira a internet e <a href="">tente de novo</a>.'}
+  function baixar(){return fetch(SRC+"?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()})}
+  function avisarSW(){try{navigator.serviceWorker.ready.then(function(reg){if(reg.active)reg.active.postMessage({tipo:"atualizar",src:SRC,key:KEY,cache:CACHE})})}catch(e){}}
+  if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(function(){});
+  if(!("caches" in window)){baixar().then(show).catch(erro);return}
+  caches.open(CACHE).then(function(c){return c.match(KEY).then(function(m){
+    if(m)return m.text().then(function(h){if(navigator.onLine!==false)avisarSW();setTimeout(function(){show(h)},30)});
+    return baixar().then(function(h){return c.put(KEY,new Response(h,{headers:{"Content-Type":"text/html; charset=utf-8"}})).catch(function(){}).then(function(){show(h)})})})})
+  .catch(function(){baixar().then(show).catch(erro)});
 })();
 </script>
 </body>
