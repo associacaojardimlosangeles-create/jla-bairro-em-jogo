@@ -5417,6 +5417,77 @@ Object.assign(MINIS,{penalti:()=>MG_PENALTI(),horta:()=>MG_HORTA(),pinta:()=>MG_
 Object.assign(GAME_LABEL,{penalti:"Cobrar pênaltis",horta:"Cuidar da horta",pinta:"Pintar a parede",lixo3:"Separar o lixo"});
 Object.assign(JOB_ROT,{campo:["penalti","colete:bolas"],creche:["horta","colete:brinquedos"],ubs:["limpa","pinta"]});
 
+/* ============ cargas por bairro (mais bairros, mais caixas) e limpeza da UBS com rodo de verdade ============ */
+DESTS.push(["Nova Rússia","#8e44ad"],["Boa Vista","#F57E20"],["Contorno","#d9a400"]);
+function MG_CARGAS2(){const N=24,META=18;return{title:"Logística: separar as cargas",time:80,icon:(c,x,y,s)=>emo(c,"📦",x,y,s),
+  help:["As caixas vêm pela esteira com a cor e o nome do bairro.","Toque no caminhão do bairro certo: ele leva a caixa da frente. Elas vão ficando mais rápidas! Acerte "+META+" de "+N+"."],
+  init(G){G.boxes=[];G.n=0;G.spawn=0.4;G.fly=[]},hud:G=>"Certas "+G.good+"/"+META+" · Erros "+G.bad,layout(G){G.buttons=[]},
+  down(G,x,y){if(!G.M)return;const k=partOf(G,x,y,G.trucks.map(t=>t.g),"truck");if(k==null)return;const live=G.boxes.filter(b=>!b.out);if(!live.length)return;const b=live.reduce((a,c)=>c.x>a.x?c:a);b.out=1;
+    const ok=b.d===k;if(ok){G.good++;sfx("coin");vib&&vib(15);G.float("Certo!",x,y-30,"#7CFC9A")}else{G.bad++;G.say("Essa ia para "+DESTS[b.d][0]+"!");vib&&vib([30,40,30])}
+    G.fly.push({b,to:G.trucks[k].g.position.clone().add(new THREE.Vector3(0,1.6,1.2)),t:0,ok});G.trucks[k].bump=0.3},
+  update(G,dt){const tall=G.tall;G.spawn-=dt;if(G.spawn<=0&&G.n<N){G.n++;G.spawn=Math.max(0.6,1.35-G.n*0.035);G.boxes.push({d:Math.floor(Math.random()*DESTS.length),x:-G.span,out:0})}
+    const spd=1.9+G.n*0.09;for(const b of G.boxes){if(b.out)continue;b.x+=spd*dt;if(b.x>G.span){b.out=2;G.bad++;G.say("Uma caixa caiu da esteira!")}}
+    for(let i=0;i<G.boxes.length;i++){const a=G.boxes[i];if(a.out)continue;for(let j=0;j<G.boxes.length;j++){const c=G.boxes[j];if(c!==a&&!c.out&&c.x>a.x&&c.x-a.x<1.35)a.x=c.x-1.35}}
+    if(G.n>=N&&G.boxes.every(b=>b.out)&&!G.fly.length)G.finish()},
+  draw(G,c,t3){if(!t3)return;if(G.M&&G.trucks)G.trucks.forEach((t,k)=>{const p=scr3(G,G.M,t.g.position.clone().add(new THREE.Vector3(0,3.1,0)));const [n,col]=DESTS[k];G.font(12,900);const w=Math.max(64,c.measureText(n).width+18);c.fillStyle=col;RR(c,p.x-w/2,p.y-12,w,22,11);c.fill();c.strokeStyle="#fff";c.lineWidth=2;c.stroke();G.text(n,p.x,p.y+3.5,"#fff")});hint3(G,c,"Toque no caminhão do bairro da caixa da frente")},
+  win:G=>G.good>=META,
+  three:{init(G,M){G.M=M;G.fx=fx3(M);G.tall=isTall(M);G.span=G.tall?4.6:8.8;room3d(M,{bg:0xcfd6de,cam:[0,9,10],look:[0,0.6,-1.8],floor:0x9aa1a8,fov:46});
+      const wall=new THREE.Mesh(new THREE.PlaneGeometry(44,18),new THREE.MeshLambertMaterial({map:wallTex(["#e4e9ef","#b9c3cd"],"CENTRO DE DISTRIBUIÇÃO","cada caixa no caminhão do seu bairro")}));wall.position.set(0,6.5,-12);M.scene.add(wall);
+      const belt=new THREE.Mesh(new THREE.BoxGeometry(G.span*2+2,0.3,1.8),lam(0x3a3f55));belt.position.set(0,1.0,2.2);M.scene.add(belt);G.rollers=[];
+      for(let x=-G.span-1;x<=G.span+1;x+=0.7){const r=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,1.7,8),lam(0x6f7896));r.rotation.x=Math.PI/2;r.position.set(x,1.17,2.2);M.scene.add(r);G.rollers.push(r)}
+      for(let x=-G.span;x<=G.span;x+=2.4){const l=new THREE.Mesh(new THREE.BoxGeometry(0.2,1,1.6),lam(0x555b70));l.position.set(x,0.5,2.2);M.scene.add(l)}
+      G.trucks=DESTS.map(([n,col],k)=>{const g=new THREE.Group();g.userData.truck=k;let x,z;if(G.tall){x=(k%3-1)*3.1;z=k<3?-2.6:-7.2}else{x=(k-2.5)*3.1;z=-3.4}g.position.set(x,0,z);M.scene.add(g);
+        const inner=new THREE.Group();g.add(inner);swapModel(inner,"cars/truck.glb",{length:4.2,color:0xd8d8d8,tint:col});
+        const hit=new THREE.Mesh(new THREE.BoxGeometry(2.4,2.6,4.4),new THREE.MeshBasicMaterial({visible:false}));hit.position.y=1.3;g.add(hit);
+        const pad=new THREE.Mesh(new THREE.PlaneGeometry(2.8,4.8),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.35}));pad.rotation.x=-Math.PI/2;pad.position.y=0.02;g.add(pad);return{g,bump:0}});
+      G.box3=new Map();
+      if(G.tall)fitW(M,[0,12,7],[0,0,-3.4],10.2);else fitW(M,[0,8,9],[0,0.6,-1],19.5)},
+    update(G,M,dt){G.fx.update(dt);for(const r of G.rollers)r.rotation.y+=dt*(4+G.n*0.2);
+      for(const t of G.trucks){if(t.bump>0){t.bump-=dt;t.g.position.y=Math.sin(t.bump*20)*0.08}else t.g.position.y=0}
+      for(const b of G.boxes){let m=G.box3.get(b);if(!m){const tx=new THREE.MeshLambertMaterial({map:cargoTex(b.d)}),pl=lam(0xc9955a);m=new THREE.Mesh(new THREE.BoxGeometry(1.15,0.95,1.15),[pl,pl,tx,pl,tx,pl]);m.castShadow=!lowQ;M.scene.add(m);G.box3.set(b,m)}
+        if(!b.out)m.position.set(b.x,1.65,2.2);else if(b.out===2){m.position.x+=dt*3;m.position.y-=dt*6;m.rotation.z-=dt*4;if(m.position.y<-1){M.scene.remove(m);b.gone=1}}}
+      for(const f of G.fly){f.t+=dt*2.6;const m=G.box3.get(f.b);if(!m)continue;const t=Math.min(1,f.t);const s=new THREE.Vector3(f.b.x,1.65,2.2);m.position.lerpVectors(s,f.to,t);m.position.y+=Math.sin(t*Math.PI)*2.2;m.scale.setScalar(1-t*0.35);
+        if(f.t>=1){M.scene.remove(m);f.b.gone=1;G.fx.spawn(f.to,f.ok?0x7CFC9A:0xff6b5e,10,2.5)}}
+      G.fly=G.fly.filter(f=>f.t<1);G.boxes=G.boxes.filter(b=>!(b.out&&b.gone))}}}}
+
+function MG_LIMPA3(){const META=18;return{title:"Unidade de Saúde: limpar o chão",time:60,icon:(c,x,y,s)=>emo(c,"🧽",x,y,s),
+  help:["Tem barro e café derramado no chão da UBS.","Arraste o rodo por cima das manchas até sumirem. Limpe "+META+" manchas!"],
+  init(G){G.sp=[];G.cd=0;G.last=null},hud:G=>"Limpas "+G.good+"/"+META,layout(G){G.buttons=[]},
+  down(G,x,y){G.last=null;this.move(G,x,y)},
+  move(G,x,y){if(!G.M)return;const p=G.M.toPlane(G,x,y,PLANE_Y0);p.x=Math.max(-G.ax,Math.min(G.ax,p.x));p.z=Math.max(-G.az,Math.min(G.az,p.z));G.tgt=p;
+    if(G.last){const dx=p.x-G.last.x,dz=p.z-G.last.z,L=Math.hypot(dx,dz);if(L>0.04){G.dir=Math.atan2(dx,dz);const half=0.95,ux=Math.cos(G.dir),uz=-Math.sin(G.dir);
+        for(const s of G.sp){if(s.done)continue;const rx=s.x-p.x,rz=s.z-p.z;const along=rx*ux+rz*uz,perp=Math.abs(-rx*uz+rz*ux);if(Math.abs(along)<half+s.r*0.6&&perp<s.r+0.45){s.d-=L*0.55;if(s.d<=0){s.done=1;G.good++;sfx("coin");vib&&vib(12);const q=scr3(G,G.M,new THREE.Vector3(s.x,0.3,s.z));G.float("Limpo!",q.x,q.y-20,"#8fd3ff");if(G.good>=META)G.finish()}}}
+        G.wet.push({x:p.x,z:p.z,r:G.dir,t:1.2});G.last=p}}else G.last=p},
+  up(G){G.last=null},
+  update(G,dt){G.cd-=dt;if(G.cd<=0&&G.sp.filter(s=>!s.done).length<6){G.cd=0.9;let x,z,ok=0;for(let k=0;k<12&&!ok;k++){x=(Math.random()*2-1)*(G.ax-0.6);z=(Math.random()*2-1)*(G.az-0.5);ok=G.sp.every(s=>s.done||Math.hypot(s.x-x,s.z-z)>1.8)}
+      G.sp.push({x,z,r:0.55+Math.random()*0.4,d:1,k:Math.random()<0.55?0x7a5230:0x5a3a20,rot:Math.random()*6})}},
+  draw(G,c,t3){if(!t3)return;hint3(G,c,"Arraste o rodo por cima das manchas")},
+  win:G=>G.good>=META,
+  three:{init(G,M){G.M=M;G.wet=[];G.tall=isTall(M);G.ax=G.tall?3.2:6.5;G.az=G.tall?4.6:3.4;
+      room3d(M,{bg:0xdfe7ee,cam:[0,9.5,7],look:[0,0,0],floor:false,fov:46});M.scene.children.forEach(o=>{if(o.isHemisphereLight)o.intensity=0.5;if(o.isDirectionalLight)o.intensity=0.6;if(o.isAmbientLight)o.intensity=0.08});
+      const tiles=canvasTex(256,256,c=>{for(let y=0;y<4;y++)for(let x=0;x<4;x++){c.fillStyle=(x+y)%2?"#e9eff4":"#c9d6e1";c.fillRect(x*64,y*64,64,64)}c.strokeStyle="rgba(90,110,130,.45)";c.lineWidth=2;for(let i=0;i<=4;i++){c.beginPath();c.moveTo(i*64,0);c.lineTo(i*64,256);c.moveTo(0,i*64);c.lineTo(256,i*64);c.stroke()}});
+      tiles.wrapS=tiles.wrapT=THREE.RepeatWrapping;tiles.repeat.set(12,12);const floor=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.MeshLambertMaterial({map:tiles}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;M.scene.add(floor);
+      const bz=-G.az-1.4;const wall=new THREE.Mesh(new THREE.PlaneGeometry(40,8),new THREE.MeshLambertMaterial({map:wallTex(["#f4f8fb","#d6e6f2"],"UNIDADE DE SAÚDE","limpinho para atender o bairro")}));wall.position.set(0,4,bz);M.scene.add(wall);
+      const band=new THREE.Mesh(new THREE.BoxGeometry(40,0.5,0.1),lam(0x008CE3));band.position.set(0,0.6,bz+0.06);M.scene.add(band);
+      prop3(M,"skate/bench.glb",-G.ax+0.6,0,bz+0.9,{length:2.6});prop3(M,"furniture/pottedPlant.glb",G.ax-0.2,0,bz+0.7,{height:1.5});
+      
+      /* rodo: cabo de madeira, base de plástico azul e borracha preta embaixo */
+      const rodo=new THREE.Group();const base=new THREE.Mesh(new THREE.BoxGeometry(2.1,0.26,0.3),lam(0x008CE3));base.position.y=0.25;rodo.add(base);const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.13,0.18,10),lam(0x0068a8));cap.position.y=0.46;rodo.add(cap);
+      const rub=new THREE.Mesh(new THREE.BoxGeometry(2.15,0.14,0.08),lam(0x1d1d1d));rub.position.y=0.07;rodo.add(rub);
+      const stick=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,3.6,10),lam(0xc8955a));const sh=new THREE.Group();sh.position.set(0,0.5,0);sh.rotation.x=-0.75;stick.position.y=1.8;sh.add(stick);rodo.add(sh);
+      const grip=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.5,10),lam(0x0A2240));grip.position.y=3.45;sh.add(grip);
+      rodo.traverse(o=>{if(o.isMesh)o.castShadow=!lowQ});rodo.position.set(0,0,G.az*0.6);M.scene.add(rodo);G.rodo=rodo;G.dir=0;G.sp3=new Map();G.wet3=[];
+      G.stTex=canvasTex(256,256,c=>{const g=(x,y,r,a)=>{const gr=c.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,"rgba(255,255,255,"+a+")");gr.addColorStop(0.7,"rgba(255,255,255,"+a*0.85+")");gr.addColorStop(1,"rgba(255,255,255,0)");c.fillStyle=gr;c.beginPath();c.arc(x,y,r,0,7);c.fill()};g(128,128,80,0.9);for(let i=0;i<9;i++){const a=i/9*6.28+Math.random()*0.5,d=40+Math.random()*30;g(128+Math.cos(a)*d,128+Math.sin(a)*d,22+Math.random()*26,0.8)}for(let i=0;i<6;i++){const a=Math.random()*6.28,d=95+Math.random()*20;g(128+Math.cos(a)*d,128+Math.sin(a)*d,5+Math.random()*7,0.8)}});G.wetM=new THREE.MeshBasicMaterial({color:0x9fd6ff,transparent:true,opacity:0.35,depthWrite:false});G.wetG=new THREE.PlaneGeometry(1.9,0.5);
+      if(G.tall)fitW(M,[0,11,6.5],[0,0,0.2],8.2);else fitW(M,[0,9.5,7],[0,0,0],15)},
+    update(G,M,dt){for(const s of G.sp){let m=G.sp3.get(s);if(!m){m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:G.stTex,color:s.k,transparent:true,depthWrite:false}));m.rotation.x=-Math.PI/2;m.rotation.z=s.rot;m.scale.set(s.r*2.6,s.r*2.6,1);m.position.set(s.x,0.015,s.z);M.scene.add(m);G.sp3.set(s,m)}
+        m.material.opacity=Math.max(0,s.d)*0.95;if(s.done){m.scale.multiplyScalar(1-dt*3);if(m.scale.x<0.1){M.scene.remove(m);G.sp3.delete(s);s.gone=1}}}
+      G.sp=G.sp.filter(s=>!s.gone);
+      if(G.tgt){G.rodo.position.lerp(new THREE.Vector3(G.tgt.x,0,G.tgt.z),Math.min(1,dt*16));const cur=G.rodo.rotation.y;let d=G.dir-cur;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;G.rodo.rotation.y=cur+d*Math.min(1,dt*10)}
+      for(const w of G.wet){if(w.m)continue;w.m=new THREE.Mesh(G.wetG,G.wetM.clone());w.m.rotation.x=-Math.PI/2;w.m.rotation.z=w.r;w.m.position.set(w.x,0.01,w.z);M.scene.add(w.m)}
+      for(const w of G.wet){w.t-=dt;if(w.m)w.m.material.opacity=Math.max(0,w.t)*0.3}G.wet=G.wet.filter(w=>{if(w.t>0)return true;if(w.m)M.scene.remove(w.m);return false})}}}}
+
+MINIS.cargas=()=>MG_CARGAS2();MINIS.limpa=()=>MG_LIMPA3();
+
 /* ============ boot ============ */
 (async function boot(){
   const test=document.createElement("canvas");if(!(test.getContext("webgl")||test.getContext("experimental-webgl"))){$("#loading").innerHTML="";$("#loading").append(el("div",{text:"Este aparelho não roda gráficos 3D."}),el("small",{text:"Tente em outro celular ou computador."}));return}
