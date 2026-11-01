@@ -5220,15 +5220,53 @@ async function openAdmin(){if(!online()||!MAIL.owner)return toast("O painel é s
   else{body.append(el("p",{text:"Relatório do mês "+c.mes.split("-").reverse().join("/")+" com moradores, ranking conferido, códigos usados e ideias. Sai em PDF para imprimir ou mandar no WhatsApp."}),
       el("button",{class:"btn green",onclick:()=>admPDF(c,ideias,ver)},"Baixar relatório em PDF"))}}
 async function admPDF(c,ideias,ver){try{if(!window.jspdf)await withTimeout(loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),15000)}catch(e){return toast("Não deu para carregar o gerador de PDF. Confira a internet.")}
-  const {jsPDF}=window.jspdf;const d=new jsPDF({unit:"mm",format:"a4"});let y=18;const W=210,M=16;const line=(t,sz=11,b=false,col=[30,40,60])=>{d.setFont("helvetica",b?"bold":"normal");d.setFontSize(sz);d.setTextColor(...col);for(const l of d.splitTextToSize(String(t),W-2*M)){if(y>282){d.addPage();y=18}d.text(l,M,y);y+=sz*0.45+1.2}};
-  const mesTxt=c.mes.split("-").reverse().join("/");d.setFillColor(10,34,64);d.rect(0,0,W,12,"F");
-  line("Associação de Moradores do Jardim Los Angeles",10,true,[245,126,32]);line("JLA: Bairro em Jogo · Relatório do mês "+mesTxt,16,true,[10,34,64]);line("Gerado em "+new Date().toLocaleString("pt-BR"),9,false,[110,120,140]);y+=3;
-  line("Resumo",13,true,[10,34,64]);
-  for(const [l,n] of[["Moradores cadastrados no jogo",c.jog.length],["Jogaram neste mês",c.rank.length],["Novos cadastros no mês",c.jog.filter(j=>(j.ts||0)>=new Date(c.mes+"-01T00:00:00").getTime()).length],["Códigos de comércio validados",c.usos.filter(u=>u.tipo==="comercio").length],["Presenças em eventos (QR Code)",c.usos.filter(u=>u.tipo==="evento").length],["Ideias e recados recebidos",ideias.length]])line("• "+l+": "+n);
-  y+=3;line("Ranking do mês (10 primeiros)",13,true,[10,34,64]);c.rank.slice(0,10).forEach((r,i)=>line((i+1)+"º  "+(r.nick||"Morador")+" — "+(r.pts||0)+" pts — "+(ver[r.id]?ver[r.id]+" código(s) validado(s)":"sem código validado")+(r.rua?" — "+r.rua:"")));
-  line("Os pontos são somados no celular de cada jogador. Para o prêmio, confira os primeiros colocados pelos códigos validados.",9,false,[110,120,140]);
-  y+=3;line("Uso dos códigos",13,true,[10,34,64]);const by={};c.usos.forEach(u=>{const k=u.codigo+" ("+(u.nome||u.tipo)+")";by[k]=(by[k]||0)+1});const ks=Object.keys(by);if(!ks.length)line("Nenhum código usado no mês.");ks.sort((a,b)=>by[b]-by[a]).forEach(k=>line("• "+k+": "+by[k]));
-  y+=3;line("Ideias e recados para a Associação",13,true,[10,34,64]);if(!ideias.length)line("Nenhuma ideia no mês.");ideias.slice(0,60).forEach(r=>line("• "+fmtDate(r.ts)+" — "+String(r.fromNick||"Morador")+": "+String(r.text||"")));
+  const {jsPDF}=window.jspdf;const d=new jsPDF({unit:"mm",format:"a4"});const W=210,H=297,M=16,CW=W-2*M;
+  const NAVY=[10,34,64],OR=[245,126,32],INK=[45,55,75],MUT=[120,130,148],CREAM=[251,247,241],LINE=[228,233,241],GREEN=[49,155,39],BLUE=[0,140,227];
+  const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];const [ano,mm]=c.mes.split("-");const mesNome=MESES[+mm-1]+" de "+ano;
+  const F=(sz,b,col)=>{d.setFont("helvetica",b?"bold":"normal");d.setFontSize(sz);d.setTextColor(...col)};
+  let y=0;const need=h=>{if(y+h>H-22){d.addPage();y=20;return true}return false};
+  /* cabeçalho */
+  d.setFillColor(...NAVY);d.rect(0,0,W,44,"F");d.setFillColor(...OR);d.rect(0,44,W,1.6,"F");
+  d.setFillColor(255,255,255);d.roundedRect(M,9,27,27,4,4,"F");try{d.addImage(LOGO_URI,"JPEG",M+1.5,10.5,24,24)}catch(_){}
+  F(8,true,OR);d.text("ASSOCIAÇÃO DE MORADORES DO JARDIM LOS ANGELES",M+33,15.5,{charSpace:0.3});
+  F(21,true,[255,255,255]);d.text("Relatório do mês",M+33,25);
+  F(11,false,[203,213,225]);d.text("JLA: Bairro em Jogo · "+mesNome.charAt(0).toUpperCase()+mesNome.slice(1),M+33,32.5);
+  F(8,false,[143,163,191]);d.text("Gerado em "+new Date().toLocaleString("pt-BR"),W-M,40,{align:"right"});
+  y=56;
+  const sec=(t)=>{need(16);d.setFillColor(...OR);d.roundedRect(M,y-4.2,1.6,5.6,0.8,0.8,"F");F(13,true,NAVY);d.text(t,M+4.5,y);y+=6};
+  /* resumo em cartões */
+  sec("Resumo do mês");
+  const ini=new Date(c.mes+"-01T00:00:00").getTime();
+  const S_=[["Moradores cadastrados",c.jog.length],["Jogaram neste mês",c.rank.length],["Novos cadastros",c.jog.filter(j=>(j.ts||0)>=ini).length],["Códigos de comércio",c.usos.filter(u=>u.tipo==="comercio").length],["Presenças em eventos",c.usos.filter(u=>u.tipo==="evento").length],["Ideias e recados",ideias.length]];
+  const cw=(CW-8)/3,ch=22;S_.forEach(([l,n],k)=>{const x=M+(k%3)*(cw+4),yy=y+Math.floor(k/3)*(ch+4);const hi=k===0;d.setFillColor(...(hi?NAVY:CREAM));d.setDrawColor(...(hi?NAVY:LINE));d.roundedRect(x,yy,cw,ch,3,3,"FD");
+    F(20,true,hi?[255,255,255]:NAVY);d.text(String(n),x+5,yy+11);F(8.5,false,hi?[203,213,225]:MUT);d.text(l,x+5,yy+17.5);d.setFillColor(...[OR,BLUE,GREEN,OR,BLUE,GREEN][k]);d.rect(x+cw-9,yy+5,4,1.2,"F")});
+  y+=2*(ch+4)+6;
+  /* ranking em tabela */
+  sec("Ranking do mês");
+  const cols=[[M,14,"Pos."],[M+14,78,"Apelido"],[M+92,30,"Pontos"],[M+122,CW-122,"Conferência"]];
+  const head=()=>{d.setFillColor(...NAVY);d.roundedRect(M,y,CW,8,2,2,"F");F(9,true,[255,255,255]);cols.forEach(([x,w,t])=>d.text(t,x+3,y+5.4));y+=8};
+  head();const R=c.rank.slice(0,10);if(!R.length){F(10,false,MUT);d.text("Ninguém pontuou neste mês ainda.",M+3,y+6);y+=10}
+  R.forEach((r,i)=>{if(need(9)){head()}const rh=8.5;if(i%2){d.setFillColor(...CREAM);d.rect(M,y,CW,rh,"F")}
+    const med=[[255,196,0],[176,186,197],[205,127,50]][i];if(med){d.setFillColor(...med);d.circle(M+6.5,y+rh/2,2.9,"F");F(8.5,true,[255,255,255]);d.text(String(i+1),M+6.5,y+rh/2+1.1,{align:"center"})}else{F(9.5,true,MUT);d.text((i+1)+"º",M+3,y+5.6)}
+    F(10,true,INK);d.text(String(r.nick||"Morador").slice(0,34),M+17,y+5.6);F(10,true,NAVY);d.text((r.pts||0)+" pts",M+95,y+5.6);
+    const v=ver[r.id]||0;if(v){d.setFillColor(230,245,228);d.roundedRect(M+125,y+1.6,40,5.4,2.7,2.7,"F");F(8.5,true,GREEN);d.text(v+" código"+(v>1?"s":"")+" validado"+(v>1?"s":""),M+128,y+5.3)}else{F(8.5,false,MUT);d.text("sem código validado",M+125,y+5.6)}
+    y+=rh});
+  d.setDrawColor(...LINE);d.line(M,y,M+CW,y);y+=4;
+  need(14);d.setFillColor(255,243,232);d.roundedRect(M,y,CW,11,2.5,2.5,"F");F(8.5,false,[140,80,20]);d.text(d.splitTextToSize("Os pontos são somados no celular de cada jogador. Antes de entregar o prêmio, confira os primeiros colocados pelos códigos validados nos comércios e eventos.",CW-8),M+4,y+4.5);y+=17;
+  /* códigos */
+  sec("Uso dos códigos");
+  const by={};c.usos.forEach(u=>{const k=u.codigo;by[k]=by[k]||{n:0,nome:u.nome||(u.tipo==="evento"?"Evento":"Comércio"),tipo:u.tipo};by[k].n++});const ks=Object.keys(by).sort((a,b)=>by[b].n-by[a].n);
+  if(!ks.length){F(10,false,MUT);d.text("Nenhum código usado neste mês.",M,y+2);y+=10}
+  const mx=Math.max(1,...ks.map(k=>by[k].n));ks.forEach(k=>{need(10);const b=by[k];F(9.5,true,INK);d.text(String(b.nome).slice(0,30),M,y+4);F(8,false,MUT);d.text(k+" · "+(b.tipo==="evento"?"evento":"comércio"),M,y+8);
+    const bx=M+78,bw=CW-78-16;d.setFillColor(...LINE);d.roundedRect(bx,y+2,bw,4,2,2,"F");d.setFillColor(...(b.tipo==="evento"?BLUE:OR));d.roundedRect(bx,y+2,Math.max(4,bw*b.n/mx),4,2,2,"F");F(10,true,NAVY);d.text(String(b.n),M+CW,y+5.5,{align:"right"});y+=11});
+  y+=3;
+  /* ideias */
+  sec("Ideias e recados para a Associação");
+  if(!ideias.length){F(10,false,MUT);d.text("Nenhuma ideia recebida neste mês.",M,y+2);y+=10}
+  ideias.slice(0,60).forEach(r=>{F(10,false,INK);const L=d.splitTextToSize(String(r.text||""),CW-10);const h=L.length*4.6+10;need(h+3);d.setFillColor(...CREAM);d.setDrawColor(...LINE);d.roundedRect(M,y,CW,h,2.5,2.5,"FD");d.setFillColor(...OR);d.rect(M,y+2,1.2,h-4,"F");
+    F(8,true,MUT);d.text(fmtDate(r.ts)+" · "+String(r.fromNick||"Morador"),M+5,y+5.5);F(10,false,INK);d.text(L,M+5,y+10.5);y+=h+3});
+  /* rodapé em todas as páginas */
+  const n=d.getNumberOfPages();for(let i=1;i<=n;i++){d.setPage(i);d.setDrawColor(...LINE);d.line(M,H-14,W-M,H-14);F(8,false,MUT);d.text("JLA: Bairro em Jogo · Relatório do Painel da Diretoria · Associação de Moradores do Jardim Los Angeles",M,H-9);F(8,true,OR);d.text(i+" / "+n,W-M,H-9,{align:"right"})}
   const name="Relatorio-JLA-Bairro-em-Jogo-"+c.mes+".pdf";try{d.save(name)}catch(e){try{window.open(d.output("bloburl"),"_blank")}catch(_){toast("Não deu para baixar o PDF neste navegador.")}}}
 
 function openDirHelp(){openSheet("Acesso da Diretoria",el("p",{text:"O painel da Diretoria mostra o ranking conferido, as ideias do mural, os códigos dos comércios e o relatório do mês. Ele abre sozinho para quem entra com o e-mail Google cadastrado pela Associação."}),
