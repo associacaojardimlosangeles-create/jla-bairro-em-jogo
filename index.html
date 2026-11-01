@@ -1212,12 +1212,12 @@ const ASSET_BASE=CHAR_BASE.replace(/chars\/$/,"");
 function getAsset(path){return MCACHE["A:"+path]=MCACHE["A:"+path]||loadGltfLib().then(()=>new Promise((ok,no)=>new THREE.GLTFLoader().load(ASSET_BASE+path,ok,undefined,no)))}
 const TEXC={};function getTex(path){if(!TEXC[path]){const t=new THREE.TextureLoader().load(ASSET_BASE+path);t.flipY=false;t.encoding=THREE.LinearEncoding;TEXC[path]=t}return TEXC[path]}
 /* troca o desenho antigo pelo modelo 3D quando ele terminar de baixar (o antigo fica até lá) */
-function swapModel(holder,path,{height,length,foot,fill,front,tint,emis=0x101010,color=0xb8b8b8,tex,map:MAP,anim,keep}={}){
+function swapModel(holder,path,{height,size,length,foot,fill,front,tint,emis=0x101010,color=0xb8b8b8,tex,map:MAP,anim,keep}={}){
   return getAsset(path).then(gl=>{if(holder.dead)return null;const m=(anim&&THREE.SkeletonUtils)?THREE.SkeletonUtils.clone(gl.scene):gl.scene.clone(true);
     m.traverse(o=>{if(o.isMesh){const map=MAP||(tex?getTex(tex):o.material.map);if(map&&!tex&&map.encoding!==THREE.LinearEncoding){map.encoding=THREE.LinearEncoding;map.needsUpdate=true}
       const c=new THREE.Color(color);if(tint)c.multiply(new THREE.Color(tint));o.material=new THREE.MeshToonMaterial({map,color:c,gradientMap:TOONSKIN,skinning:!!o.isSkinnedMesh,emissive:emis});o.castShadow=!lowQ;o.receiveShadow=true;if(anim)o.frustumCulled=false}});
     const box=new THREE.Box3().setFromObject(m);const sz=box.getSize(new THREE.Vector3());let k=1;
-    if(height)k=height/(sz.y||1);else if(length)k=length/(Math.max(sz.x,sz.z)||1);else if(foot)k=Math.min(foot[0]/(sz.x||1),foot[1]/(sz.z||1));
+    if(size)k=size/(Math.max(sz.x,sz.y,sz.z)||1);else if(height)k=height/(sz.y||1);else if(length)k=length/(Math.max(sz.x,sz.z)||1);else if(foot)k=Math.min(foot[0]/(sz.x||1),foot[1]/(sz.z||1));
     if(fill){const kx=fill[0]/(sz.x||1),kz=fill[1]/(sz.z||1),ky=Math.min(kx,kz)*(fill[2]||1);m.scale.set(kx,ky,kz);m.position.set(-(box.min.x+box.max.x)/2*kx,-box.min.y*ky,(front!=null?front-box.max.z*kz:-(box.min.z+box.max.z)/2*kz))}
     else{m.scale.setScalar(k);m.position.set(-(box.min.x+box.max.x)/2*k,-box.min.y*k,-(box.min.z+box.max.z)/2*k)}
     const wrap=new THREE.Group();wrap.add(m);const g=holder.g||holder;for(const c of g.children)if(!c.isSprite&&!(keep&&keep.includes(c)))c.visible=false;g.add(wrap);holder.model=wrap;
@@ -3974,7 +3974,8 @@ function makeCatchItem(th,T,it){const g=new THREE.Group();const inner=new THREE.
   if(it.junk==="pedra"){const ph=new THREE.Mesh(new THREE.DodecahedronGeometry(0.7),lam(0x8a8f96));inner.add(ph);swapModel(inner,"survival/rock-a.glb",{height:1.3,color:0xd0d0d0})}
   else if(it.junk){inner.add(itemSprite("junk_"+it.junk,c=>drawJunk(c,it.junk,0,-10,2)))}
   else if(th==="ferramentas"&&it.id===3){const t=new THREE.Mesh(new THREE.TorusGeometry(0.8,0.32,12,24),lam(0x1d1d1d));inner.add(t);const h=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.5,16),lam(0xb8c2cc));h.rotation.x=Math.PI/2;inner.add(h)}
-  else{const path=catchModelPath(th,it.id);if(path){const ph=itemSprite(th+"_"+it.id,c=>T.draw(c,it.id,0,-18,1.5));inner.add(ph);swapModel(inner,path,{height:1.7,color:0xdedede})}else inner.add(itemSprite(th+"_"+it.id,c=>T.draw(c,it.id,0,-18,1.5)))}
+  else{const path=catchModelPath(th,it.id);if(path){const ph=itemSprite(th+"_"+it.id,c=>T.draw(c,it.id,0,-18,1.5));inner.add(ph);swapModel(inner,path,{size:1.9,color:0xdedede})}else inner.add(itemSprite(th+"_"+it.id,c=>T.draw(c,it.id,0,-18,1.5)))}
+  if(innerWidth<innerHeight)g.scale.setScalar(0.62);
   return g}
 function CATCH3D(th,T){return{init(G,M){M.lights([3,8,8]);M.cam.fov=45;M.cam.position.set(0,0.4,12);M.cam.lookAt(0,0,0);M.cam.updateProjectionMatrix();
     const wall=new THREE.Mesh(new THREE.PlaneGeometry(40,20),new THREE.MeshLambertMaterial({map:wallTex(T.bg,T.place.toUpperCase(),"pegue no ar!")}));wall.position.set(0,1.5,-6);M.scene.add(wall);
@@ -4661,7 +4662,7 @@ function MG_CORREDOR(){return{title:"Mercado Ribeiro: compras no corredor",time:
       const sg=new THREE.Mesh(new THREE.PlaneGeometry(10,2),new THREE.MeshBasicMaterial({map:canvasTex(512,100,c=>{c.fillStyle="#c0392b";c.fillRect(0,0,512,100);c.fillStyle="#fff";c.font="900 60px Nunito,system-ui";c.textAlign="center";c.fillText("MERCADO RIBEIRO",256,72)})}));sg.position.set(0,6,-30);M.scene.add(sg);
       G.cart=prop3(M,"market/shopping-cart.glb",0,0,5,{height:1.6},Math.PI);G.it3=new Map()},
     update(G,M,dt){G.ft.offset.y+=G.spd*dt/14;const lx=l=>(l-1)*1.9;G.cart.position.x+=(lx(G.lane)-G.cart.position.x)*Math.min(1,dt*12);
-      for(const it of G.items){let m=G.it3.get(it);if(!m){m=new THREE.Group();M.scene.add(m);if(it.cone)swapModel(m,"roads/construction-cone.glb",{height:1.1,color:0xffb000});else swapModel(m,it.f,{height:0.9});G.it3.set(it,m)}
+      for(const it of G.items){let m=G.it3.get(it);if(!m){m=new THREE.Group();M.scene.add(m);if(it.cone)swapModel(m,"roads/construction-cone.glb",{height:1.1,color:0xffb000});else swapModel(m,it.f,{size:1.05});G.it3.set(it,m)}
         m.position.set(lx(it.lane),it.cone?0:0.9,it.z);if(!it.cone)m.rotation.y+=dt*2;if(it.hit&&!it.cone){m.position.lerp(G.cart.position.clone().add(new THREE.Vector3(0,1.4,0)),0.5);it.gone=(it.gt=(it.gt||0)+dt)>0.25}}
       for(const [it,m] of G.it3){if(!G.items.includes(it)){M.scene.remove(m);G.it3.delete(it)}}}}}}
 
