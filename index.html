@@ -1073,7 +1073,7 @@ async function initFirebase(){
 function byTs(a,b){return(b.ts||0)-(a.ts||0)}
 async function initMail(){
   try{const r=await initFirebase();MAIL.db=r.db;MAIL.uid=r.uid;MAIL.kind="fb";MAIL.pcol="jogadores";
-    try{MAIL.owner=(await MAIL.db.doc("admins/"+MAIL.uid).get()).exists}catch(e){MAIL.owner=false}}
+    try{MAIL.owner=(await MAIL.db.doc("admins/"+MAIL.uid).get()).exists}catch(e){MAIL.owner=false}if(!MAIL.owner){try{await MAIL.db.collection("codigos").limit(1).get();MAIL.owner=true}catch(e){}}}
   catch(e){MAIL.db=null;console.warn("Firebase indisponível",e)}
   if(!MAIL.db){try{if(!window.claude||typeof claude.use!=="function")return;const [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);if(!db||!user)return;
     const uid=await user.id();if(!uid)return;MAIL.db=db;MAIL.uid=uid;MAIL.kind="claude";MAIL.pcol="moradores";MAIL.owner=!!(user.isOwner&&await user.isOwner())}catch(e){return}}
@@ -5231,11 +5231,9 @@ async function admPDF(c,ideias,ver){try{if(!window.jspdf)await withTimeout(loadS
   y+=3;line("Ideias e recados para a Associação",13,true,[10,34,64]);if(!ideias.length)line("Nenhuma ideia no mês.");ideias.slice(0,60).forEach(r=>line("• "+fmtDate(r.ts)+" — "+String(r.fromNick||"Morador")+": "+String(r.text||"")));
   const name="Relatorio-JLA-Bairro-em-Jogo-"+c.mes+".pdf";try{d.save(name)}catch(e){try{window.open(d.output("bloburl"),"_blank")}catch(_){toast("Não deu para baixar o PDF neste navegador.")}}}
 
-function openDirHelp(){const id=MAIL.uid||"";const cp=el("button",{class:"btn",onclick:()=>{try{navigator.clipboard.writeText(id);toast("Código copiado!")}catch(e){}}},"Copiar");
-  openSheet("Acesso da Diretoria",el("p",{text:"O painel da Diretoria mostra o ranking conferido, as ideias do mural, os códigos dos comércios e o relatório do mês. Ele só abre para quem for cadastrado como Diretoria no Firebase."}),
-    isGoogle()?null:el("p",{class:"err",text:"Primeiro entre com sua conta Google (no seu perfil ou na aba Associação), senão o acesso se perde ao trocar de celular."}),
-    el("p",{text:"Seu código de jogador:"}),el("div",{class:"sendrow"},el("div",{class:"code",style:"font-size:15px;letter-spacing:0;word-break:break-all",text:id}),cp),
-    el("p",{class:"muted",style:"margin-top:10px",text:"Mande esse código para quem cuida do Firebase da Associação. Lá, em Firestore, coleção admins, é só criar um documento com esse código como ID. Depois feche e abra o jogo de novo."}))}
+function openDirHelp(){openSheet("Acesso da Diretoria",el("p",{text:"O painel da Diretoria mostra o ranking conferido, as ideias do mural, os códigos dos comércios e o relatório do mês. Ele abre sozinho para quem entra com o e-mail Google cadastrado pela Associação."}),
+    isGoogle()?el("p",{class:"muted",text:"Se o seu e-mail já foi cadastrado, feche e abra o jogo de novo que o botão \"Painel da Diretoria\" aparece aqui."}):el("p",{class:"err",text:"Primeiro entre com sua conta Google (no seu perfil ou na aba Associação). O painel só abre para a conta Google da Diretoria."}),
+    el("p",{class:"muted",style:"margin-top:10px",text:"Ainda não tem acesso? Peça para o presidente da Associação incluir o seu e-mail na lista da Diretoria."}))}
 /* ============ joguinhos 3D novos: quiz, separar o lixo, pênalti, horta e pintura ============ */
 function wrapL3(c,t,mw){const out=[];let ln="";for(const w of String(t).split(" ")){const s=ln?ln+" "+w:w;if(c.measureText(s).width>mw&&ln){out.push(ln);ln=w}else ln=s}if(ln)out.push(ln);return out}
 function txtTex3(w,h,bg,fg,txt,px,opt){opt=opt||{};return canvasTex(w,h,c=>{c.fillStyle=bg;c.fillRect(0,0,w,h);if(opt.border){c.strokeStyle=opt.border;c.lineWidth=opt.bw||14;c.strokeRect(0,0,w,h)}
