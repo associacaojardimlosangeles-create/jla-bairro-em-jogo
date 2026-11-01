@@ -5488,6 +5488,61 @@ function MG_LIMPA3(){const META=18;return{title:"Unidade de Saúde: limpar o ch�
 
 MINIS.cargas=()=>MG_CARGAS2();MINIS.limpa=()=>MG_LIMPA3();
 
+/* ============ Balena: solda de verdade (cordão na junta, sem furar a chapa) ============ */
+function MG_SOLDA3(){const PECAS=3;return{title:"Balena: soldar as peças",time:75,icon:(c,x,y,s)=>emo(c,"👨‍🏭",x,y,s),
+  help:["Arraste a tocha de solda devagar em cima da linha da junta (o tracejado amarelo).","Muito rápido o cordão fica falhado; parado no mesmo lugar a chapa fura! Solde "+PECAS+" peças."],
+  init(G){G.pc=0;G.furos=0;G.on=false},hud:G=>"Peças "+G.pc+"/"+PECAS+" · Furos "+G.furos,layout(G){G.buttons=[]},
+  down(G,x,y){G.on=true;this.move(G,x,y)},up(G){G.on=false},
+  move(G,x,y){if(!G.M)return;const p=G.M.toPlane(G,x,y,G.wp);G.tgt=p},
+  update(G,dt){if(!G.seam||!G.tgt||!G.on||G.swap>0||(G.piece&&G.piece.userData.slide))return;const p=G.tip;let best=-1,bd=9;G.seam.forEach((s,i)=>{const d=Math.hypot(s.x-p.x,s.z-p.z);if(d<bd){bd=d;best=i}});
+    G.offSeam=bd>0.45;if(G.offSeam)return;
+    for(let i=Math.max(0,best-1);i<=Math.min(G.seam.length-1,best+1);i++){const s=G.seam[i];if(s.st===2)continue;s.heat+=dt*(i===best?1:0.5);
+      if(s.st===0&&s.heat>0.12){s.st=1;s.cool=0}
+      if(s.heat>1.15&&s.st!==2){s.st=2;G.furos++;G.bad++;sfx("err");vib&&vib([40,30,40]);G.say("Furou a chapa! Não fique parado no mesmo lugar.")}}
+    for(const s of G.seam)if(s.st===1)s.heat=Math.max(0,s.heat-dt*0.25*(Math.hypot(s.x-p.x,s.z-p.z)>0.6?1:0));
+    const okN=G.seam.filter(s=>s.st===1).length;G.cov=okN/G.seam.length;
+    if(G.cov>=0.9){G.pc++;G.good++;sfx("win");vib&&vib([20,30,60]);G.float("Peça soldada!",G.W/2,G.H*0.3,"#7CFC9A");if(G.pc>=PECAS)return G.finish();G.swap=1.2;G.on=false}},
+  draw(G,c,t3){if(!t3)return;if(G.on&&!G.offSeam&&G.started&&!(G.swap>0)){c.fillStyle="rgba(0,30,10,.32)";c.fillRect(0,0,G.W,G.H)}
+    const w=Math.min(260,G.W-60),y=62+Math.min(40,G.H*0.05);c.fillStyle="rgba(10,34,64,.75)";RR(c,G.W/2-w/2,y,w,18,9);c.fill();c.fillStyle="#ffb347";RR(c,G.W/2-w/2,y,w*Math.min(1,(G.cov||0)/0.9),18,9);c.fill();G.font(11,900);G.text("Cordão de solda "+Math.round(Math.min(1,(G.cov||0)/0.9)*100)+"%",G.W/2,y+13,"#fff");
+    if(G.on&&G.offSeam&&G.started)G.text("Volte para a linha da junta!",G.W/2,y+36,"#ffd23f");
+    hint3(G,c,"Arraste devagar em cima do tracejado amarelo")},
+  win:G=>G.pc>=PECAS&&G.furos<=4,
+  three:{init(G,M){G.M=M;G.fx=fx3(M);G.tall=isTall(M);room3d(M,{bg:0x2b2f3a,cam:[0,9,6.5],look:[0,0,0],floor:0x3a3d45,fov:46});
+      M.scene.children.forEach(o=>{if(o.isHemisphereLight)o.intensity=0.55});
+      const wall=new THREE.Mesh(new THREE.PlaneGeometry(40,14),new THREE.MeshLambertMaterial({map:wallTex(["#4a4f5c","#2b2f3a"],"BALENA METALÚRGICA","solda com capricho")}));wall.position.set(0,6,-9);M.scene.add(wall);
+      const bench=new THREE.Mesh(new THREE.BoxGeometry(G.tall?7.4:11,0.5,G.tall?8.6:6.4),metal(0x5c6170));bench.position.set(0,-0.25,0);bench.receiveShadow=true;M.scene.add(bench);
+      for(const sx of[-1,1])for(const sz of[-1,1]){const l=new THREE.Mesh(new THREE.BoxGeometry(0.3,3,0.3),metal(0x444955));l.position.set(sx*(G.tall?3.4:5.2),-1.75,sz*(G.tall?3.9:2.9));M.scene.add(l)}
+      prop3(M,"survival/workbench-anvil.glb",G.tall?-2.8:-7.5,0,-6,{height:1.4});prop3(M,"survival/barrel.glb",G.tall?3:7.6,0,-6.4,{height:1.6,color:0xe2483d});
+      G.wp=new THREE.Plane(new THREE.Vector3(0,1,0),-0.3);
+      /* tocha: cabo azul, pescoço de cobre e bico */
+      const torch=new THREE.Group();const nz=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.12,0.45,10),metal(0xb87333));nz.position.y=0.3;torch.add(nz);
+      const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.9,10),metal(0x8a8f99));neck.position.set(0,0.95,0.25);neck.rotation.x=0.55;torch.add(neck);
+      const hand=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.15,1.2,12),lam(0x008CE3));hand.position.set(0,1.75,0.85);hand.rotation.x=0.95;torch.add(hand);
+      const cab=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,2.5,8),lam(0x1d1d1d));cab.position.set(0,2.3,2.2);cab.rotation.x=1.2;torch.add(cab);
+      torch.rotation.y=Math.PI*0.78;torch.traverse(o=>{if(o.isMesh)o.castShadow=!lowQ});M.scene.add(torch);G.torch=torch;
+      G.arc=new THREE.PointLight(0x9fd8ff,0,6);M.scene.add(G.arc);const glow=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,8),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.95}));M.scene.add(glow);G.glow=glow;
+      G.tip=new THREE.Vector3(0,0.3,2);G.piece=null;G.bead=[];G.swap=0;
+      G.newPiece=()=>{if(G.piece)M.scene.remove(G.piece);G.bead.forEach(b=>M.scene.remove(b));G.bead=[];const g=new THREE.Group();M.scene.add(g);G.piece=g;const k=G.pc%3;let pts=[];
+        const plate=(w,d,x,z,ry)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.3,d),metal(0x9aa1ab));m.position.set(x,0.15,z);m.rotation.y=ry||0;m.castShadow=m.receiveShadow=!lowQ;g.add(m)};
+        const L=G.tall?2.6:3.6;
+        if(k===0){plate(2.2,2*L+0.6,-1.14,0);plate(2.2,2*L+0.6,1.14,0);for(let i=0;i<=40;i++)pts.push([0,-L+i*2*L/40])}
+        else if(k===1){const a=G.tall?1.75:2.8;plate(2.4,2*a+0.4,-1.24,0);plate(2*a,2.2,a-0.06,1.18);plate(2*a,2.2,a-0.06,-1.18);for(let i=0;i<=24;i++)pts.push([0,-a+i*a/24*2]);for(let i=1;i<=18;i++)pts.push([i*(a*0.9)/18,0])}
+        else{const R=G.tall?2.0:2.3;const disc=new THREE.Mesh(new THREE.CylinderGeometry(R-0.06,R-0.06,0.3,40),metal(0x9aa1ab));disc.position.y=0.15;g.add(disc);const ring=new THREE.Mesh(new THREE.TorusGeometry(R+0.55,0.6,8,48),metal(0x8a919b));ring.rotation.x=Math.PI/2;ring.scale.z=0.25;ring.position.y=0.15;g.add(ring);for(let i=0;i<=56;i++){const a=i/56*Math.PI*2;pts.push([Math.cos(a)*R,Math.sin(a)*R])}}
+        G.seam=pts.map(([x,z])=>({x,z,st:0,heat:0,cool:0}));G.cov=0;
+        const dash=new THREE.MeshBasicMaterial({color:0xffd23f});G.seam.forEach((s,i)=>{if(i%2)return;const d=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.02,0.12),dash);d.position.set(s.x,0.31,s.z);g.add(d)});
+        g.position.x=G.tall?0:-14;g.userData.slide=1};
+      G.newPiece();if(G.tall)fitW(M,[0,10,6],[0,0,0.3],7.6);else fitW(M,[0,9,6.5],[0,0,0],11.5)},
+    update(G,M,dt){G.fx.update(dt);
+      if(G.swap>0){G.swap-=dt;G.piece.position.x+=dt*14;if(G.swap<=0)G.newPiece()}
+      if(G.piece.userData.slide){G.piece.position.x+=(0-G.piece.position.x)*Math.min(1,dt*7);if(Math.abs(G.piece.position.x)<0.02){G.piece.position.x=0;G.piece.userData.slide=0}}
+      if(G.tgt){G.tip.x+=(G.tgt.x-G.tip.x)*Math.min(1,dt*14);G.tip.z+=(G.tgt.z-G.tip.z)*Math.min(1,dt*14)}
+      G.torch.position.set(G.tip.x,G.on?0.32:0.9,G.tip.z);
+      const weld=G.on&&!G.offSeam&&G.started&&!(G.swap>0)&&!G.piece.userData.slide;G.glow.visible=weld;G.glow.position.set(G.tip.x,0.4,G.tip.z);G.glow.scale.setScalar(0.8+Math.random()*0.6);G.arc.intensity=weld?2.2+Math.random()*1.8:0;G.arc.position.set(G.tip.x,0.9,G.tip.z);
+      if(weld&&Math.random()<0.7)G.fx.spawn(new THREE.Vector3(G.tip.x,0.4,G.tip.z),Math.random()<0.5?0xffd23f:0xffffff,3,4,-12,0.5);
+      if(!G.seam)return;for(const s of G.seam){if(s.st&&!s.m){const m=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8),new THREE.MeshLambertMaterial({color:0x5d6470,emissive:0xff7a1a}));m.scale.y=0.55;m.position.set(s.x+G.piece.position.x,0.32,s.z);M.scene.add(m);G.bead.push(m);s.m=m}
+        if(s.m){s.cool+=dt;if(s.st===2){s.m.material.color.set(0x1a1a1a);s.m.material.emissive.set(0x5a0000);s.m.scale.set(1.4,0.3,1.4)}else{const k=Math.min(1,s.cool/1.6);s.m.material.emissive.setRGB(1*(1-k),0.48*(1-k),0.1*(1-k))}s.m.position.x=s.x+G.piece.position.x}}}}}}
+MINIS.solda=()=>MG_SOLDA3();
+
 /* ============ boot ============ */
 (async function boot(){
   const test=document.createElement("canvas");if(!(test.getContext("webgl")||test.getContext("experimental-webgl"))){$("#loading").innerHTML="";$("#loading").append(el("div",{text:"Este aparelho não roda gráficos 3D."}),el("small",{text:"Tente em outro celular ou computador."}));return}
