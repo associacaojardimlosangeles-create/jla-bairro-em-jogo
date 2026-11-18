@@ -5561,7 +5561,12 @@ function hdState(){S.hotdog=S.hotdog||{own:false,stock:0,day:"",vendas:0,lucro:0
   if(p.id==="ribeiro"){const cheio=h.stock>=HD.max;const at={class:"btn",style:"background:#F57E20"+(cheio?";opacity:.6":""),onclick:()=>{if(h.stock>=HD.max)return;if((S.coins||0)<HD.kitCost)return toast("Faltam "+(HD.kitCost-(S.coins||0))+" moedas para os ingredientes.");S.coins-=HD.kitCost;h.stock=Math.min(HD.max,h.stock+HD.kit);save();updateHUD();toast("Ingredientes comprados! Agora são "+h.stock+" lanches no estoque do carrinho.");lastPlace="";checkPlace()}};if(cheio)at.disabled="true";out.push(el("button",at,cheio?"🌭 Estoque do carrinho cheio ("+h.stock+")":"🌭 Ingredientes do carrinho · "+HD.kitCost+" moedas"))}
   if(p.id==="campo"){const hoje=h.day===DAY();out.push(el("button",{class:"btn",style:"background:#F57E20",onclick:hdOpen},hoje?"🌭 Carrinho: já vendeu hoje":"🌭 Abrir o carrinho de cachorro-quente"))}
   return out}}
-function hdOpen(){const h=hdState();if(h.day===DAY())return toast("O carrinho já abriu hoje. Volte amanhã para vender de novo!");
+/* contas de teste do carrinho (guardadas só como código, sem o e-mail): carrinho liberado, estoque cheio e sem limite por dia */
+const HD_TEST=["bf1794d8a8f32ae0ef2c8341271d11a4f68c23ed6f149c425f8646c2b6204294"];let HD_TESTER=false;
+async function hdTesterCheck(){try{const e=(googleName()||"").trim().toLowerCase();if(!e||!crypto.subtle)return;const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(e));const hx=[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
+  HD_TESTER=HD_TEST.includes(hx);if(!HD_TESTER||typeof S==="undefined"||!S)return;const h=hdState();let mud=false;if(!h.own){h.own=true;mud=true;toast("🌭 Carrinho de cachorro-quente liberado para teste nesta conta!")}if(h.stock<HD.max){h.stock=HD.max;mud=true}if(mud){save();hdWorld()}}catch(e){}}
+setInterval(hdTesterCheck,6000);
+function hdOpen(){const h=hdState();if(HD_TESTER){h.day="";if(h.stock<HD.max)h.stock=HD.max}if(h.day===DAY())return toast("O carrinho já abriu hoje. Volte amanhã para vender de novo!");
   if(h.stock<=0)return toast("O carrinho está sem ingredientes. Compre no Mercado Ribeiro ("+HD.kit+" lanches por "+HD.kitCost+" moedas).");
   const est=h.stock;miniGame(MG_HOTDOG(est),ok=>{const G=window.__hdRes;if(!G||!G.started)return;const usados=G.used,vend=G.good,refri=G.refri;const receita=vend*HD.lanche+refri*HD.refri,custo=Math.round(usados*HD.kitCost/HD.kit);
     h.stock=Math.max(0,h.stock-usados);h.day=DAY();h.vendas=(h.vendas||0)+vend;h.lucro=(h.lucro||0)+receita-custo;S.coins=(S.coins||0)+receita;if(vend>=5)S.pts=(S.pts||0)+5;save();updateHUD();
