@@ -5543,6 +5543,104 @@ function MG_SOLDA3(){const PECAS=3;return{title:"Balena: soldar as peças",time:
         if(s.m){s.cool+=dt;if(s.st===2){s.m.material.color.set(0x1a1a1a);s.m.material.emissive.set(0x5a0000);s.m.scale.set(1.4,0.3,1.4)}else{const k=Math.min(1,s.cool/1.6);s.m.material.emissive.setRGB(1*(1-k),0.48*(1-k),0.1*(1-k))}s.m.position.x=s.x+G.piece.position.x}}}}}}
 MINIS.solda=()=>MG_SOLDA3();
 
+/* ============ negócio próprio: carrinho de cachorro-quente no Socity ============ */
+/* Compra o carrinho na Loja de Bikes e Veículos, compra os ingredientes no Mercado Ribeiro
+   e vende uma vez por dia ao lado do campo. Ensina custo, preço e lucro. */
+const HD={price:300,kit:10,kitCost:30,lanche:8,refri:3,max:20};
+const HD_TOP=[["molho","Vinagrete","#d94a3a"],["batata","Batata palha","#f2c14e"],["ketchup","Ketchup","#c0261c"],["mostarda","Mostarda","#e8b400"]];
+function hdState(){S.hotdog=S.hotdog||{own:false,stock:0,day:"",vendas:0,lucro:0};return S.hotdog}
+/* --- loja: o carrinho fica à venda junto com os veículos --- */
+{const _ovs=openVehShop;openVehShop=function(){_ovs();const L=document.querySelector("#sheet .list");if(!L)return;const h=hdState();let b;
+  if(h.own)b=el("button",{class:"btn ghost",disabled:"true",style:"opacity:.7"},"Já é seu");
+  else if((S.coins||0)>=HD.price)b=el("button",{class:"btn",onclick:()=>{S.coins-=HD.price;h.own=true;save();updateHUD();closeSheet();hdWorld();toast("Parabéns! O carrinho de cachorro-quente é seu. Compre os ingredientes no Mercado Ribeiro e venda no Socity!")}},"Comprar · "+HD.price+" moedas");
+  else b=el("button",{class:"btn",disabled:"true",style:"opacity:.5"},"Faltam "+(HD.price-(S.coins||0))+" moedas");
+  L.append(el("div",{class:"row",style:"border-top:2px dashed #F57E20;margin-top:6px;padding-top:10px"},el("div",{class:"t"},el("b",{text:"🌭 Carrinho de cachorro-quente"}),el("span",{text:"Seu próprio negócio! Venda lanches ao lado do campo do Socity, uma vez por dia."}),el("span",{style:"display:block;color:#F57E20;font-weight:900;margin-top:2px",text:h.own?"Já é seu · "+h.stock+" lanches no estoque":HD.price+" moedas"}),el("span",{style:"display:block;font-size:12px",text:"Ingredientes no Mercado Ribeiro: "+HD.kit+" lanches por "+HD.kitCost+" moedas. Cada lanche vendido rende "+HD.lanche+" moedas (+"+HD.refri+" com refri)."})),b))}}
+/* --- botões no Mercado Ribeiro e no campo --- */
+{const _pa=placeActions;placeActions=function(p){const out=_pa(p);const h=hdState();if(!h.own)return out;
+  if(p.id==="ribeiro"){const cheio=h.stock>=HD.max;const at={class:"btn",style:"background:#F57E20"+(cheio?";opacity:.6":""),onclick:()=>{if(h.stock>=HD.max)return;if((S.coins||0)<HD.kitCost)return toast("Faltam "+(HD.kitCost-(S.coins||0))+" moedas para os ingredientes.");S.coins-=HD.kitCost;h.stock=Math.min(HD.max,h.stock+HD.kit);save();updateHUD();toast("Ingredientes comprados! Agora são "+h.stock+" lanches no estoque do carrinho.");lastPlace="";checkPlace()}};if(cheio)at.disabled="true";out.push(el("button",at,cheio?"🌭 Estoque do carrinho cheio ("+h.stock+")":"🌭 Ingredientes do carrinho · "+HD.kitCost+" moedas"))}
+  if(p.id==="campo"){const hoje=h.day===DAY();out.push(el("button",{class:"btn",style:"background:#F57E20",onclick:hdOpen},hoje?"🌭 Carrinho: já vendeu hoje":"🌭 Abrir o carrinho de cachorro-quente"))}
+  return out}}
+function hdOpen(){const h=hdState();if(h.day===DAY())return toast("O carrinho já abriu hoje. Volte amanhã para vender de novo!");
+  if(h.stock<=0)return toast("O carrinho está sem ingredientes. Compre no Mercado Ribeiro ("+HD.kit+" lanches por "+HD.kitCost+" moedas).");
+  const est=h.stock;miniGame(MG_HOTDOG(est),ok=>{const G=window.__hdRes;if(!G||!G.started)return;const usados=G.used,vend=G.good,refri=G.refri;const receita=vend*HD.lanche+refri*HD.refri,custo=Math.round(usados*HD.kitCost/HD.kit);
+    h.stock=Math.max(0,h.stock-usados);h.day=DAY();h.vendas=(h.vendas||0)+vend;h.lucro=(h.lucro||0)+receita-custo;S.coins=(S.coins||0)+receita;if(vend>=5)S.pts=(S.pts||0)+5;save();updateHUD();
+    openSheet("🌭 Fechamento do carrinho",el("div",{class:"list"},
+      ...[["Lanches vendidos",vend],["Refris vendidos",refri],["Receita (o que entrou)",receita+" moedas"],["Custo dos ingredientes usados",custo+" moedas"],["Lucro do dia",(receita-custo)+" moedas"],["Sobrou no estoque",h.stock+" lanches"]].map(([a,b],i)=>el("div",{class:"row"},el("div",{class:"t"},el("b",{text:a})),el("b",{style:"color:"+(i===4?(receita-custo>=0?"#319B27":"#e2483d"):"#0A2240"),text:String(b)})))),
+      el("p",{class:"muted",style:"margin-top:10px",text:"Lucro é o que sobra depois de pagar os ingredientes. Pedido errado gasta ingrediente e não entra dinheiro! O carrinho abre de novo amanhã."}));lastPlace="";checkPlace()})}
+/* --- o carrinho aparece no mapa, ao lado do campo, para quem comprou --- */
+let HDW=null;
+function hdCart(nick,noUmb){const g=new THREE.Group();const inox=metal(0xc9ced6);
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.1,1.2),inox);body.position.y=0.95;g.add(body);
+  const stripe=new THREE.Mesh(new THREE.BoxGeometry(2.42,0.28,1.22),lam(0xF57E20));stripe.position.y=0.95;g.add(stripe);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.12,1.4),lam(0x3a3f4a));top.position.y=1.56;g.add(top);
+  for(const sx of[-0.85,0.85]){const w=new THREE.Mesh(new THREE.CylinderGeometry(0.38,0.38,0.14,16),lam(0x1d1d1d));w.rotation.x=Math.PI/2;w.position.set(sx,0.38,0.66);g.add(w)}
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.5,8),inox);leg.position.set(-1.05,0.25,-0.4);g.add(leg);
+  const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1.3,8),inox);bar.rotation.x=Math.PI/2;bar.position.set(1.45,1.25,0);bar.rotation.z=Math.PI/2;g.add(bar);
+  if(!noUmb){const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.4,8),lam(0xffffff));pole.position.set(0,2.7,0);g.add(pole);
+  const um=new THREE.Mesh(new THREE.ConeGeometry(1.9,0.75,8,1,true),new THREE.MeshLambertMaterial({map:canvasTex(256,64,c=>{for(let i=0;i<8;i++){c.fillStyle=i%2?"#F57E20":"#ffffff";c.fillRect(i*32,0,32,64)}}),side:THREE.DoubleSide}));um.position.y=4.0;g.add(um)}
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.2,0.5),new THREE.MeshBasicMaterial({map:txtTex3(512,116,"#0A2240","#ffd23f","HOT DOG"+(nick?" DO "+String(nick).toUpperCase().slice(0,12):""),46)}));sign.position.set(0,1.0,0.61);g.add(sign);
+  const s2=sign.clone();s2.position.z=-0.61;s2.rotation.y=Math.PI;g.add(s2);
+  g.traverse(o=>{if(o.isMesh){o.castShadow=!lowQ}});return g}
+function hdWorld(){try{if(HDW){scene.remove(HDW);HDW=null}if(!hdState().own||typeof scene==="undefined")return;const p=POIS.find(q=>q.id==="campo");if(!p)return;const [x,z]=W3(p.x+26,p.y+22);HDW=hdCart(S.nick);HDW.position.set(x,0,z);HDW.rotation.y=-0.6;scene.add(HDW)}catch(e){}}
+setInterval(()=>{try{if(typeof S!=="undefined"&&S&&S.hotdog&&S.hotdog.own&&!HDW)hdWorld()}catch(e){}},5000);
+
+/* --- o joguinho 3D de vender --- */
+function MG_HOTDOG(estoque){const N=Math.min(estoque,12);return{title:"Hot dog do Socity",time:80,icon:(c,x,y,s)=>emo(c,"🌭",x,y,s),
+  help:["A torcida faz fila no seu carrinho. Cada um pede o cachorro-quente do seu jeito: veja o balão.","Toque nos potes para colocar vinagrete, batata palha, ketchup ou mostarda, pegue o refri se pedirem e toque em ENTREGAR. Errou? Jogue no lixo. Você tem "+N+" lanches no estoque."],
+  init(G){G.used=0;G.refri=0;G.served=0;G.top=new Set();G.drink=false;G.q=[];G.next=0.3;G.arrived=0;window.__hdRes=G},
+  hud:G=>"Vendas "+G.good+" · Estoque "+(N-G.used),layout(G){G.buttons=[]},
+  down(G,x,y){if(!G.M)return;const hit=pick3(G,x,y,G.tap);if(!hit)return;let o=hit.object;while(o&&!o.userData.act)o=o.parent;if(!o)return;const a=o.userData.act;
+    if(G.used>=N)return G.say("Acabaram os ingredientes!");
+    if(HD_TOP.some(t=>t[0]===a)){if(G.top.has(a))G.top.delete(a);else G.top.add(a);sfx("tap");vib&&vib(8);o.position.y=o.userData.y0-0.1;setTimeout(()=>o.position.y=o.userData.y0,120)}
+    else if(a==="refri"){G.drink=!G.drink;sfx("tap")}
+    else if(a==="lixo"){if(G.top.size||G.drink){G.used++;G.top.clear();G.drink=false;G.say("Lanche no lixo: gastou ingrediente.");sfx("err")}}
+    else if(a==="ok"){const c=G.q.find(c=>c.st==="pede");if(!c)return G.say("Espere o cliente chegar no balcão.");G.used++;
+      const ok=c.order.top.length===G.top.size&&c.order.top.every(t=>G.top.has(t))&&c.order.drink===G.drink;
+      if(ok){G.good++;if(c.order.drink)G.refri++;sfx("coin");vib&&vib([15,30,15]);const p=scr3(G,G.M,c.h.position.clone().setY(2.6));G.float("+"+(HD.lanche+(c.order.drink?HD.refri:0)),p.x,p.y,"#ffd23f");G.fx.spawn(c.h.position.clone().setY(2),0xffd23f,16,3);c.mood=1}
+      else{G.bad++;sfx("err");vib&&vib([30,40,30]);G.say("Pedido errado! O cliente não pagou.");c.mood=-1}
+      c.st="sai";c.t=0;G.top.clear();G.drink=false}},
+  update(G,dt){const espera=G.q.filter(c=>c.st!=="sai").length;G.next-=dt;
+    if(G.next<=0&&espera<3&&G.arrived<N+4&&G.used<N){G.next=2.4+Math.random()*1.6;G.arrived++;const top=pick(HD_TOP.map(t=>t[0]),1+Math.floor(Math.random()*3));G.q.push({order:{top,drink:Math.random()<0.4},pat:1,st:"vem",t:0,mood:0,seed:Math.floor(Math.random()*12)})}
+    for(const c of G.q){if(c.st==="pede"||c.st==="fila"){c.pat-=dt/(c.st==="pede"?17:30);if(c.pat<=0){c.st="sai";c.t=0;c.mood=-1;G.lost=(G.lost||0)+1;G.say("Um cliente cansou de esperar e foi embora!")}}}
+    const fila=G.q.filter(c=>c.st!=="sai");fila.forEach((c,i)=>{if(c.st==="vem"||c.st==="fila"||c.st==="pede")c.st=i===0?"pede":"fila"});
+    if(G.used>=N&&!G.q.some(c=>c.st==="sai"))G.finish();if(G.arrived>=N+4&&!G.q.length)G.finish()},
+  draw(G,c,t3){if(!t3||!G.M)return;const f=G.q.find(c=>c.st==="pede");
+    if(f&&f.h){const p=scr3(G,G.M,f.h.position.clone().setY(2.9));const items=[...f.order.top.map(k=>HD_TOP.find(t=>t[0]===k)),...(f.order.drink?[["refri","Refri","#2f6fae"]]:[])];G.font(12,900);
+      const w=Math.max(130,...items.map(i=>c.measureText(i[1]).width+40)),h=24+items.length*20+12;const x=Math.max(8,Math.min(G.W-w-8,p.x-w/2)),y=Math.max(70,p.y-h);
+      c.fillStyle="rgba(255,255,255,.96)";RR(c,x,y,w,h,12);c.fill();c.strokeStyle="#0A2240";c.lineWidth=2;c.stroke();G.text("🌭 Cachorro-quente com:",x+w/2,y+16,"#0A2240");
+      items.forEach((it,i)=>{const yy=y+34+i*20;const got=it[0]==="refri"?G.drink:G.top.has(it[0]);c.fillStyle=it[2];c.beginPath();c.arc(x+16,yy-4,6,0,7);c.fill();G.text((got?"✔ ":"")+it[1],x+w/2+6,yy,got?"#319B27":"#0A2240")});
+      c.fillStyle=f.pat>0.5?"#319B27":f.pat>0.25?"#ffb21f":"#e2483d";RR(c,x+8,y+h-8,(w-16)*Math.max(0,f.pat),5,3);c.fill()}
+    hint3(G,c,"Toque nos potes e depois em ENTREGAR")},
+  win:G=>G.good>=Math.min(5,Math.ceil(N*0.5)),
+  three:{init(G,M){G.M=M;G.fx=fx3(M);const tall=isTall(M);room3d(M,{bg:0x9fd4f5,cam:[0,4.2,6],look:[0,1.2,-1.5],floor:0x4fa244,fov:48});
+      const line=new THREE.Mesh(new THREE.PlaneGeometry(40,0.15),new THREE.MeshBasicMaterial({color:0xffffff}));line.rotation.x=-Math.PI/2;line.position.set(0,0.02,-9);M.scene.add(line);
+      const wm=lam(0xffffff);for(const x of[-3.6,3.6]){const p=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,2.4,8),wm);p.position.set(x+8,1.2,-14);M.scene.add(p)}const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,7.3,8),wm);bar.rotation.z=Math.PI/2;bar.position.set(8,2.4,-14);M.scene.add(bar);
+      for(let i=0;i<8;i++){const n=npc3(M,i+3);n.position.set(-10+i*2.6,0,-12-(i%2)*1.5);n.rotation.y=0.3}
+      prop3(M,"nature/tree_default.glb",-11,0,-16,{height:5});prop3(M,"nature/tree_oak.glb",12,0,-17,{height:5});
+      /* carrinho visto de trás (o jogador está atrás dele) */
+      const cart=hdCart(S.nick,true);cart.position.set(0,0,0.2);cart.rotation.y=Math.PI;cart.scale.setScalar(1.25);M.scene.add(cart);
+      G.tap=[];const mk=(act,x,z,obj)=>{obj.userData.act=act;obj.position.x=x;obj.position.z=z;obj.userData.y0=obj.position.y;M.scene.add(obj);G.tap.push(obj);return obj};
+      const pot=(col,label)=>{const g=new THREE.Group();const b=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.24,0.32,14),lam(0xeeeeee));b.position.y=0.16;g.add(b);const f=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,0.04,14),lam(col));f.position.y=0.3;g.add(f);
+        const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:txtTex3(256,80,"#ffffff","#0A2240",label,34,{border:"#0A2240",bw:6})}));sp.scale.set(tall?0.62:0.85,tall?0.2:0.27,1);sp.position.y=0.55+(G.potN=(G.potN||0)+1)%2*0.24;g.add(sp);g.position.y=2.1;return g};
+      const xs=tall?[-0.95,-0.32,0.32,0.95]:[-1.35,-0.45,0.45,1.35];HD_TOP.forEach(([k,n,col],i)=>mk(k,xs[i],0.95,pot(new THREE.Color(col).getHex(),n)));
+      const lata=new THREE.Group();const cn=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.17,0.45,14),lam(0x2f6fae));cn.position.y=0.22;lata.add(cn);const ls=new THREE.Sprite(new THREE.SpriteMaterial({map:txtTex3(200,80,"#ffffff","#2f6fae","Refri",36,{border:"#2f6fae",bw:6})}));ls.scale.set(0.7,0.28,1);ls.position.y=0.66;lata.add(ls);lata.position.y=2.1;mk("refri",tall?1.25:1.95,0.3,lata);G.lata=lata;
+      const btn=(txt,col,act,x)=>{const g=new THREE.Group();const b=new THREE.Mesh(new THREE.BoxGeometry(1.15,0.5,0.12),lam(col));g.add(b);const t=new THREE.Mesh(new THREE.PlaneGeometry(1.08,0.44),new THREE.MeshBasicMaterial({map:txtTex3(320,128,"#"+new THREE.Color(col).getHexString(),"#ffffff",txt,44)}));t.position.z=0.07;g.add(t);g.position.y=2.55;g.rotation.x=-0.35;return mk(act,x,1.25,g)};
+      btn("ENTREGAR",0x319B27,"ok",0);btn("LIXO",0x8a8f99,"lixo",0);{const ok=G.tap.find(o=>o.userData.act==="ok"),lx=G.tap.find(o=>o.userData.act==="lixo");if(tall){ok.position.set(0.68,1.95,2.0);lx.position.set(-0.68,1.95,2.0)}else{ok.position.set(2.55,2.3,0.9);lx.position.set(-2.55,2.3,0.9)}if(tall){ok.scale.setScalar(1.05);lx.scale.setScalar(1.05)}G.tap.forEach(o=>o.userData.y0=o.position.y)}
+      /* o lanche sendo montado em cima do carrinho */
+      const dog=new THREE.Group();dog.position.set(0,2.3,-0.15);dog.scale.setScalar(tall?1.15:1.3);M.scene.add(dog);const inner=new THREE.Group();dog.add(inner);swapModel(inner,"food/hot-dog.glb",{size:0.9});
+      G.tops={};HD_TOP.forEach(([k,n,col],i)=>{const g=new THREE.Group();const m=lam(new THREE.Color(col).getHex());if(k==="batata"){for(let j=0;j<14;j++){const s=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,0.12),m);s.position.set((Math.random()-0.5)*0.6,0.2+Math.random()*0.04,(Math.random()-0.5)*0.12);s.rotation.y=Math.random()*3;g.add(s)}}
+        else if(k==="molho"){for(let j=0;j<9;j++){const s=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,0.05),lam(j%3?0xd94a3a:0x3f9a3c));s.position.set(-0.3+j*0.075,0.17,(Math.random()-0.5)*0.08);g.add(s)}}
+        else{for(let j=0;j<6;j++){const s=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.16,6),m);s.rotation.z=Math.PI/2;s.rotation.y=(j%2?0.6:-0.6);s.position.set(-0.25+j*0.1,0.19+(k==="ketchup"?0.01:0.02),0);g.add(s)}}
+        g.visible=false;dog.add(g);G.tops[k]=g});G.dog=dog;
+      G.npcs=new Map();if(tall)fitW(M,[0,3.4,4.6],[0,1.9,-0.9],4.1);else fitW(M,[0,3.7,5.8],[0,1.5,-1.2],7.6)},
+    update(G,M,dt){G.fx.update(dt);for(const k in G.tops)G.tops[k].visible=G.top.has(k);G.lata.position.y=2.1+(G.drink?0.25:0);G.dog.rotation.y=Math.sin(G.t*1.5)*0.15;
+      const fila=G.q.filter(c=>c.st!=="sai");
+      for(const c of G.q){if(!c.h){c.h=npc3(M,c.seed);c.h.position.set(-7,0,-2.4);c.h.scale.setScalar(1.15)}
+        if(c.st==="sai"){c.t+=dt;animTo(c.h,c.mood>0?/cheer|wave|interact/i:/walk/i);if(c.t>0.8){c.h.position.x+=dt*4;c.h.rotation.y=Math.PI/2}if(c.t>3){M.scene.remove(c.h);c.gone=1}continue}
+        const i=fila.indexOf(c);const tx=i===0?0:-1.6-i*1.3,tz=i===0?-1.6:-2.4-i*0.4;const dx=tx-c.h.position.x,dz=tz-c.h.position.z,d=Math.hypot(dx,dz);
+        if(d>0.05){c.h.position.x+=dx/d*Math.min(d,dt*3.2);c.h.position.z+=dz/d*Math.min(d,dt*3.2);c.h.rotation.y=Math.atan2(dx,dz);animTo(c.h,/walk/i)}else{c.h.rotation.y=0;animTo(c.h,/idle/i)}}
+      G.q=G.q.filter(c=>!c.gone)}}}}
+
 /* ============ boot ============ */
 (async function boot(){
   const test=document.createElement("canvas");if(!(test.getContext("webgl")||test.getContext("experimental-webgl"))){$("#loading").innerHTML="";$("#loading").append(el("div",{text:"Este aparelho não roda gráficos 3D."}),el("small",{text:"Tente em outro celular ou computador."}));return}
