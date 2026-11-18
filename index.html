@@ -3533,7 +3533,7 @@ function placeActions(p){const out=[];
   if(p.id==="expresso"){if(S.svc&&S.svc.kind==="entrega"&&S.svc.targets.every(t=>S.svc.done.includes(t)))out.push(el("button",{class:"btn green",onclick:()=>{S.svc=null;clearSvcBeams();setWaypoint(null);svcPay(30,20,"Expresso São Miguel: entregas feitas! +30 moedas e 20 pontos");lastPlace="";checkPlace()}},"Receber pelas entregas"));else if(!S.svc)out.push(el("button",{class:"btn blue",onclick:()=>startSvc("entrega")},"Pegar encomendas"))}
   if(S.svc&&S.svc.kind==="entrega"&&S.svc.targets.includes(p.id)&&!S.svc.done.includes(p.id))out.unshift(el("button",{class:"btn green",onclick:()=>svcDeliver(p)},"Entregar encomenda"));
   if(JOBS[p.id]){const j=JOBS[p.id];const left=JOB_COOLDOWN-(Date.now()-((S.jobs||{})[p.id]||0));
-    out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");(p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?openMarketJobs(p):p.id==="posto"?openPostoJobs(p):p.id==="ilse"?openIlseJobs(p):startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+((p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?j.label:p.id==="posto"||p.id==="ilse"?"escolher serviço":jobNextLabel(p))))}
+    out.push(el("button",{class:"btn green",onclick:()=>{if(left>0)return toast("Volte em "+Math.ceil(left/60000)+" min para trabalhar aqui de novo");(p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?openMarketJobs(p):p.id==="posto"?openPostoJobs(p):p.id==="ilse"?openIlseJobs(p):JOB_ESCOLHA.includes(p.id)?openChoiceJobs(p):startJob(p)}},left>0?"Próximo turno em "+Math.ceil(left/60000)+" min":"Trabalhar: "+((p.id==="rosas"||p.id==="ribas"||p.id==="furlaneto")?j.label:p.id==="posto"||p.id==="ilse"||JOB_ESCOLHA.includes(p.id)?"escolher serviço":jobNextLabel(p))))}
   return out}
 
 /* ============ sheets & minigames ============ */
@@ -5639,8 +5639,8 @@ function MG_HOTDOG(estoque){const N=Math.min(estoque,12);return{title:"Hot dog d
     const fila=G.q.filter(c=>c.st!=="sai");fila.forEach((c,i)=>{if(c.st==="vem"||c.st==="fila"||c.st==="pede")c.st=i===0?"pede":"fila"});
     if(G.used>=N&&!G.q.some(c=>c.st==="sai"))G.finish();if(G.arrived>=N+4&&!G.q.length)G.finish()},
   draw(G,c,t3){if(!t3||!G.M)return;const f=G.q.find(c=>c.st==="pede");
-    for(const q of G.q){if(!q.h)continue;let e=null;if(q.st==="sai"&&q.t<1.2)e=q.mood>0?"😋":"😠";else if(q.st!=="sai"&&q.pat<0.3)e="😤";else if(q.st==="fila")e=null;if(e){const pe=scr3(G,G.M,q.h.position.clone().add(new THREE.Vector3(0.75,2.0,0)));emo(c,e,pe.x,pe.y,0.36)}}
-    if(f&&f.h){const p=scr3(G,G.M,f.h.position.clone().setY(2.55));const items=[...f.order.top.map(k=>HD_TOP.find(t=>t[0]===k)),...(f.order.drink?[["refri","Refri","#2f6fae"]]:[])];G.font(12,900);
+    for(const q of G.q){if(!q.h)continue;let e=null;if(q.st==="sai"&&q.t<1.2)e=q.mood>0?"😋":"😠";else if(q.st!=="sai"&&q.pat<0.3)e="😤";else if(q.st==="fila")e=null;if(e){const pe=scr3(G,G.M,q.h.position.clone().add(new THREE.Vector3(0.8,2.2,0)));emo(c,e,pe.x,pe.y,0.36)}}
+    if(f&&f.h){const p=scr3(G,G.M,f.h.position.clone().setY(3.05));const items=[...f.order.top.map(k=>HD_TOP.find(t=>t[0]===k)),...(f.order.drink?[["refri","Refri","#2f6fae"]]:[])];G.font(12,900);
       const w=Math.min(G.W-16,Math.max(c.measureText("🌭 Cachorro-quente com:").width+24,...items.map(i=>c.measureText("✔ "+i[1]).width+52))),h=24+items.length*20+12;const x=Math.max(8,Math.min(G.W-w-8,p.x-w/2)),y=Math.max(70,p.y-h);
       c.fillStyle="rgba(255,255,255,.96)";RR(c,x,y,w,h,12);c.fill();c.strokeStyle="#0A2240";c.lineWidth=2;c.stroke();G.text("🌭 Cachorro-quente com:",x+w/2,y+16,"#0A2240");
       items.forEach((it,i)=>{const yy=y+34+i*20;const got=it[0]==="refri"?G.drink:G.top.has(it[0]);c.fillStyle=it[2];c.beginPath();c.arc(x+16,yy-4,6,0,7);c.fill();G.text((got?"✔ ":"")+it[1],x+w/2+6,yy,got?"#319B27":"#0A2240")});
@@ -5669,12 +5669,12 @@ function MG_HOTDOG(estoque){const N=Math.min(estoque,12);return{title:"Hot dog d
         else if(k==="molho"){for(let j=0;j<9;j++){const s=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,0.05),lam(j%3?0xd94a3a:0x3f9a3c));s.position.set(-0.3+j*0.075,0.17,(Math.random()-0.5)*0.08);g.add(s)}}
         else{for(let j=0;j<6;j++){const s=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.16,6),m);s.rotation.z=Math.PI/2;s.rotation.y=(j%2?0.6:-0.6);s.position.set(-0.25+j*0.1,0.19+(k==="ketchup"?0.01:0.02),0);g.add(s)}}
         g.visible=false;dog.add(g);G.tops[k]=g});G.dog=dog;
-      M.cam.fov=tall?32:34;M.cam.updateProjectionMatrix();if(tall)fitW(M,[0,2.6,4.4],[0,2.15,-0.9],3.7);else fitW(M,[0,2.3,4.4],[0,1.75,-1.0],5.0)},
+      M.cam.fov=tall?32:34;M.cam.updateProjectionMatrix();if(tall)fitW(M,[0,2.9,4.4],[0,1.95,-1.1],3.7);else fitW(M,[0,2.7,4.4],[0,1.8,-1.3],5.0)},
     update(G,M,dt){G.fx.update(dt);for(const k in G.tops)G.tops[k].visible=G.top.has(k);G.lata.position.y=G.TY+(G.drink?0.2:0);G.lata.rotation.y=G.drink?Math.sin(G.t*6)*0.2:0;G.dog.rotation.y=Math.sin(G.t*1.5)*0.15;
       const fila=G.q.filter(c=>c.st!=="sai");
       for(const c of G.q){if(!c.h){c.h=npc3(M,c.seed);c.h.position.set(-7,0,-4.5);c.h.scale.setScalar(1.6);c.wave=1.2}
         if(c.st==="sai"){c.t+=dt;if(c.t<0.9){c.h.rotation.y=0;animTo(c.h,c.mood>0?/cheer|wave|interact/i:/idle/i);c.h.position.y=c.mood>0?Math.abs(Math.sin(c.t*9))*0.15:0}else{c.h.position.y=0;c.h.position.x+=dt*3.5;c.h.rotation.y=Math.PI/2;animTo(c.h,/walk/i)}if(c.t>3.4){M.scene.remove(c.h);c.gone=1}continue}
-        const i=fila.indexOf(c);const tx=i===0?0:-0.9-i*1.0,tz=i===0?-1.7:-2.6-i*0.7;const dx=tx-c.h.position.x,dz=tz-c.h.position.z,d=Math.hypot(dx,dz);
+        const i=fila.indexOf(c);const tx=i===0?0:-1.2-i*1.0,tz=i===0?-1.6:-2.9-i*0.7;const ty=i===0?0.55:0;c.h.position.y+=(ty-c.h.position.y)*Math.min(1,dt*5);const dx=tx-c.h.position.x,dz=tz-c.h.position.z,d=Math.hypot(dx,dz);
         if(d>0.05){c.h.position.x+=dx/d*Math.min(d,dt*3);c.h.position.z+=dz/d*Math.min(d,dt*3);c.h.rotation.y=Math.atan2(dx,dz);animTo(c.h,/walk/i)}
         else{c.h.rotation.y=i===0?0:0.5;if(c.wave>0&&i===0){c.wave-=dt;animTo(c.h,/wave|interact|cheer/i)}else animTo(c.h,/idle/i);if(c.pat<0.3)c.h.rotation.z=Math.sin(G.t*14)*0.03}}
       G.q=G.q.filter(c=>!c.gone)}}}}
@@ -5747,7 +5747,7 @@ function MG_PADARIA3(){return{title:"Divino Sabor: atender no balcão",time:75,i
 MINIS.padaria3=()=>MG_PADARIA3();GAME_LABEL.padaria3="Atender no balcão";JOB_ROT.divino=["padaria3","catch:padaria","memo:padaria"];
 
 /* ============ aviso de versão nova (o site guarda o jogo no celular; isso avisa quando saiu atualização) ============ */
-const GAME_VER="2026-11-18d";
+const GAME_VER="2026-11-18e";
 function verCheck(){try{if(!location.hostname||location.hostname.indexOf("bairroemjogo")<0||navigator.onLine===false)return;const SRC="https://associacaojardimlosangeles-create.github.io/jla-bairro-em-jogo/";
   fetch(SRC+"version.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.v||j.v===GAME_VER||document.getElementById("novaver"))return;
     const bar=el("div",{id:"novaver",style:"position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:9999;background:#F57E20;color:#fff;font:900 14px system-ui,sans-serif;padding:10px 14px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 32px)"},
@@ -5755,6 +5755,14 @@ function verCheck(){try{if(!location.hostname||location.hostname.indexOf("bairro
         try{const h=await (await fetch(SRC+"?t="+Date.now(),{cache:"no-store"})).text();if("caches" in window){const c=await caches.open("jogo-v1");await c.put("/__jogo.html",new Response(h,{headers:{"Content-Type":"text/html; charset=utf-8"}}))}}catch(e){}location.reload()}},"Atualizar"));
     document.body.append(bar)}).catch(()=>{})}catch(e){}}
 setTimeout(verCheck,8000);setInterval(verCheck,10*60*1000);
+
+/* lugares onde o jogador escolhe o serviço (assim nenhum some na troca) */
+const JOB_ESCOLHA=["campo","creche","ubs"];
+const COLETE_LABEL={bolas:["Catar as bolas do campo","Ande pelo campo e recolha as bolas espalhadas"],brinquedos:["Recolher os brinquedos","Ande pelo pátio da creche e junte os brinquedos"]};
+const ESCOLHA_DESC={penalti:"Escolha o canto e faça gol no goleiro",horta:"Plante, regue e colha na horta da creche",pinta:"Pinte a parede com o rolo de tinta",limpa:"Passe o rodo nas manchas do chão"};
+function openChoiceJobs(p){const L=JOB_ROT[p.id]||[JOBS[p.id].game];const cores=["","green","blue",""];
+  openSheet("Trabalhar: "+p.name,el("p",{text:"O que você quer fazer agora?"}),...L.map((g,i)=>{const c=g.startsWith("colete:")?COLETE_LABEL[g.slice(7)]||[JOBS[p.id].label,""]:[GAME_LABEL[g]||JOBS[p.id].label,ESCOLHA_DESC[g]||""];
+    return el("button",{class:"btn "+cores[i%4],style:"display:block;width:100%;margin:8px 0;text-align:left;padding:12px 14px",onclick:()=>{closeSheet();startJob(p,g)}},el("b",{text:c[0],style:"display:block;font-size:17px"}),el("span",{text:c[1],style:"font-weight:600;font-size:13px;opacity:.9"}))}))}
 
 /* ============ boot ============ */
 (async function boot(){
