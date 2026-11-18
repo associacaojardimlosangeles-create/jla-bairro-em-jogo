@@ -2989,7 +2989,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
     /* clientes */
     const vis=queue.slice(0,4);vis.forEach((cu,i)=>{const tx=i===0?0.3:0.56+i*0.13;cu.x+=(tx-cu.x)*Math.min(1,dt*5);const s=i===0?Math.min(1.05,H/620):Math.min(0.72,H/900);if(T3)npcSync(cu,i,s,L,dt);else drawCust(cu,W*cu.x,L.cTop-(i===0?40:70)*s,s)});if(T3){for(const [cu,h] of NPCS)if(!vis.includes(cu)){T3.scene.remove(h);NPCS.delete(cu)}try{MIX3.forEach(m=>m.update(dt))}catch(e){}T3.render()}
     /* balões de fala: quem espera fica impaciente */
-    vis.forEach((cu,i)=>{cu.wt=(cu.wt||0)+dt;const lvl=i===0?(cu.pat>0.55?0:cu.pat>0.28?1:2):(cu.wt<10?0:cu.wt<22?1:2);if(i===0&&lvl===0)return;cu.sayT=(cu.sayT||0)-dt;
+    vis.forEach((cu,i)=>{cu.wt=(cu.wt||0)+dt;const lvl=i===0?(cu.pat>0.55?0:cu.pat>0.28?1:2):(cu.wt<10?0:cu.wt<22?1:2);if(i===0)return;cu.sayT=(cu.sayT||0)-dt;
       if(cu.sayT<=0||cu.sayL!==lvl){cu.sayL=lvl;cu.sayT=3.5+Math.random()*2.5;const P=[["Bom dia!","Que cheiro bom!","Tô só olhando...","Hum, tô na dúvida","Oi, tudo bem?"],["Vai demorar?","Apura aí!","Tô com pressa!","Anda, por favor!","Tô com fome!"],["Tô com muita fome!!","Apura, moço!","Vou embora, hein!","Aaah, demora...","Cadê meu pedido?!"]][lvl];cu.say=P[(Math.random()*P.length)|0];if(Math.random()<0.35&&lvl>0)cu.sayHide=1.2;else cu.sayHide=0}
       if(cu.sayHide>0){cu.sayHide-=dt;return}const s=i===0?Math.min(1.05,H/620):Math.min(0.72,H/900);const bx=W*cu.x,by=L.cTop-(i===0?40:70)*s-(i===0?175:160)*s;
       let fz=i===0?15:13;c.font="900 "+fz+"px system-ui,sans-serif";while(c.measureText(cu.say).width+18>W-8&&fz>9){fz--;c.font="900 "+fz+"px system-ui,sans-serif"}const tw=c.measureText(cu.say).width+18,th=i===0?30:26;const x0=Math.max(4,Math.min(W-tw-4,bx-tw/2-(i===0?60:0)));
@@ -3020,7 +3020,7 @@ function gameCounter(id,intro,cb){const cfg=COUNTER[id];const TOTAL=6,TIME=100;
   const NPCS=new Map();let built=false;
   function counter3d(){if(built)return;built=true;const M=T3;room3d(M,{bg:new THREE.Color(cfg.wall).getHex(),wall:[cfg.wall,cfg.wall2],title:cfg.title.toUpperCase(),sub:"balcão de atendimento",cam:[0,3.2,9.5],look:[0,2.7,0],floor:0xcfc6b2,wy:5.4,wz:-7});
     for(const x of[-6.5,-3.8,3.8,6.5])prop3(M,"market/shelf-boxes.glb",x,0,-5.8,{height:2.6});prop3(M,"furniture/kitchenCoffeeMachine.glb",-2,1.6,-5.4,{height:0.8});}
-  function npcSync(cu,i,s,L,dt){let h=NPCS.get(cu);if(!h){h=npc3(T3);NPCS.set(cu,h)}atScreen({k:K},T3,h,W*cu.x,L.cTop+10,i===0?-0.5:-2.5,(i===0?250:190)*s);
+  function npcSync(cu,i,s,L,dt){let h=NPCS.get(cu);if(!h){h=npc3(T3);NPCS.set(cu,h)}atScreen({k:K},T3,h,W*cu.x,L.cTop+10,i===0?-0.5:-2.5,Math.min((i===0?250:190)*s,L.cTop*(i===0?0.78:0.55)));
     const mv=Math.abs(cu.x-(i===0?0.3:0.56+i*0.13))>0.02;h.rotation.y=mv?-Math.PI/2:0;animTo(h,mv?/walk/:cu.mood>0?/cheer|jump/:/idle/);if(cu.mood>0)h.position.y+=Math.abs(Math.sin(performance.now()/90))*0.2}
   function wrapText(t,x,y,mw,lh){const ws=t.split(" ");let line="";for(const w of ws){const tt=line?line+" "+w:w;if(c.measureText(tt).width>mw&&line){c.fillText(line,x,y);y+=lh;line=w}else line=tt}c.fillText(line,x,y)}
   function same(a,b){if(cfg.mode==="stack")return a.length===b.length&&a.every((v,i)=>v===b[i]);const s=x=>[...x].sort().join();return s(a)===s(b)}
@@ -5678,6 +5678,73 @@ function MG_HOTDOG(estoque){const N=Math.min(estoque,12);return{title:"Hot dog d
         if(d>0.05){c.h.position.x+=dx/d*Math.min(d,dt*3);c.h.position.z+=dz/d*Math.min(d,dt*3);c.h.rotation.y=Math.atan2(dx,dz);animTo(c.h,/walk/i)}
         else{c.h.rotation.y=i===0?0:0.5;if(c.wave>0&&i===0){c.wave-=dt;animTo(c.h,/wave|interact|cheer/i)}else animTo(c.h,/idle/i);if(c.pat<0.3)c.h.rotation.z=Math.sin(G.t*14)*0.03}}
       G.q=G.q.filter(c=>!c.gone)}}}}
+
+/* ============ Panificadora Divino Sabor: balcão todo em 3D (pães e doces de verdade, clientes à vista) ============ */
+const PAD_ITENS=[["pao","Pão francês"],["sonho","Sonho"],["bolo","Bolo de fubá"],["pqueijo","Pão de queijo"],["cafe","Café com leite"],["suco","Suco"]];
+function padItem(k){const g=new THREE.Group();const inner=new THREE.Group();g.add(inner);
+  if(k==="pao"){for(let i=0;i<3;i++){const p=new THREE.Group();p.position.set((i-1)*0.17,0,(i%2)*0.06);p.rotation.y=0.3*i;inner.add(p);swapModel(p,"food/bread.glb",{size:0.3})}}
+  else if(k==="sonho"){for(let i=0;i<2;i++){const s=new THREE.Mesh(new THREE.SphereGeometry(0.13,14,10),lam(0xd99a4e));s.scale.y=0.7;s.position.set((i-0.5)*0.26,0.09,0);inner.add(s);
+      const a=new THREE.Mesh(new THREE.SphereGeometry(0.135,14,10,0,Math.PI*2,0,Math.PI*0.35),lam(0xffffff));a.scale.y=0.7;a.position.copy(s.position);inner.add(a);const cr=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.02,10),lam(0xf3d27a));cr.rotation.z=Math.PI/2;cr.position.set(s.position.x+0.12,0.09,0);inner.add(cr)}}
+  else if(k==="bolo"){const b=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.16,24,1,false,0,Math.PI*1.6),lam(0xf0c75e));b.position.y=0.08;inner.add(b);const t=new THREE.Mesh(new THREE.CylinderGeometry(0.221,0.221,0.02,24,1,false,0,Math.PI*1.6),lam(0xc98a3a));t.position.y=0.165;inner.add(t);
+    const pr=new THREE.Mesh(new THREE.CylinderGeometry(0.27,0.27,0.02,24),lam(0xffffff));pr.position.y=0.01;inner.add(pr)}
+  else if(k==="pqueijo"){const cesta=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.17,0.1,16,1,true),new THREE.MeshLambertMaterial({color:0xa66b32,side:THREE.DoubleSide}));cesta.position.y=0.05;inner.add(cesta);
+    for(let i=0;i<7;i++){const a=i/7*6.28;const s=new THREE.Mesh(new THREE.SphereGeometry(0.065,10,8),lam(0xe8b65a));s.position.set(i?Math.cos(a)*0.12:0,0.1+(i?0:0.05),i?Math.sin(a)*0.12:0);inner.add(s)}}
+  else if(k==="cafe")swapModel(inner,"food/cup-coffee.glb",{size:0.3});
+  else if(k==="suco"){const cp=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.07,0.26,14),new THREE.MeshLambertMaterial({color:0xcfe9ff,transparent:true,opacity:0.45}));cp.position.y=0.13;inner.add(cp);
+    const lq=new THREE.Mesh(new THREE.CylinderGeometry(0.083,0.066,0.2,14),lam(0xf59a23));lq.position.y=0.11;inner.add(lq);const cu=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.3,6),lam(0xe2483d));cu.position.set(0.04,0.25,0);cu.rotation.z=-0.25;inner.add(cu)}
+  g.traverse(o=>{if(o.isMesh)o.castShadow=!lowQ});return g}
+function MG_PADARIA3(){return{title:"Divino Sabor: atender no balcão",time:75,icon:(c,x,y,s)=>emo(c,"🥐",x,y,s),
+  help:["A fila da padaria espera do outro lado do balcão. Veja no balão o que cada cliente quer.","Toque nos pães e doces da vitrine para colocar na bandeja e depois em ENTREGAR. Errou? Toque em LIMPAR. Atenda 6 clientes!"],
+  init(G){G.sel=new Set();G.q=[];G.next=0.3;G.arrived=0},hud:G=>"Atendidos "+G.good+"/6",layout(G){G.buttons=[]},
+  down(G,x,y){if(!G.M)return;const hit=pick3(G,x,y,G.tap);if(!hit)return;let o=hit.object;while(o&&!o.userData.act)o=o.parent;if(!o)return;const a=o.userData.act;
+    if(a==="limpa"){G.sel.clear();sfx("tap");return}
+    if(a==="ok"){const c=G.q.find(c=>c.st==="pede");if(!c)return G.say("Espere o cliente chegar no balcão.");if(!G.sel.size)return G.say("Coloque o pedido na bandeja primeiro.");
+      const ok=c.order.length===G.sel.size&&c.order.every(t=>G.sel.has(t));if(ok){G.good++;sfx("coin");vib&&vib([15,30,15]);const p=scr3(G,G.M,c.h.position.clone().setY(2.3));G.float("Obrigado!",p.x,p.y,"#7CFC9A");G.fx.spawn(c.h.position.clone().setY(1.8),0xffd23f,16,3);c.mood=1;if(G.good>=6)setTimeout(()=>G.finish(),900)}
+      else{G.bad++;sfx("err");vib&&vib([30,40,30]);G.say("Não era isso que o cliente pediu!");c.mood=-1}c.st="sai";c.t=0;G.sel.clear();return}
+    if(G.sel.has(a))G.sel.delete(a);else if(G.sel.size<4)G.sel.add(a);sfx("tap");vib&&vib(8);o.position.y=o.userData.y0+0.08;setTimeout(()=>o.position.y=o.userData.y0,130)},
+  update(G,dt){const espera=G.q.filter(c=>c.st!=="sai").length;G.next-=dt;
+    if(G.next<=0&&espera<3){G.next=3+Math.random()*2;G.arrived++;G.q.push({order:pick(PAD_ITENS.map(i=>i[0]),1+Math.floor(Math.random()*(G.arrived<3?2:3))),pat:1,st:"vem",t:0,mood:0,seed:Math.floor(Math.random()*12)})}
+    for(const c of G.q){if(c.st==="pede"||c.st==="fila"){c.pat-=dt/(c.st==="pede"?20:34);if(c.pat<=0){c.st="sai";c.t=0;c.mood=-1;G.bad++;G.say("Um cliente cansou de esperar e foi embora!")}}}
+    const fila=G.q.filter(c=>c.st!=="sai");fila.forEach((c,i)=>c.st=i===0?"pede":"fila")},
+  draw(G,c,t3){if(!t3||!G.M)return;
+    for(const q of G.q){if(!q.h)continue;let e=null;if(q.st==="sai"&&q.t<1.2)e=q.mood>0?"😋":"😠";else if(q.st!=="sai"&&q.pat<0.3)e="😤";if(e){const pe=scr3(G,G.M,q.h.position.clone().add(new THREE.Vector3(0.6,1.9,0)));emo(c,e,pe.x,pe.y,0.34)}}
+    const f=G.q.find(c=>c.st==="pede");if(f&&f.h){const p=scr3(G,G.M,f.h.position.clone().setY(3.05));G.font(12,900);const title="🥐 Eu quero:";const names=f.order.map(k=>PAD_ITENS.find(i=>i[0]===k)[1]);
+      const w=Math.min(G.W-16,Math.max(c.measureText(title).width+24,...names.map(n=>c.measureText("✔ "+n).width+30))),h=26+names.length*20+12;const x=Math.max(8,Math.min(G.W-w-8,p.x-w/2)),y=Math.max(64,p.y-h);
+      c.fillStyle="rgba(255,255,255,.97)";RR(c,x,y,w,h,12);c.fill();c.strokeStyle="#7a4a1e";c.lineWidth=2;c.stroke();G.text(title,x+w/2,y+17,"#7a4a1e");
+      names.forEach((n,i)=>{const got=G.sel.has(f.order[i]);G.text((got?"✔ ":"")+n,x+w/2,y+37+i*20,got?"#319B27":"#0A2240")});
+      c.fillStyle=f.pat>0.5?"#319B27":f.pat>0.25?"#ffb21f":"#e2483d";RR(c,x+8,y+h-8,(w-16)*Math.max(0,f.pat),5,3);c.fill()}
+    hint3(G,c,"Toque nos pães da vitrine e depois em ENTREGAR")},
+  win:G=>G.good>=6,
+  three:{init(G,M){G.M=M;G.fx=fx3(M);const tall=isTall(M);room3d(M,{bg:0xf3e3c8,cam:[0,2.4,4],look:[0,1.4,-1],floor:0xb98a5a,fov:40});
+      const wall=new THREE.Mesh(new THREE.PlaneGeometry(30,10),new THREE.MeshLambertMaterial({map:wallTex(["#f6d9a8","#d9a35a"],"PANIFICADORA DIVINO SABOR","pão quentinho toda hora")}));wall.position.set(0,4.5,-5.5);M.scene.add(wall);
+      for(const sx of[-1,1]){const sh=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.08,0.5),lam(0x8a5a2c));sh.position.set(sx*2.6,1.8,-5.2);M.scene.add(sh);for(let i=0;i<4;i++){const b=new THREE.Group();b.position.set(sx*2.6+(i-1.5)*0.5,1.84,-5.2);M.scene.add(b);swapModel(b,"food/bread.glb",{size:0.35})}}
+      /* balcão-vitrine baixo, para os clientes aparecerem atrás */
+      const VH=0.95;G.VH=VH;const madeira=lam(0x8a5a2c);const base=new THREE.Mesh(new THREE.BoxGeometry(3.4,VH,0.9),madeira);base.position.set(0,VH/2,0);M.scene.add(base);
+      const tampo=new THREE.Mesh(new THREE.BoxGeometry(3.5,0.06,1.0),lam(0xf1ece2));tampo.position.set(0,VH+0.03,0);M.scene.add(tampo);
+      const vid=new THREE.Mesh(new THREE.BoxGeometry(3.3,0.03,0.85),new THREE.MeshLambertMaterial({color:0xcfe9ff,transparent:true,opacity:0.25}));vid.position.set(0,VH+0.95,-0.05);M.scene.add(vid);
+      for(const sx of[-1.62,1.62])for(const sz of[-0.45,0.35]){const pst=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.95,6),metal(0xd3d8df));pst.position.set(sx,VH+0.48,sz);M.scene.add(pst)}
+      const faixa=new THREE.Mesh(new THREE.BoxGeometry(3.42,0.14,0.02),lam(0xF57E20));faixa.position.set(0,VH-0.2,0.46);M.scene.add(faixa);
+      G.tap=[];const mk=(act,x,y,z,obj)=>{obj.userData.act=act;obj.position.set(x,y,z);obj.userData.y0=y;M.scene.add(obj);G.tap.push(obj);return obj};
+      const plaque=(txt,w)=>{const t=txtTex3(256,72,"#ffffff","#7a4a1e",txt,32,{border:"#7a4a1e",bw:6});const m=new THREE.Mesh(new THREE.BoxGeometry(w,w*0.28,0.03),[lam(0xffffff),lam(0xffffff),lam(0xffffff),lam(0xffffff),new THREE.MeshBasicMaterial({map:t}),lam(0xffffff)]);m.rotation.x=-0.45;return m};
+      /* vitrine: 6 itens em duas fileiras */
+      PAD_ITENS.forEach(([k,n],i)=>{const g=new THREE.Group();const it=padItem(k);it.scale.setScalar(tall?1.15:1.3);g.add(it);const hit=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.4),new THREE.MeshBasicMaterial({visible:false}));hit.position.y=0.18;g.add(hit);
+        const pq=plaque(n,tall?0.5:0.52);pq.position.set(0,0.02,0.26);g.add(pq);const col=i%3,row=Math.floor(i/3);mk(k,(col-1)*(tall?0.62:1.0),row?VH+0.06:VH+0.42,row?0.22:-0.28,g)});
+      const prat=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.03,0.35),new THREE.MeshLambertMaterial({color:0xcfe9ff,transparent:true,opacity:0.5}));prat.position.set(0,VH+0.4,-0.28);M.scene.add(prat);for(const sx of[-1.5,1.5]){const pe=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.4,0.3),metal(0xd3d8df));pe.position.set(sx,VH+0.2,-0.28);M.scene.add(pe)}
+      /* bandeja com o pedido */
+      const band=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.04,0.5),lam(0xc0261c));band.position.set(tall?0:0,VH+0.08,tall?0.72:0.72);M.scene.add(band);G.band=band;G.bandItems={};
+      PAD_ITENS.forEach(([k],i)=>{const it=padItem(k);it.scale.setScalar(0.75);it.position.set(band.position.x-0.3+(i%3)*0.3,VH+0.1,band.position.z-0.1+Math.floor(i/3)*0.2);it.visible=false;M.scene.add(it);G.bandItems[k]=it});
+      const btn=(txt,col)=>{const g=new THREE.Group();const b=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.42,0.12),lam(col));g.add(b);const t=new THREE.Mesh(new THREE.PlaneGeometry(0.94,0.36),new THREE.MeshBasicMaterial({map:txtTex3(320,128,"#"+new THREE.Color(col).getHexString(),"#ffffff",txt,44)}));t.position.z=0.07;g.add(t);g.rotation.x=-0.45;return g};
+      if(tall){mk("ok",0.6,VH+0.05,1.25,btn("ENTREGAR",0x319B27));mk("limpa",-0.6,VH+0.05,1.25,btn("LIMPAR",0x8a8f99))}else{mk("ok",2.15,VH+0.2,0.5,btn("ENTREGAR",0x319B27));mk("limpa",-2.15,VH+0.2,0.5,btn("LIMPAR",0x8a8f99))}
+      M.cam.fov=40;M.cam.updateProjectionMatrix();if(tall)fitW(M,[0,3.1,3.6],[0,1.7,-0.6],3.0);else fitW(M,[0,2.7,3.8],[0,1.25,-0.6],5.4)},
+    update(G,M,dt){G.fx.update(dt);for(const k in G.bandItems)G.bandItems[k].visible=G.sel.has(k);
+      const fila=G.q.filter(c=>c.st!=="sai");
+      for(const c of G.q){if(!c.h){c.h=npc3(M,c.seed);c.h.position.set(-6,0,-3.8);c.h.scale.setScalar(2.2);c.wave=1.2}
+        if(c.st==="sai"){c.t+=dt;if(c.t<0.9){c.h.rotation.y=0;animTo(c.h,c.mood>0?/cheer|wave|interact/i:/idle/i);c.h.position.y=c.mood>0?Math.abs(Math.sin(c.t*9))*0.12:0}else{c.h.position.y=0;c.h.position.x+=dt*3.2;c.h.rotation.y=Math.PI/2;animTo(c.h,/walk/i)}if(c.t>3.4){M.scene.remove(c.h);c.gone=1}continue}
+        const i=fila.indexOf(c);const tx=i===0?0:-1.2-i*1.0,tz=i===0?-1.6:-2.6-i*0.6;const dx=tx-c.h.position.x,dz=tz-c.h.position.z,d=Math.hypot(dx,dz);
+        if(d>0.05){c.h.position.x+=dx/d*Math.min(d,dt*3);c.h.position.z+=dz/d*Math.min(d,dt*3);c.h.rotation.y=Math.atan2(dx,dz);animTo(c.h,/walk/i)}
+        else{c.h.rotation.y=i===0?0:0.4;if(c.wave>0&&i===0){c.wave-=dt;animTo(c.h,/wave|interact|cheer/i)}else animTo(c.h,/idle/i);if(c.pat<0.3)c.h.rotation.z=Math.sin(G.t*14)*0.03}}
+      G.q=G.q.filter(c=>!c.gone)}}}}
+MINIS.padaria3=()=>MG_PADARIA3();GAME_LABEL.padaria3="Atender no balcão";JOB_ROT.divino=["padaria3","catch:padaria","memo:padaria"];
 
 /* ============ boot ============ */
 (async function boot(){
