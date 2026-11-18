@@ -5746,6 +5746,16 @@ function MG_PADARIA3(){return{title:"Divino Sabor: atender no balcão",time:75,i
       G.q=G.q.filter(c=>!c.gone)}}}}
 MINIS.padaria3=()=>MG_PADARIA3();GAME_LABEL.padaria3="Atender no balcão";JOB_ROT.divino=["padaria3","catch:padaria","memo:padaria"];
 
+/* ============ aviso de versão nova (o site guarda o jogo no celular; isso avisa quando saiu atualização) ============ */
+const GAME_VER="2026-11-18d";
+function verCheck(){try{if(!location.hostname||location.hostname.indexOf("bairroemjogo")<0||navigator.onLine===false)return;const SRC="https://associacaojardimlosangeles-create.github.io/jla-bairro-em-jogo/";
+  fetch(SRC+"version.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.v||j.v===GAME_VER||document.getElementById("novaver"))return;
+    const bar=el("div",{id:"novaver",style:"position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:9999;background:#F57E20;color:#fff;font:900 14px system-ui,sans-serif;padding:10px 14px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 32px)"},
+      el("span",{text:"Saiu versão nova do jogo!"}),el("button",{style:"background:#fff;color:#0A2240;border:0;border-radius:10px;padding:7px 12px;font:900 13px system-ui,sans-serif",onclick:async()=>{try{save()}catch(e){}bar.firstChild.textContent="Atualizando...";
+        try{const h=await (await fetch(SRC+"?t="+Date.now(),{cache:"no-store"})).text();if("caches" in window){const c=await caches.open("jogo-v1");await c.put("/__jogo.html",new Response(h,{headers:{"Content-Type":"text/html; charset=utf-8"}}))}}catch(e){}location.reload()}},"Atualizar"));
+    document.body.append(bar)}).catch(()=>{})}catch(e){}}
+setTimeout(verCheck,8000);setInterval(verCheck,10*60*1000);
+
 /* ============ boot ============ */
 (async function boot(){
   const test=document.createElement("canvas");if(!(test.getContext("webgl")||test.getContext("experimental-webgl"))){$("#loading").innerHTML="";$("#loading").append(el("div",{text:"Este aparelho não roda gráficos 3D."}),el("small",{text:"Tente em outro celular ou computador."}));return}
